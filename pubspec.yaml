@@ -1,5 +1,5 @@
 name: keihatsu
-description: "A manga + light novel reader built for offline freedom, and a seamless reading experience"
+description: "The cross-platform manga reader built for offline freedom, and a seamless reading experience"
 publish_to: 'none'
 
 version: 1.0.0
@@ -14,7 +14,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^6.3.2
   shared_preferences: ^2.5.3
-  phosphor_flutter: ^2.1.0
+  phosphor_flutter:
+    git:
+      url: https://github.com/subarnaPdl/phosphor_icons.git
+      ref: 514f0a883571c4453dbd6ee3041d1dcba4fb8fc7
   provider: ^6.1.5+1
   http: ^1.2.1
   intl: ^0.19.0
@@ -33,6 +36,10 @@ dependencies:
   path: ^1.9.0
   dio: ^5.7.0
   permission_handler: ^11.3.1
+  gap: ^3.0.1
+  package_info_plus: ^8.3.0
+  material_shapes:
+    path: packages/material_shapes
 
 dev_dependencies:
   flutter_launcher_icons: "^0.14.3"
