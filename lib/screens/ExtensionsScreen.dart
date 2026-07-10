@@ -146,13 +146,21 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
         elevation: 0,
         title: Text(
           'Extensions',
-          style: GoogleFonts.hennyPenny(
-            textStyle: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-            ),
+          style: GoogleFonts.unbounded(
+            // textStyle: tt.titleLarge,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            color: textColor,
+            fontSize: 24
           ),
+          
+          // style: GoogleFonts.hennyPenny(
+          //   textStyle: TextStyle(
+          //     color: textColor,
+          //     fontWeight: FontWeight.bold,
+          //     fontSize: 24,
+          //   ),
+          // ),
         ),
         actions: [
           IconButton(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:keihatsu/components/MainNavigationBar.dart';
-import 'package:material_shapes/material_shapes.dart';
 import 'package:keihatsu/components/menu/bottom_padding.dart';
 import 'package:keihatsu/components/menu/confirm_sheet.dart';
 import 'package:keihatsu/components/menu/developer_signature.dart';
@@ -11,6 +10,7 @@ import 'package:keihatsu/components/menu/menu_tile.dart';
 import 'package:keihatsu/components/menu/version_indicator.dart';
 import 'package:keihatsu/providers/auth_provider.dart';
 import 'package:keihatsu/screens/AboutScreen.dart';
+import 'package:keihatsu/screens/AppearancePage.dart';
 import 'package:keihatsu/screens/DonateScreen.dart';
 import 'package:keihatsu/screens/DownloadQueueScreen.dart';
 import 'package:keihatsu/screens/EditProfileScreen.dart';
@@ -26,10 +26,10 @@ class ProfileScreen extends StatelessWidget {
 
   static const int _currentIndex = 4;
 
-  String _formatReadingTime(int minutes) {
+  String _formatListeningTime(int minutes) {
     if (minutes < 60) return '${minutes}m';
-    final double hours = minutes / 60;
-    return '${hours.toStringAsFixed(1)}h';
+    final int hours = (minutes / 60).floor();
+    return '${hours}h';
   }
 
   void _push(BuildContext context, Widget screen) {
@@ -39,15 +39,37 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _handleGoogleSignIn(
+    BuildContext context,
+    AuthProvider authProvider,
+  ) async {
+    try {
+      await authProvider.loginWithGoogle();
+      if (!context.mounted || !authProvider.isAuthenticated) return;
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign in failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
     final ColorScheme cs = Theme.of(context).colorScheme;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+
+    final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 0;
+    final int libraryCount = user?.stats?.libraryCount ?? 0;
 
     return Scaffold(
-      backgroundColor: themeProvider.effectiveBgColor,
+      backgroundColor: themeProvider.pureBlackDarkMode && isDarkTheme
+          ? Colors.black
+          : Theme.of(context).colorScheme.surface,
       body: RefreshIndicator(
         onRefresh: () => authProvider.refreshUserStats(),
         child: ListView(
@@ -58,35 +80,52 @@ class ProfileScreen extends StatelessWidget {
             BottomPadding.of(context) + kBottomNavigationBarHeight + 16,
           ),
           children: [
-            if (authProvider.isAuthenticated)
-              MenuHeader(
-                displayName: user?.username ?? 'Reader',
-                avatarUrl: user?.avatarUrl,
-                readingTimeValue: _formatReadingTime(
-                  user?.stats?.totalReadingTimeMinutes ?? 0,
+            MenuHeader(
+              displayName: authProvider.isAuthenticated
+                  ? (user?.username ?? 'Reader')
+                  : 'Guest',
+              avatarUrl: authProvider.isAuthenticated ? user?.avatarUrl : null,
+              statValue: _formatListeningTime(readingMinutes),
+              statLabel: 'listened',
+              secondaryStatValue: libraryCount.toString(),
+              secondaryStatLabel: 'episodes',
+              onEditTap: authProvider.isAuthenticated
+                  ? () => _push(context, const EditProfileScreen())
+                  : null,
+            ),
+            if (!authProvider.isAuthenticated) ...[
+              16.gap,
+              FilledButton.icon(
+                onPressed: authProvider.isLoading
+                    ? null
+                    : () => _handleGoogleSignIn(context, authProvider),
+                icon: Image.asset('images/google.png', width: 20, height: 20),
+                label: Text(
+                  authProvider.isLoading
+                      ? 'Signing in...'
+                      : 'Sign up with Google',
                 ),
-                libraryCountValue:
-                    (user?.stats?.libraryCount ?? 0).toString(),
-                onEditTap: () => _push(context, const EditProfileScreen()),
-              )
-            else
-              _GuestHeader(
-                onSignIn: () => Navigator.pushNamed(context, '/login'),
-                onGoogleSignIn: () => authProvider.loginWithGoogle(),
               ),
+              8.gap,
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/login'),
+                child: Text('Log in', style: TextStyle(color: cs.primary)),
+              ),
+            ],
             56.gap,
             MenuSection(
               label: 'Library',
               children: [
                 MenuTile(
                   icon: Icons.download_outlined,
-                  title: 'Download Queue',
+                  title: 'Downloads',
                   onTap: () => _push(context, const DownloadQueueScreen()),
                 ),
                 MenuTile(
                   icon: Icons.history_outlined,
                   title: 'Reading history',
-                  onTap: () => Navigator.pushReplacementNamed(context, '/history'),
+                  onTap: () =>
+                      Navigator.pushReplacementNamed(context, '/history'),
                 ),
                 MenuTile(
                   icon: Icons.bar_chart_outlined,
@@ -106,17 +145,20 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 MenuTile(
                   icon: Icons.brightness_6_outlined,
-                  title: 'Theme',
+                  title: 'Dark theme',
                   trailing: Switch(
-                    value: themeProvider.pureBlackDarkMode,
-                    thumbIcon: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return const Icon(Icons.dark_mode_rounded);
-                      }
-                      return const Icon(Icons.light_mode_rounded);
+                    value: isDarkTheme,
+                    thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
+                      WidgetState.selected: Icon(Icons.dark_mode_rounded),
+                      WidgetState.any: Icon(Icons.light_mode_rounded),
                     }),
-                    onChanged: themeProvider.setPureBlackDarkMode,
+                    onChanged: (_) => themeProvider.toggleDarkTheme(),
                   ),
+                ),
+                MenuTile(
+                  icon: Icons.palette_outlined,
+                  title: 'Appearance',
+                  onTap: () => _push(context, const AppearancePage()),
                 ),
                 MenuTile(
                   icon: Icons.settings_outlined,
@@ -230,59 +272,6 @@ class ProfileScreen extends StatelessWidget {
       bottomNavigationBar: MainNavigationBar(
         currentIndex: _currentIndex,
         brandColor: themeProvider.brandColor,
-      ),
-    );
-  }
-}
-
-class _GuestHeader extends StatelessWidget {
-  const _GuestHeader({
-    required this.onSignIn,
-    required this.onGoogleSignIn,
-  });
-
-  final VoidCallback onSignIn;
-  final VoidCallback onGoogleSignIn;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme cs = Theme.of(context).colorScheme;
-    final TextTheme tt = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        children: [
-          ClipPath(
-            clipper: ShapeBorderClipper(
-              shape: MaterialShapeBorder(shape: MaterialShapes.pill),
-            ),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Image.asset('images/avatar.jpeg', fit: BoxFit.cover),
-            ),
-          ),
-          24.gap,
-          Text(
-            'Guest',
-            textAlign: TextAlign.center,
-            style: tt.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              height: 1.05,
-            ),
-          ),
-          16.gap,
-          FilledButton.icon(
-            onPressed: onGoogleSignIn,
-            icon: Image.asset('images/google.png', width: 20, height: 20),
-            label: const Text('Sign up with Google'),
-          ),
-          8.gap,
-          TextButton(
-            onPressed: onSignIn,
-            child: Text('Log in', style: TextStyle(color: cs.primary)),
-          ),
-        ],
       ),
     );
   }

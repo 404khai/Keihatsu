@@ -10,9 +10,11 @@ class AppearancePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final bool isDarkMode = themeProvider.pureBlackDarkMode;
-    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
+    final bgColor = themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
+        ? Colors.black
+        : themeProvider.bgColor;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color textColor = isDarkTheme ? Colors.white : Colors.black87;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -31,12 +33,10 @@ class AppearancePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Theme",
+              'Theme',
               style: TextStyle(color: brandColor, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            
-            // System/Light/Dark Toggle
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
@@ -44,128 +44,198 @@ class AppearancePage extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  _buildThemeToggle(context, "System", ThemeMode.system, themeProvider.themeMode == ThemeMode.system, brandColor, textColor),
-                  _buildThemeToggle(context, "Light", ThemeMode.light, themeProvider.themeMode == ThemeMode.light, brandColor, textColor),
-                  _buildThemeToggle(context, "Dark", ThemeMode.dark, themeProvider.themeMode == ThemeMode.dark, brandColor, textColor),
+                  _buildThemeToggle(
+                    context,
+                    'System',
+                    ThemeMode.system,
+                    themeProvider.themeMode == ThemeMode.system,
+                    brandColor,
+                    textColor,
+                  ),
+                  _buildThemeToggle(
+                    context,
+                    'Light',
+                    ThemeMode.light,
+                    themeProvider.themeMode == ThemeMode.light,
+                    brandColor,
+                    textColor,
+                  ),
+                  _buildThemeToggle(
+                    context,
+                    'Dark',
+                    ThemeMode.dark,
+                    themeProvider.themeMode == ThemeMode.dark,
+                    brandColor,
+                    textColor,
+                  ),
                 ],
               ),
             ),
-            
             const SizedBox(height: 30),
-            
-            // Theme Presets
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
                   _buildThemePreset(
-                    context, 
-                    "Default", 
-                    Colors.black, 
+                    context,
+                    'Default',
+                    Colors.black,
                     Colors.white,
-                    themeProvider.brandColor == Colors.black && themeProvider.bgColor == Colors.white
+                    themeProvider.brandColor == Colors.black &&
+                        themeProvider.bgColor == Colors.white,
+                    textColor,
                   ),
                   const SizedBox(width: 15),
                   _buildThemePreset(
-                    context, 
-                    "Carrot Orange",
-                    const Color(0xFFF97316), 
+                    context,
+                    'Rose Blush',
+                    ThemeProvider.roseBlushBrand,
+                    ThemeProvider.roseBlushBg,
+                    themeProvider.isRoseBlush,
+                    textColor,
+                  ),
+                  const SizedBox(width: 15),
+                  _buildThemePreset(
+                    context,
+                    'Sunrise Gold',
+                    ThemeProvider.sunriseGoldBrand,
+                    ThemeProvider.sunriseGoldBg,
+                    themeProvider.isSunriseGold,
+                    textColor,
+                  ),
+                  const SizedBox(width: 15),
+                  _buildThemePreset(
+                    context,
+                    'Carrot Orange',
+                    const Color(0xFFF97316),
                     const Color(0xFFFFEDD5),
-                    themeProvider.brandColor == const Color(0xFFF97316)
+                    themeProvider.brandColor == const Color(0xFFF97316),
+                    textColor,
                   ),
                   const SizedBox(width: 15),
                   _buildThemePreset(
-                    context, 
-                    "Green Apple", 
-                    const Color(0xFF0DB14C), 
+                    context,
+                    'Green Apple',
+                    const Color(0xFF0DB14C),
                     const Color(0xFFE8F5E9),
-                    themeProvider.brandColor == const Color(0xFF0DB14C)
+                    themeProvider.brandColor == const Color(0xFF0DB14C),
+                    textColor,
                   ),
                   const SizedBox(width: 15),
                   _buildThemePreset(
-                    context, 
-                    "Lavender", 
-                    const Color(0xFF9061F9), 
+                    context,
+                    'Lavender',
+                    const Color(0xFF9061F9),
                     const Color(0xFFF3E8FF),
-                    themeProvider.brandColor == const Color(0xFF9061F9)
+                    themeProvider.brandColor == const Color(0xFF9061F9),
+                    textColor,
                   ),
                   const SizedBox(width: 15),
                   _buildThemePreset(
-                    context, 
-                    "Midnight Dusk", 
-                    const Color(0xFFE02424), 
+                    context,
+                    'Midnight Dusk',
+                    const Color(0xFFE02424),
                     const Color(0xFFFDE8E8),
-                    themeProvider.brandColor == const Color(0xFFE02424)
+                    themeProvider.brandColor == const Color(0xFFE02424),
+                    textColor,
                   ),
                   const SizedBox(width: 15),
                   _buildThemePreset(
-                      context,
-                      "Cool Mint",
-                      const Color(0xFFB9F916),
-                      const Color(0xFFF1FBEB),
-                      themeProvider.brandColor == const Color(0xFFB9F916)
+                    context,
+                    'Cool Mint',
+                    const Color(0xFFB9F916),
+                    const Color(0xFFF1FBEB),
+                    themeProvider.brandColor == const Color(0xFFB9F916),
+                    textColor,
                   ),
                   const SizedBox(width: 15),
                   _buildThemePreset(
-                      context,
-                      "Tidal Wave",
-                      const Color(0xFF16EAF9),
-                      const Color(0xFFEBF8FB),
-                      themeProvider.brandColor == const Color(0xFF16EAF9)
-                  ),
-                  const SizedBox(width: 15),
-                  _buildThemePreset(
-                      context,
-                      "Cherry Blossom",
-                      const Color(0xFFFFBEEB),
-                      const Color(0xFFFBEBF7),
-                      themeProvider.brandColor == const Color(0xFFFFBEEB)
-                  ),
-                  const SizedBox(width: 15),
-                  _buildThemePreset(
-                      context,
-                      "Summer Ember",
-                      const Color(0xFFF9E216),
-                      const Color(0xFFFBFBEB),
-                      themeProvider.brandColor == const Color(0xFFF9E216)
+                    context,
+                    'Tidal Wave',
+                    const Color(0xFF16EAF9),
+                    const Color(0xFFEBF8FB),
+                    themeProvider.brandColor == const Color(0xFF16EAF9),
+                    textColor,
                   ),
                 ],
               ),
             ),
-            
             const SizedBox(height: 30),
-            
-            // Dark Mode Toggle
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Dark mode",
-                  style: TextStyle(fontSize: 16, color: textColor),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dark theme',
+                      style: TextStyle(fontSize: 16, color: textColor),
+                    ),
+                    Text(
+                      'Uses Material 3 dark colors',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: textColor.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
                 Switch(
-                  value: themeProvider.pureBlackDarkMode,
-                  activeColor: brandColor,
-                  onChanged: (val) => themeProvider.setPureBlackDarkMode(val),
+                  value: isDarkTheme,
+                  activeThumbColor: brandColor,
+                  onChanged: (_) => themeProvider.toggleDarkTheme(),
                 ),
               ],
             ),
-            
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pitch black background',
+                      style: TextStyle(fontSize: 16, color: textColor),
+                    ),
+                    Text(
+                      'Pure black surface in dark mode',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: textColor.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
+                Switch(
+                  value: themeProvider.pureBlackDarkMode,
+                  activeThumbColor: brandColor,
+                  onChanged: themeProvider.setPureBlackDarkMode,
+                ),
+              ],
+            ),
             const SizedBox(height: 30),
             Text(
-              "Display",
+              'Display',
               style: TextStyle(color: brandColor, fontWeight: FontWeight.bold),
             ),
-            _buildDisplayOption("App language", textColor),
-            _buildDisplayOption("Tablet UI", textColor, subtitle: "Auto"),
-            _buildDisplayOption("Date format", textColor),
+            _buildDisplayOption('App language', textColor),
+            _buildDisplayOption('Tablet UI', textColor, subtitle: 'Auto'),
+            _buildDisplayOption('Date format', textColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildThemeToggle(BuildContext context, String label, ThemeMode mode, bool isActive, Color brandColor, Color textColor) {
+  Widget _buildThemeToggle(
+    BuildContext context,
+    String label,
+    ThemeMode mode,
+    bool isActive,
+    Color brandColor,
+    Color textColor,
+  ) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     return Expanded(
       child: GestureDetector(
@@ -179,7 +249,8 @@ class AppearancePage extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (isActive) const Icon(Icons.check, color: Colors.white, size: 16),
+              if (isActive)
+                const Icon(Icons.check, color: Colors.white, size: 16),
               const SizedBox(width: 4),
               Text(
                 label,
@@ -195,7 +266,14 @@ class AppearancePage extends StatelessWidget {
     );
   }
 
-  Widget _buildThemePreset(BuildContext context, String name, Color brand, Color bg, bool isSelected) {
+  Widget _buildThemePreset(
+    BuildContext context,
+    String name,
+    Color brand,
+    Color bg,
+    bool isSelected,
+    Color textColor,
+  ) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     return GestureDetector(
       onTap: () => themeProvider.setThemeColors(brand, bg),
@@ -207,28 +285,61 @@ class AppearancePage extends StatelessWidget {
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(12),
-              border: isSelected ? Border.all(color: brand, width: 3) : Border.all(color: Colors.black12),
+              border: isSelected
+                  ? Border.all(color: brand, width: 3)
+                  : Border.all(color: Colors.black12),
             ),
             child: Stack(
               children: [
                 Positioned(
-                  top: 10, left: 10,
-                  child: Container(width: 60, height: 15, decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(5))),
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    width: 60,
+                    height: 15,
+                    decoration: BoxDecoration(
+                      color: Colors.black12,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
                 ),
                 Center(
                   child: Container(
-                    width: 50, height: 70,
-                    decoration: BoxDecoration(color: brand.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                    child: Center(child: Container(width: 30, height: 10, decoration: BoxDecoration(color: brand, borderRadius: BorderRadius.circular(5)))),
+                    width: 50,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: brand.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 30,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: brand,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 Positioned(
-                  bottom: 10, left: 10, right: 10,
+                  bottom: 10,
+                  left: 10,
+                  right: 10,
                   child: Row(
                     children: [
                       CircleAvatar(radius: 8, backgroundColor: brand),
                       const SizedBox(width: 5),
-                      Expanded(child: Container(height: 10, decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(5)))),
+                      Expanded(
+                        child: Container(
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.black12,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -236,7 +347,10 @@ class AppearancePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(name, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(
+            name,
+            style: TextStyle(fontSize: 12, color: textColor.withOpacity(0.7)),
+          ),
         ],
       ),
     );
@@ -250,7 +364,10 @@ class AppearancePage extends StatelessWidget {
         children: [
           Text(title, style: TextStyle(fontSize: 16, color: textColor)),
           if (subtitle != null)
-            Text(subtitle, style: TextStyle(fontSize: 12, color: textColor.withOpacity(0.6))),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 12, color: textColor.withOpacity(0.6)),
+            ),
         ],
       ),
     );

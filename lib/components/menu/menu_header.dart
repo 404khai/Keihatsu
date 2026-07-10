@@ -4,20 +4,25 @@ import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
 import 'package:material_shapes/material_shapes.dart';
 
+/// Menu page header: pill avatar with expressive stat badges and name below.
 class MenuHeader extends StatelessWidget {
   const MenuHeader({
     super.key,
     required this.displayName,
     this.avatarUrl,
-    required this.readingTimeValue,
-    required this.libraryCountValue,
+    required this.statValue,
+    required this.statLabel,
+    required this.secondaryStatValue,
+    required this.secondaryStatLabel,
     this.onEditTap,
   });
 
   final String displayName;
   final String? avatarUrl;
-  final String readingTimeValue;
-  final String libraryCountValue;
+  final String statValue;
+  final String statLabel;
+  final String secondaryStatValue;
+  final String secondaryStatLabel;
   final VoidCallback? onEditTap;
 
   @override
@@ -29,49 +34,54 @@ class MenuHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         children: [
-          Stack(
-            children: [
-              ClipPath(
-                clipper: ShapeBorderClipper(
-                  shape: MaterialShapeBorder(shape: MaterialShapes.pill),
-                ),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: OfflineImage(
-                    imageUrl: avatarUrl,
-                    fit: BoxFit.cover,
-                    fallback: Image.asset(
-                      'images/avatar.jpeg',
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                ClipPath(
+                  clipper: ShapeBorderClipper(
+                    shape: MaterialShapeBorder(shape: MaterialShapes.pill),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: OfflineImage(
+                      imageUrl: avatarUrl,
                       fit: BoxFit.cover,
+                      fallback: Image.asset(
+                        'images/avatar.jpeg',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                left: 0,
-                top: 0,
-                child: _StatBadge(
-                  value: readingTimeValue,
-                  label: 'reading',
-                  shape: MaterialShapes.sunny,
-                  background: cs.tertiaryContainer,
-                  foreground: cs.onTertiaryContainer,
-                  angle: -0.14,
+                Positioned(
+                  left: -8,
+                  top: -8,
+                  child: _StatBadge(
+                    value: statValue,
+                    label: statLabel,
+                    shape: MaterialShapes.sunny,
+                    background: cs.tertiaryContainer,
+                    foreground: cs.onTertiaryContainer,
+                    angle: -0.14,
+                  ),
                 ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: _StatBadge(
-                  value: libraryCountValue,
-                  label: 'in library',
-                  shape: MaterialShapes.cookie9Sided,
-                  background: cs.primaryContainer,
-                  foreground: cs.onPrimaryContainer,
-                  angle: 0.14,
+                Positioned(
+                  right: -8,
+                  bottom: -8,
+                  child: _StatBadge(
+                    value: secondaryStatValue,
+                    label: secondaryStatLabel,
+                    shape: MaterialShapes.cookie9Sided,
+                    background: cs.primaryContainer,
+                    foreground: cs.onPrimaryContainer,
+                    angle: 0.14,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           24.gap,
           Row(
