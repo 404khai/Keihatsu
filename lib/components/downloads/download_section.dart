@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:keihatsu/components/downloads/download_tile.dart';
+import 'package:keihatsu/components/downloads/download_manga_group.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
 import 'package:keihatsu/components/menu/menu_section.dart';
 
@@ -8,15 +8,17 @@ class DownloadSection extends StatelessWidget {
   const DownloadSection({
     super.key,
     required this.label,
+    this.image,
     this.meta,
     this.action,
     required this.children,
   });
 
   final String label;
+  final String? image;
   final String? meta;
   final Widget? action;
-  final List<DownloadTile> children;
+  final List<DownloadMangaGroup> children;
 
   BorderRadius _radiusFor(int index) {
     const Radius outer = Radius.circular(MenuSection.outerRadius);
@@ -28,15 +30,14 @@ class DownloadSection extends StatelessWidget {
     );
   }
 
-  DownloadTile _positioned(DownloadTile tile, int index) {
-    return DownloadTile(
-      key: tile.key,
-      item: tile.item,
-      onTap: tile.onTap,
-      onDelete: tile.onDelete,
-      removing: tile.removing,
-      onRemoved: tile.onRemoved,
+  DownloadMangaGroup _positioned(DownloadMangaGroup group, int index) {
+    return DownloadMangaGroup(
+      key: group.key,
+      mangaTitle: group.mangaTitle,
+      mangaThumbnail: group.mangaThumbnail,
+      chapters: group.chapters,
       borderRadius: _radiusFor(index),
+      initiallyExpanded: group.initiallyExpanded,
     );
   }
 
@@ -52,6 +53,23 @@ class DownloadSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Row(
             children: [
+              if (image != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    image!,
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) => Icon(
+                      Icons.extension_outlined,
+                      size: 22,
+                      color: cs.primary,
+                    ),
+                  ),
+                ),
+                10.gap,
+              ],
               Expanded(
                 child: Text(
                   label,

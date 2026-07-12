@@ -751,6 +751,13 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
+  material_wavy_progress_indicator:
+    dependency: "direct main"
+    description:
+      path: "packages/material_wavy_progress_indicator"
+      relative: true
+    source: path
+    version: "1.0.0"
   meta:
     dependency: transitive
     description:

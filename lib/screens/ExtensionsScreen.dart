@@ -1,10 +1,13 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
-import '../components/AppToast.dart';
+
+import '../common/coming_soon.dart';
 import '../components/MainNavigationBar.dart';
+import '../components/library/filter_tabs.dart';
 import '../models/local_models.dart';
 import '../services/sources_repository.dart';
 import '../theme_provider.dart';
@@ -18,24 +21,45 @@ class ExtensionsScreen extends StatefulWidget {
 
 class _ExtensionsScreenState extends State<ExtensionsScreen>
     with SingleTickerProviderStateMixin {
+  static const List<String> _tabIds = ['sources', 'plugin_store', 'migrate'];
+
   final int _currentIndex = 3;
   late Future<List<LocalSource>> _sourcesFuture;
   String _searchQuery = '';
   late TabController _tabController;
+  String _selectedTab = 'sources';
 
   static const Set<String> _availableSourceIds = {'manhuatop'};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: _tabIds.length, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _loadSources();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    final String tabId = _tabIds[_tabController.index];
+    if (tabId != _selectedTab) {
+      setState(() => _selectedTab = tabId);
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _selectTab(String? tabId) {
+    if (tabId == null) return;
+    final int index = _tabIds.indexOf(tabId);
+    if (index < 0) return;
+    setState(() => _selectedTab = tabId);
+    _tabController.animateTo(index);
   }
 
   void _loadSources({bool forceRefresh = false}) {
@@ -49,9 +73,9 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
   }
 
   Future<List<LocalSource>> _loadAndNormalizeSources(
-      SourcesRepository repo, {
-        bool forceRefresh = false,
-      }) async {
+    SourcesRepository repo, {
+    bool forceRefresh = false,
+  }) async {
     final sources = await repo.getSources(forceRefresh: forceRefresh);
 
     for (final source in sources) {
@@ -64,19 +88,15 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
   }
 
   Future<void> _handleSourceToggle(
-      SourcesRepository repo,
-      LocalSource source,
-      bool value,
-      ) async {
+    SourcesRepository repo,
+    LocalSource source,
+    bool value,
+  ) async {
     final isAvailable = _isSourceAvailable(source);
 
     if (!isAvailable) {
       if (value && mounted) {
-        AppToast.show(
-          context,
-          message: 'Coming soon',
-          type: AppToastType.warning,
-        );
+        ComingSoon.show(context);
       }
 
       if (source.enabled) {
@@ -129,38 +149,35 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final TextTheme tt = Theme.of(context).textTheme;
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final bool isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
-    final Color cardColor = isDarkMode
-        ? Colors.white10
-        : Colors.white.withOpacity(0.5);
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color backgroundColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surface;
+    final Color appBarColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surfaceContainer;
+    final Color textColor = isDarkTheme ? Colors.white : Colors.black87;
+    final Color cardColor = cs.surfaceContainer;
     final repo = Provider.of<SourcesRepository>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: appBarColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
           'Extensions',
           style: GoogleFonts.unbounded(
-            // textStyle: tt.titleLarge,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
             color: textColor,
-            fontSize: 24
+            fontSize: 24,
           ),
-          
-          // style: GoogleFonts.hennyPenny(
-          //   textStyle: TextStyle(
-          //     color: textColor,
-          //     fontWeight: FontWeight.bold,
-          //     fontSize: 24,
-          //   ),
-          // ),
         ),
         actions: [
           IconButton(
@@ -172,15 +189,49 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: _buildTabBar(brandColor, textColor, cardColor),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: FilterTabs(
+              tabs: [
+                FilterTab(
+                  value: 'sources',
+                  label: 'Sources',
+                  accent: brandColor,
+                  onAccent: cs.onPrimary,
+                  icon: Icons.extension_outlined,
+                ),
+                FilterTab(
+                  value: 'plugin_store',
+                  label: 'Plugin Store',
+                  accent: brandColor,
+                  onAccent: cs.onPrimary,
+                  icon: Icons.storefront_outlined,
+                ),
+                FilterTab(
+                  value: 'migrate',
+                  label: 'Migrate',
+                  accent: brandColor,
+                  onAccent: cs.onPrimary,
+                  icon: Icons.swap_horiz_rounded,
+                ),
+              ],
+              selected: _selectedTab,
+              onSelected: _selectTab,
+            ),
           ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildSourcesTab(brandColor, textColor, cardColor, repo),
-                _buildPluginStoreTab(brandColor, textColor, cardColor, repo),
+                _buildSourcesTab(brandColor, textColor, cardColor, repo, cs, tt),
+                _buildPluginStoreTab(
+                  brandColor,
+                  textColor,
+                  cardColor,
+                  repo,
+                  cs,
+                  tt,
+                ),
+                _buildMigrateTab(textColor, cardColor, cs, tt),
               ],
             ),
           ),
@@ -194,11 +245,13 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
   }
 
   Widget _buildSourcesTab(
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      SourcesRepository repo,
-      ) {
+    Color brandColor,
+    Color textColor,
+    Color cardColor,
+    SourcesRepository repo,
+    ColorScheme cs,
+    TextTheme tt,
+  ) {
     return FutureBuilder<List<LocalSource>>(
       future: _sourcesFuture,
       builder: (context, snapshot) {
@@ -207,7 +260,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
         } else if (snapshot.hasError) {
           return _buildErrorWidget(brandColor, textColor);
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return _buildEmptyWidget(textColor);
+          return _buildEmptyWidget(textColor, tt);
         }
 
         final sources = snapshot.data!;
@@ -224,10 +277,10 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _buildSearchField(brandColor, textColor, cardColor),
+            _buildSearchField(brandColor, textColor, cardColor, cs),
             const SizedBox(height: 20),
             ...filteredSources.map(
-                  (source) => Padding(
+              (source) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _buildSourceCard(
                   source,
@@ -235,6 +288,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
                   textColor,
                   cardColor,
                   repo,
+                  cs,
                   showPin: true,
                 ),
               ),
@@ -246,11 +300,13 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
   }
 
   Widget _buildPluginStoreTab(
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      SourcesRepository repo,
-      ) {
+    Color brandColor,
+    Color textColor,
+    Color cardColor,
+    SourcesRepository repo,
+    ColorScheme cs,
+    TextTheme tt,
+  ) {
     return FutureBuilder<List<LocalSource>>(
       future: _sourcesFuture,
       builder: (context, snapshot) {
@@ -259,12 +315,12 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
         } else if (snapshot.hasError) {
           return _buildErrorWidget(brandColor, textColor);
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return _buildEmptyWidget(textColor);
+          return _buildEmptyWidget(textColor, tt);
         }
 
         final sources = snapshot.data!;
         sources.sort(
-              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
         );
 
         final filteredSources = _filterSources(sources);
@@ -272,10 +328,10 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _buildSearchField(brandColor, textColor, cardColor),
+            _buildSearchField(brandColor, textColor, cardColor, cs),
             const SizedBox(height: 20),
             ...filteredSources.map(
-                  (source) => Padding(
+              (source) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _buildSourceCard(
                   source,
@@ -283,6 +339,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
                   textColor,
                   cardColor,
                   repo,
+                  cs,
                   showPin: false,
                 ),
               ),
@@ -290,6 +347,64 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
           ],
         );
       },
+    );
+  }
+
+  Widget _buildMigrateTab(
+    Color textColor,
+    Color cardColor,
+    ColorScheme cs,
+    TextTheme tt,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Material(
+          color: cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.swap_horiz_rounded,
+                  size: 32,
+                  color: cs.primary,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Migrate library',
+                  style: tt.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Import your manga library from another reader app. '
+                  'Supports backup files and extension migrations.',
+                  style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: () => ComingSoon.show(context),
+                  icon: const Icon(Icons.upload_file_outlined),
+                  label: const Text('Choose backup file'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => ComingSoon.show(context),
+                  icon: const Icon(Icons.help_outline_rounded),
+                  label: const Text('Migration guide'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -325,54 +440,23 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
     );
   }
 
-  Widget _buildTabBar(Color brandColor, Color textColor, Color cardColor) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: textColor.withOpacity(0.08)),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: false,
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicator: BoxDecoration(
-          color: brandColor.withOpacity(0.16),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        labelColor: brandColor,
-        unselectedLabelColor: textColor.withOpacity(0.6),
-        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        labelPadding: EdgeInsets.zero,
-        padding: EdgeInsets.zero,
-        indicatorPadding: EdgeInsets.zero,
-        splashBorderRadius: BorderRadius.circular(16),
-        overlayColor: WidgetStateProperty.all(Colors.transparent),
-        dividerColor: Colors.transparent,
-        tabs: const [
-          Tab(height: 40, child: Center(child: Text('Sources'))),
-          Tab(height: 40, child: Center(child: Text('Plugin Store'))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyWidget(Color textColor) {
+  Widget _buildEmptyWidget(Color textColor, TextTheme tt) {
     return Center(
       child: Text(
         'No extensions found',
-        style: TextStyle(color: textColor.withOpacity(0.6)),
+        style: tt.bodyLarge?.copyWith(
+          color: textColor.withValues(alpha: 0.6),
+        ),
       ),
     );
   }
 
-  Widget _buildSearchField(Color brandColor, Color textColor, Color cardColor) {
+  Widget _buildSearchField(
+    Color brandColor,
+    Color textColor,
+    Color cardColor,
+    ColorScheme cs,
+  ) {
     return TextField(
       onChanged: (value) {
         setState(() {
@@ -383,10 +467,10 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
       cursorColor: brandColor,
       decoration: InputDecoration(
         hintText: 'Search extensions',
-        hintStyle: TextStyle(color: textColor.withOpacity(0.45)),
+        hintStyle: TextStyle(color: cs.onSurfaceVariant),
         prefixIcon: Icon(
           PhosphorIcons.magnifyingGlass(),
-          color: textColor.withOpacity(0.45),
+          color: cs.onSurfaceVariant,
         ),
         filled: true,
         fillColor: cardColor,
@@ -400,24 +484,24 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: brandColor.withOpacity(0.35)),
+          borderSide: BorderSide(color: brandColor.withValues(alpha: 0.35)),
         ),
       ),
     );
   }
 
   Widget _buildSourceCard(
-      LocalSource source,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      SourcesRepository repo, {
-        bool showPin = true,
-      }) {
+    LocalSource source,
+    Color brandColor,
+    Color textColor,
+    Color cardColor,
+    SourcesRepository repo,
+    ColorScheme cs, {
+    bool showPin = true,
+  }) {
     final isAvailable = _isSourceAvailable(source);
     final isEnabled = isAvailable && source.enabled;
 
-    // Map of source IDs to local image assets
     final Map<String, String> extensionImages = {
       'atsumaru': 'images/extensions/atsumaru.png',
       'batcave': 'images/extensions/batcave.png',
@@ -428,95 +512,102 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
 
     final imagePath = extensionImages[source.sourceId.toLowerCase()];
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isEnabled ? cardColor : cardColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(15),
+    return Material(
+      color: isEnabled ? cardColor : cardColor.withValues(alpha: 0.5),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: brandColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: imagePath != null
-                  ? Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                color: isEnabled ? null : Colors.grey,
-                colorBlendMode: isEnabled ? null : BlendMode.saturation,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildFallbackIcon(source, brandColor),
-              )
-                  : _buildFallbackIcon(source, brandColor),
-            ),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  source.name,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isEnabled ? textColor : textColor.withOpacity(0.4),
-                  ),
-                ),
-                Text(
-                  '${source.lang.toUpperCase()} • ${source.baseUrl}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isEnabled
-                        ? textColor.withOpacity(0.6)
-                        : textColor.withOpacity(0.2),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  isAvailable ? 'Available now' : 'Coming soon',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isAvailable
-                        ? brandColor
-                        : textColor.withOpacity(0.35),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (showPin)
-            IconButton(
-              onPressed: () async {
-                await repo.pinSource(source.sourceId, !source.pinned);
-                _loadSources();
-              },
-              icon: Icon(
-                source.pinned
-                    ? PhosphorIcons.pushPin(PhosphorIconsStyle.fill)
-                    : PhosphorIcons.pushPin(),
-                color: source.pinned ? brandColor : textColor.withOpacity(0.3),
-                size: 20,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: imagePath != null
+                    ? Image.asset(
+                        imagePath,
+                        fit: BoxFit.cover,
+                        color: isEnabled ? null : Colors.grey,
+                        colorBlendMode:
+                            isEnabled ? null : BlendMode.saturation,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildFallbackIcon(source, brandColor),
+                      )
+                    : _buildFallbackIcon(source, brandColor),
               ),
             ),
-          Switch(
-            value: isEnabled,
-            activeColor: brandColor,
-            onChanged: (val) async {
-              await _handleSourceToggle(repo, source, val);
-            },
-          ),
-        ],
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    source.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isEnabled
+                          ? textColor
+                          : textColor.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  Text(
+                    '${source.lang.toUpperCase()} • ${source.baseUrl}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isEnabled
+                          ? cs.onSurfaceVariant
+                          : textColor.withValues(alpha: 0.2),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    isAvailable ? 'Available now' : 'Coming soon',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isAvailable
+                          ? brandColor
+                          : textColor.withValues(alpha: 0.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (showPin)
+              IconButton(
+                onPressed: () async {
+                  await repo.pinSource(source.sourceId, !source.pinned);
+                  _loadSources();
+                },
+                icon: Icon(
+                  source.pinned
+                      ? PhosphorIcons.pushPin(PhosphorIconsStyle.fill)
+                      : PhosphorIcons.pushPin(),
+                  color: source.pinned
+                      ? brandColor
+                      : textColor.withValues(alpha: 0.3),
+                  size: 20,
+                ),
+              ),
+            Switch(
+              value: isEnabled,
+              activeThumbColor: brandColor,
+              onChanged: (val) async {
+                await _handleSourceToggle(repo, source, val);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -169,11 +169,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 : null,
             title: Text(
               _isSelectionMode ? '${_selectedIds.length} selected' : 'History',
-              style: GoogleFonts.hennyPenny(
-                textStyle: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
+              // style: GoogleFonts.hennyPenny(
+              //   textStyle: TextStyle(
+              //     fontWeight: FontWeight.bold,
+              //     color: textColor,
+              //   ),
+              // ),
+              style: GoogleFonts.unbounded(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+                color: textColor,
+                fontSize: 24,
               ),
             ),
             actions: [
@@ -248,6 +254,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ],
             ],
           ),
+
           body: isLoading
               ? const Center(child: CircularProgressIndicator())
               : history.isEmpty

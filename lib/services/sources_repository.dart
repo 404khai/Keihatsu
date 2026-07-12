@@ -17,6 +17,39 @@ class SourcesRepository {
     required this.fileService,
   });
 
+  static const List<Map<String, String>> _bundledSources = [
+    {
+      'sourceId': 'mangafire',
+      'name': 'MangaFire',
+      'lang': 'en',
+      'baseUrl': 'https://mangafire.to',
+    },
+    {
+      'sourceId': 'weebcentral',
+      'name': 'WeebCentral',
+      'lang': 'en',
+      'baseUrl': 'https://weebcentral.com',
+    },
+    {
+      'sourceId': 'batcave',
+      'name': 'BatCave',
+      'lang': 'en',
+      'baseUrl': 'https://batcave.net',
+    },
+    {
+      'sourceId': 'atsumaru',
+      'name': 'Atsumaru',
+      'lang': 'en',
+      'baseUrl': 'https://atsumaru.com',
+    },
+    {
+      'sourceId': 'manhuatop',
+      'name': 'ManhuaTop',
+      'lang': 'en',
+      'baseUrl': 'https://manhuatop.org',
+    },
+  ];
+
   Future<List<LocalSource>> getSources({bool forceRefresh = false}) async {
     final connectivity = await Connectivity().checkConnectivity();
     final bool isOnline = connectivity != ConnectivityResult.none;
@@ -25,14 +58,45 @@ class SourcesRepository {
       await refreshSources();
     }
 
-    final localSources = await isar.localSources.where().sortByPinnedDesc().thenByName().findAll();
+    var localSources =
+        await isar.localSources.where().sortByPinnedDesc().thenByName().findAll();
 
     if (localSources.isEmpty && isOnline) {
       await refreshSources();
-      return await isar.localSources.where().sortByPinnedDesc().thenByName().findAll();
+      localSources =
+          await isar.localSources.where().sortByPinnedDesc().thenByName().findAll();
+    }
+
+    if (localSources.isEmpty) {
+      await _seedBundledSources();
+      localSources =
+          await isar.localSources.where().sortByPinnedDesc().thenByName().findAll();
     }
 
     return localSources;
+  }
+
+  Future<void> _seedBundledSources() async {
+    await isar.writeTxn(() async {
+      for (final bundled in _bundledSources) {
+        final existing = await isar.localSources
+            .filter()
+            .sourceIdEqualTo(bundled['sourceId']!)
+            .findFirst();
+
+        if (existing != null) continue;
+
+        final source = LocalSource()
+          ..sourceId = bundled['sourceId']!
+          ..name = bundled['name']!
+          ..lang = bundled['lang']!
+          ..baseUrl = bundled['baseUrl']!
+          ..enabled = bundled['sourceId'] == 'manhuatop'
+          ..lastUpdatedAt = DateTime.now();
+
+        await isar.localSources.put(source);
+      }
+    });
   }
 
   Future<void> refreshSources() async {

@@ -41,6 +41,8 @@ dependencies:
   material_shapes:
     path: packages/material_shapes
   motor: ^1.1.0
+  material_wavy_progress_indicator:
+    path: packages/material_wavy_progress_indicator
 
 dev_dependencies:
   flutter_launcher_icons: "^0.14.3"
@@ -58,6 +60,7 @@ flutter:
   assets:
     - images/
     - images/extensions/
+    - images/manwha/
     - lib/data/chapters.json
 
 flutter_launcher_icons:

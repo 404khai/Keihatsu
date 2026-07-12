@@ -51,7 +51,7 @@ class MenuHeader extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 80, bottom: 4, left: 16, right: 16),
+            padding: const EdgeInsets.only(top: 70, bottom: 4, left: 16, right: 16),
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
@@ -185,26 +185,22 @@ class MenuHeader extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: ShapedActionButton(
-                    onTap: onShareTap ?? () {},
-                    rest: MaterialShapes.pill,
-                    pressed: MaterialShapes.cookie7Sided,
-                    outlined: true,
-                    height: 44,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.ios_share_rounded,
-                            size: 18, color: cs.onSurface),
-                        8.gap,
-                        Text(
-                          'Share Profile',
-                          style: tt.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  child: OutlinedButton.icon(
+                    onPressed: onShareTap,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      side: BorderSide(color: cs.outlineVariant),
+                    ),
+                    icon: Icon(Icons.ios_share_rounded,
+                        size: 18, color: cs.onSurface),
+                    label: Text(
+                      'Share Profile',
+                      style: tt.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
