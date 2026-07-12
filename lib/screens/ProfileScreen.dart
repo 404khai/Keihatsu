@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:keihatsu/components/CustomBackButton.dart';
 import 'package:keihatsu/components/MainNavigationBar.dart';
 import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/bottom_padding.dart';
-import 'package:keihatsu/components/menu/confirm_sheet.dart';
 import 'package:keihatsu/components/menu/developer_signature.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
 import 'package:keihatsu/components/menu/menu_header.dart';
 import 'package:keihatsu/components/menu/menu_section.dart';
 import 'package:keihatsu/components/menu/menu_tile.dart';
+import 'package:keihatsu/components/menu/styled_sheet.dart';
 import 'package:keihatsu/components/menu/version_indicator.dart';
 import 'package:keihatsu/providers/auth_provider.dart';
 import 'package:keihatsu/screens/AboutScreen.dart';
@@ -69,21 +70,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _handleGoogleSignIn(
-    BuildContext context,
-    AuthProvider authProvider,
-  ) async {
-    try {
-      await authProvider.loginWithGoogle();
-      if (!context.mounted || !authProvider.isAuthenticated) return;
-      Navigator.pushReplacementNamed(context, '/home');
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign in failed: $e')),
-      );
-    }
-  }
+  // Future<void> _handleGoogleSignIn(
+  //   BuildContext context,
+  //   AuthProvider authProvider,
+  // ) async {
+  //   try {
+  //     await authProvider.loginWithGoogle();
+  //     if (!context.mounted || !authProvider.isAuthenticated) return;
+  //     Navigator.pushReplacementNamed(context, '/home');
+  //   } catch (e) {
+  //     if (!context.mounted) return;
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('Sign in failed: $e')),
+  //     );
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -94,14 +95,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bool isDarkTheme = themeProvider.isDarkTheme;
     final Color headerColor = cs.surfaceContainer;
 
-    final String displayName = authProvider.isAuthenticated
-        ? (user?.username ?? 'Reader')
-        : 'Mystery Reader';
-    final String? avatarUrl =
-        authProvider.isAuthenticated ? user?.avatarUrl : null;
+    // Preview authenticated profile layout.
+    // final bool isAuthenticated = authProvider.isAuthenticated;
+    const bool showAuthenticatedPreview = true;
 
-    final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 120;
-    final int libraryCount = user?.stats?.libraryCount ?? 10;
+    final String displayName = showAuthenticatedPreview
+        ? 'Kaizel'
+        : (authProvider.isAuthenticated
+            ? (user?.username ?? 'Reader')
+            : 'Mystery Reader');
+    final String? avatarUrl = showAuthenticatedPreview
+        ? null
+        : (authProvider.isAuthenticated ? user?.avatarUrl : null);
+
+    final int readingMinutes = showAuthenticatedPreview
+        ? 240
+        : (user?.stats?.totalReadingTimeMinutes ?? 120);
+    final int libraryCount =
+        showAuthenticatedPreview ? 42 : (user?.stats?.libraryCount ?? 10);
 
     return Scaffold(
       backgroundColor: themeProvider.pureBlackDarkMode && isDarkTheme
@@ -114,11 +125,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverAppBar(
-              expandedHeight: 360,
+              expandedHeight: 460,
               pinned: true,
               elevation: 0,
               scrolledUnderElevation: 0,
-              // toolbarHeight: 72,
               backgroundColor: headerColor,
               surfaceTintColor: Colors.transparent,
               leading: _showCollapsedTitle
@@ -182,41 +192,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         statLabel: 'read',
                         secondaryStatValue: libraryCount.toString(),
                         secondaryStatLabel: 'series',
-                        onEditTap: authProvider.isAuthenticated
+                        bio: showAuthenticatedPreview
+                            ? 'El Endministrator, Creator of Keihatsu'
+                            : null,
+                        memberSince:
+                            showAuthenticatedPreview ? '2025' : null,
+                        location:
+                            showAuthenticatedPreview ? 'Switzerland' : null,
+                        badgeIcon: showAuthenticatedPreview
+                            ? Icons.hardware_rounded
+                            : null,
+                        showProfileActions: showAuthenticatedPreview,
+                        onShareTap: () {
+                          Clipboard.setData(
+                            ClipboardData(text: 'https://keihatsu.app/u/kaizel'),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Profile link copied')),
+                          );
+                        },
+                        onEditTap: showAuthenticatedPreview
                             ? () => _push(context, const EditProfileScreen())
                             : null,
-                        belowName: !authProvider.isAuthenticated
-                            ? [
-                                8.gap,
-                                FilledButton.icon(
-                                  onPressed: authProvider.isLoading
-                                      ? null
-                                      : () => _handleGoogleSignIn(
-                                            context,
-                                            authProvider,
-                                          ),
-                                  icon: Image.asset(
-                                    'images/google.png',
-                                    width: 20,
-                                    height: 20,
-                                  ),
-                                  label: Text(
-                                    authProvider.isLoading
-                                        ? 'Signing in...'
-                                        : 'Sign up with Google',
-                                  ),
-                                ),
-                                // 4.gap,
-                                // TextButton(
-                                //   onPressed: () =>
-                                //       Navigator.pushNamed(context, '/login'),
-                                //   child: Text(
-                                //     'Log in',
-                                //     style: TextStyle(color: cs.primary),
-                                //   ),
-                                // ),
-                              ]
-                            : null,
+                        // Guest sign-in — commented to preview authenticated layout.
+                        // belowName: !authProvider.isAuthenticated
+                        //     ? [
+                        //         8.gap,
+                        //         FilledButton.icon(
+                        //           onPressed: authProvider.isLoading
+                        //               ? null
+                        //               : () => _handleGoogleSignIn(
+                        //                     context,
+                        //                     authProvider,
+                        //                   ),
+                        //           icon: Image.asset(
+                        //             'images/google.png',
+                        //             width: 20,
+                        //             height: 20,
+                        //           ),
+                        //           label: Text(
+                        //             authProvider.isLoading
+                        //                 ? 'Signing in...'
+                        //                 : 'Sign up with Google',
+                        //           ),
+                        //         ),
+                        //       ]
+                        //     : null,
                       ),
                     ),
                     Positioned(
@@ -342,7 +363,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ],
                   ),
-                  if (authProvider.isAuthenticated) ...[
+                  if (showAuthenticatedPreview) ...[
                     32.gap,
                     MenuSection(
                       label: 'Account',
@@ -350,67 +371,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         MenuTile(
                           icon: Icons.logout_outlined,
                           title: 'Log out',
-                          onTap: () {
-                            ConfirmSheet.show(
+                          onTap: () async {
+                            final bool confirmed = await StyledSheet.show(
                               context,
                               icon: Icons.logout_rounded,
                               title: 'Log out?',
                               message:
-                                  'You can sign back in anytime. Your library '
+                                  'You can sign back in anytime. Your subscriptions '
                                   'and downloads stay on this device.',
                               confirmLabel: 'Log out',
-                              onConfirm: () async {
-                                await authProvider.logout();
-                                if (!context.mounted) return;
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  '/login',
-                                );
-                              },
                             );
+                            if (confirmed && context.mounted) {
+                              await authProvider.logout();
+                              if (!context.mounted) return;
+                              Navigator.pushReplacementNamed(context, '/login');
+                            }
                           },
                         ),
                         MenuTile(
                           icon: Icons.delete_forever_outlined,
                           title: 'Delete account',
                           foreground: cs.error,
-                          onTap: () {
-                            ConfirmSheet.show(
+                          onTap: () async {
+                            final bool confirmed = await StyledSheet.show(
                               context,
                               icon: Icons.delete_forever_rounded,
                               title: 'Delete account?',
                               message:
-                                  'This permanently erases your account, library, '
-                                  "and reading history. This can't be undone.",
+                                  'This permanently erases your account, subscriptions, '
+                                  "and listening history. This can't be undone.",
                               confirmLabel: 'Delete forever',
                               destructive: true,
-                              onConfirm: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Account deletion is not available yet.',
-                                    ),
-                                  ),
-                                );
-                              },
                             );
+                            if (confirmed && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Account deletion is not available yet.',
+                                  ),
+                                ),
+                              );
+                            }
                           },
                         ),
                       ],
                     ),
-                  ] else ...[
-                    32.gap,
-                    MenuSection(
-                      label: 'Account',
-                      children: [
-                        MenuTile(
-                          icon: Icons.login_outlined,
-                          title: 'Log in',
-                          onTap: () => Navigator.pushNamed(context, '/login'),
-                        ),
-                      ],
-                    ),
                   ],
+                  // Guest account section — commented to preview authenticated layout.
+                  // if (!authProvider.isAuthenticated) ...[
+                  //   32.gap,
+                  //   MenuSection(
+                  //     label: 'Account',
+                  //     children: [
+                  //       MenuTile(
+                  //         icon: Icons.login_outlined,
+                  //         title: 'Log in',
+                  //         onTap: () => Navigator.pushNamed(context, '/login'),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ],
                   64.gap,
                   const VersionIndicator(),
                   8.gap,

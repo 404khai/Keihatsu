@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
+import 'package:keihatsu/components/profile/shaped_action_button.dart';
 import 'package:material_shapes/material_shapes.dart';
 
 /// Menu page header: pill avatar with expressive stat badges and name below.
@@ -16,6 +17,12 @@ class MenuHeader extends StatelessWidget {
     required this.secondaryStatLabel,
     this.onEditTap,
     this.belowName,
+    this.bio,
+    this.memberSince,
+    this.location,
+    this.badgeIcon,
+    this.onShareTap,
+    this.showProfileActions = false,
   });
 
   final String displayName;
@@ -26,6 +33,12 @@ class MenuHeader extends StatelessWidget {
   final String secondaryStatLabel;
   final VoidCallback? onEditTap;
   final List<Widget>? belowName;
+  final String? bio;
+  final String? memberSince;
+  final String? location;
+  final IconData? badgeIcon;
+  final VoidCallback? onShareTap;
+  final bool showProfileActions;
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +116,18 @@ class MenuHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              if (onEditTap != null) ...[
+              if (badgeIcon != null) ...[
+                8.gap,
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: ShapeDecoration(
+                    color: cs.tertiary,
+                    shape: MaterialShapeBorder(shape: MaterialShapes.circle),
+                  ),
+                  child: Icon(badgeIcon, size: 16, color: cs.onTertiary),
+                ),
+              ] else if (onEditTap != null && !showProfileActions) ...[
                 8.gap,
                 IconButton(
                   onPressed: onEditTap,
@@ -116,6 +140,91 @@ class MenuHeader extends StatelessWidget {
               ],
             ],
           ),
+          if (bio != null) ...[
+            6.gap,
+            Text(
+              bio!,
+              textAlign: TextAlign.center,
+              style: tt.bodyMedium?.copyWith(
+                color: cs.onSurfaceVariant,
+                height: 1.3,
+              ),
+            ),
+          ],
+          if (memberSince != null || location != null) ...[
+            10.gap,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (memberSince != null) ...[
+                  Icon(Icons.calendar_today_outlined,
+                      size: 14, color: cs.onSurfaceVariant),
+                  4.gap,
+                  Text(
+                    'Member since $memberSince',
+                    style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                ],
+                if (memberSince != null && location != null) ...[
+                  16.gap,
+                ],
+                if (location != null) ...[
+                  Icon(Icons.location_on_outlined,
+                      size: 14, color: cs.onSurfaceVariant),
+                  4.gap,
+                  Text(
+                    location!,
+                    style: tt.labelMedium?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                ],
+              ],
+            ),
+          ],
+          if (showProfileActions) ...[
+            16.gap,
+            Row(
+              children: [
+                Expanded(
+                  child: ShapedActionButton(
+                    onTap: onShareTap ?? () {},
+                    rest: MaterialShapes.pill,
+                    pressed: MaterialShapes.cookie7Sided,
+                    outlined: true,
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.ios_share_rounded,
+                            size: 18, color: cs.onSurface),
+                        8.gap,
+                        Text(
+                          'Share Profile',
+                          style: tt.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                12.gap,
+                ShapedActionButton(
+                  onTap: onEditTap ?? () {},
+                  rest: MaterialShapes.circle,
+                  pressed: MaterialShapes.sunny,
+                  outlined: true,
+                  height: 44,
+                  padding: EdgeInsets.zero,
+                  child: SizedBox(
+                    width: 44,
+                    child: Icon(Icons.edit_outlined,
+                        size: 20, color: cs.onSurface),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (belowName != null) ...belowName!,
         ],
       ),

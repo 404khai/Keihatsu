@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../components/MainNavigationBar.dart';
 import '../components/LibraryDisplaySettingsSheet.dart';
 import '../components/OfflineImage.dart';
+import '../components/library/filter_tabs.dart';
 import '../models/local_models.dart';
 import '../models/manga.dart';
 import '../providers/offline_library_provider.dart';
@@ -20,30 +21,15 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen>
-    with TickerProviderStateMixin {
+class _LibraryScreenState extends State<LibraryScreen> {
   final int _currentIndex = 1;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
-  late TabController _categoryTabController;
-
-  @override
-  void initState() {
-    super.initState();
-    final provider = Provider.of<OfflineLibraryProvider>(
-      context,
-      listen: false,
-    );
-    _categoryTabController = TabController(
-      length: provider.categories.isEmpty ? 1 : provider.categories.length + 1,
-      vsync: this,
-    );
-  }
+  String _selectedCategory = 'Default';
 
   @override
   void dispose() {
     _searchController.dispose();
-    _categoryTabController.dispose();
     super.dispose();
   }
 
@@ -133,18 +119,12 @@ class _LibraryScreenState extends State<LibraryScreen>
     final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
     final textColor = isDarkMode ? Colors.white : Colors.black87;
     final prefs = authProvider.preferences;
+    final ColorScheme cs = Theme.of(context).colorScheme;
 
     final categories = [
       "Default",
       ...offlineLibrary.categories.map((c) => c.name),
     ];
-    if (_categoryTabController.length != categories.length) {
-      _categoryTabController.dispose();
-      _categoryTabController = TabController(
-        length: categories.length,
-        vsync: this,
-      );
-    }
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -176,40 +156,37 @@ class _LibraryScreenState extends State<LibraryScreen>
           ),
         ),
         bottom: (prefs?.tabsShowCategories ?? true) && categories.isNotEmpty
-            ? TabBar(
-          controller: _categoryTabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          indicatorColor: brandColor,
-          labelColor: brandColor,
-          unselectedLabelColor: textColor.withOpacity(0.5),
-          tabs: categories.map((cat) {
-            final categoryCount = offlineLibrary
-                .getLibraryForCategory(cat)
-                .length;
-            return Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    cat,
-                    style: const TextStyle(
-                      fontFamily: 'Delius',
-                      fontWeight: FontWeight.bold,
-                    ),
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(52),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: FilterTabs(
+                    tabs: categories.map((cat) {
+                      final categoryCount = offlineLibrary
+                          .getLibraryForCategory(cat)
+                          .length;
+                      final String label = (prefs?.tabsShowItemCount ?? true)
+                          ? '$cat ($categoryCount)'
+                          : cat;
+                      return FilterTab(
+                        value: cat,
+                        label: label,
+                        accent: brandColor,
+                        onAccent: cs.onPrimary,
+                        icon: cat == 'Default'
+                            ? Icons.library_books_outlined
+                            : Icons.folder_outlined,
+                      );
+                    }).toList(),
+                    selected: _selectedCategory,
+                    onSelected: (value) {
+                      if (value != null) {
+                        setState(() => _selectedCategory = value);
+                      }
+                    },
                   ),
-                  if (prefs?.tabsShowItemCount ?? true) ...[
-                    const SizedBox(width: 4),
-                    Text(
-                      "($categoryCount)",
-                      style: TextStyle(fontSize: 12, color: brandColor),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }).toList(),
-        )
+                ),
+              )
             : null,
         actions: [
           IconButton(
@@ -241,18 +218,12 @@ class _LibraryScreenState extends State<LibraryScreen>
           ? Center(child: CircularProgressIndicator(color: brandColor))
           : offlineLibrary.library.isEmpty
           ? _buildEmptyState(textColor)
-          : TabBarView(
-        controller: _categoryTabController,
-        children: categories.map((cat) {
-          final entries = offlineLibrary.getLibraryForCategory(cat);
-          return _buildLibraryContent(
-            entries,
-            brandColor,
-            textColor,
-            prefs,
-          );
-        }).toList(),
-      ),
+          : _buildLibraryContent(
+              offlineLibrary.getLibraryForCategory(_selectedCategory),
+              brandColor,
+              textColor,
+              prefs,
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddCategoryDialog,
         backgroundColor: brandColor,
