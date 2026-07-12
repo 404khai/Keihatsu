@@ -75,6 +75,7 @@ class ExpandableFloatingMainNav extends StatelessWidget {
     final navProvider = Provider.of<FloatingNavProvider>(context);
     final ColorScheme cs = Theme.of(context).colorScheme;
     final bool isDark = themeProvider.isDarkTheme;
+    final double bottomInset = MediaQuery.paddingOf(context).bottom;
 
     final Color toolbarColor = themeProvider.pureBlackDarkMode && isDark
         ? const Color(0xFF1A1A1A)
@@ -85,55 +86,71 @@ class ExpandableFloatingMainNav extends StatelessWidget {
 
     final double t = navProvider.expanded ? 1.0 : 0.0;
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Center(
+    return SizedBox(
+      width: double.infinity,
+      height: 56 + bottomInset + 8,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset > 0 ? bottomInset : 8),
           child: SingleMotionBuilder(
             motion: MaterialSpringMotion.standardSpatialFast(),
             value: t,
-            builder: (context, progress, child) {
-              final double barWidth = _lerp(64, _maxBarWidth(context), progress);
+            builder: (context, progress, _) {
+              final bool collapsed = progress < 0.02;
+              final double barWidth = collapsed
+                  ? 56
+                  : _lerp(56, _maxBarWidth(context), progress);
 
               return Material(
                 elevation: isDark ? 8 : 4,
                 shadowColor: Colors.black.withValues(alpha: 0.35),
                 color: toolbarColor,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(_lerp(32, 28, progress)),
+                  borderRadius: BorderRadius.circular(28),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: SizedBox(
                   width: barWidth,
                   height: 56,
-                  child: child,
+                  child: collapsed
+                      ? Center(
+                          child: _SearchHeroButton(
+                            expanded: 0,
+                            brandColor: brandColor,
+                            onTap: () => _openSearch(context),
+                          ),
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: _SideDestinations(
+                                destinations: _leading,
+                                currentIndex: currentIndex,
+                                expanded: progress,
+                                brandColor: brandColor,
+                                onTap: (d) => _navigate(context, d),
+                              ),
+                            ),
+                            _SearchHeroButton(
+                              expanded: progress,
+                              brandColor: brandColor,
+                              onTap: () => _openSearch(context),
+                            ),
+                            Expanded(
+                              child: _SideDestinations(
+                                destinations: _trailing,
+                                currentIndex: currentIndex,
+                                expanded: progress,
+                                brandColor: brandColor,
+                                onTap: (d) => _navigate(context, d),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               );
             },
-            child: Row(
-              children: [
-                _SideDestinations(
-                  destinations: _leading,
-                  currentIndex: currentIndex,
-                  expanded: t,
-                  brandColor: brandColor,
-                  onTap: (d) => _navigate(context, d),
-                ),
-                _SearchHeroButton(
-                  expanded: t,
-                  brandColor: brandColor,
-                  onTap: () => _openSearch(context),
-                ),
-                _SideDestinations(
-                  destinations: _trailing,
-                  currentIndex: currentIndex,
-                  expanded: t,
-                  brandColor: brandColor,
-                  onTap: (d) => _navigate(context, d),
-                ),
-              ],
-            ),
           ),
         ),
       ),
@@ -180,30 +197,28 @@ class _SideDestinations extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
+    final double visibility = expanded.clamp(0.0, 1.0);
 
-    return Expanded(
-      flex: expanded > 0.01 ? 1 : 0,
-      child: ClipRect(
-        child: Align(
-          alignment: Alignment.center,
-          widthFactor: expanded.clamp(0.0, 1.0),
-          child: Opacity(
-            opacity: expanded.clamp(0.0, 1.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                for (final destination in destinations)
-                  _NavIconButton(
-                    icon: currentIndex == destination.index
-                        ? destination.selectedIcon
-                        : destination.icon,
-                    selected: currentIndex == destination.index,
-                    brandColor: brandColor,
-                    unselectedColor: cs.onSurfaceVariant,
-                    onTap: () => onTap(destination),
-                  ),
-              ],
-            ),
+    return ClipRect(
+      child: Align(
+        alignment: Alignment.center,
+        widthFactor: visibility,
+        child: Opacity(
+          opacity: visibility,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              for (final destination in destinations)
+                _NavIconButton(
+                  icon: currentIndex == destination.index
+                      ? destination.selectedIcon
+                      : destination.icon,
+                  selected: currentIndex == destination.index,
+                  brandColor: brandColor,
+                  unselectedColor: cs.onSurfaceVariant,
+                  onTap: () => onTap(destination),
+                ),
+            ],
           ),
         ),
       ),
@@ -233,6 +248,9 @@ class _NavIconButton extends StatelessWidget {
       icon: Icon(icon, size: 24),
       color: selected ? brandColor : unselectedColor,
       tooltip: '',
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
     );
   }
 }
@@ -252,24 +270,30 @@ class _SearchHeroButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final Color fill = Color.lerp(brandColor, cs.primaryContainer, 0.55)!;
-    final Color iconColor = Color.lerp(cs.onPrimary, cs.onPrimaryContainer, 0.55)!;
+    final Color iconColor =
+        Color.lerp(cs.onPrimary, cs.onPrimaryContainer, 0.55)!;
 
-    final double width = 44 + (20 * expanded);
+    final bool collapsed = expanded < 0.02;
+    final double width = collapsed ? 44 : 44 + (20 * expanded);
+    final double height = 44;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4 * expanded),
-      child: Material(
-        color: fill,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: width,
-            height: 44,
-            child: Icon(Icons.search_rounded, color: iconColor, size: 26),
+    return Material(
+      color: fill,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(height / 2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Center(
+            child: Icon(
+              Icons.search_rounded,
+              color: iconColor,
+              size: 26,
+            ),
           ),
         ),
       ),
