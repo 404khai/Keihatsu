@@ -100,7 +100,7 @@ class AuthApi {
 
       if (avatar != null) {
         request.files.add(await http.MultipartFile.fromPath(
-          'avatar',
+          'jake',
           avatar.path,
           contentType: MediaType('image', avatar.path.split('.').last),
         ));

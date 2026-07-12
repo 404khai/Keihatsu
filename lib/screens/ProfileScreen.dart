@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:keihatsu/components/CustomBackButton.dart';
 import 'package:keihatsu/components/MainNavigationBar.dart';
+import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/bottom_padding.dart';
 import 'package:keihatsu/components/menu/confirm_sheet.dart';
 import 'package:keihatsu/components/menu/developer_signature.dart';
@@ -21,10 +23,38 @@ import 'package:keihatsu/screens/StatsScreen.dart';
 import 'package:keihatsu/theme_provider.dart';
 import 'package:provider/provider.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
   static const int _currentIndex = 4;
+
+  final ScrollController _scrollController = ScrollController();
+  bool _showCollapsedTitle = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final bool show = _scrollController.offset > 160;
+    if (show != _showCollapsedTitle) {
+      setState(() => _showCollapsedTitle = show);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   String _formatListeningTime(int minutes) {
     if (minutes < 60) return '${minutes}m';
@@ -62,9 +92,16 @@ class ProfileScreen extends StatelessWidget {
     final user = authProvider.user;
     final ColorScheme cs = Theme.of(context).colorScheme;
     final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color headerColor = cs.surfaceContainer;
 
-    final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 0;
-    final int libraryCount = user?.stats?.libraryCount ?? 0;
+    final String displayName = authProvider.isAuthenticated
+        ? (user?.username ?? 'Reader')
+        : 'Mystery Reader';
+    final String? avatarUrl =
+        authProvider.isAuthenticated ? user?.avatarUrl : null;
+
+    final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 120;
+    final int libraryCount = user?.stats?.libraryCount ?? 10;
 
     return Scaffold(
       backgroundColor: themeProvider.pureBlackDarkMode && isDarkTheme
@@ -72,200 +109,316 @@ class ProfileScreen extends StatelessWidget {
           : Theme.of(context).colorScheme.surface,
       body: RefreshIndicator(
         onRefresh: () => authProvider.refreshUserStats(),
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            8,
-            16,
-            BottomPadding.of(context) + kBottomNavigationBarHeight + 16,
-          ),
-          children: [
-            MenuHeader(
-              displayName: authProvider.isAuthenticated
-                  ? (user?.username ?? 'Reader')
-                  : 'Guest',
-              avatarUrl: authProvider.isAuthenticated ? user?.avatarUrl : null,
-              statValue: _formatListeningTime(readingMinutes),
-              statLabel: 'listened',
-              secondaryStatValue: libraryCount.toString(),
-              secondaryStatLabel: 'episodes',
-              onEditTap: authProvider.isAuthenticated
-                  ? () => _push(context, const EditProfileScreen())
-                  : null,
-            ),
-            if (!authProvider.isAuthenticated) ...[
-              16.gap,
-              FilledButton.icon(
-                onPressed: authProvider.isLoading
-                    ? null
-                    : () => _handleGoogleSignIn(context, authProvider),
-                icon: Image.asset('images/google.png', width: 20, height: 20),
-                label: Text(
-                  authProvider.isLoading
-                      ? 'Signing in...'
-                      : 'Sign up with Google',
-                ),
-              ),
-              8.gap,
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/login'),
-                child: Text('Log in', style: TextStyle(color: cs.primary)),
-              ),
-            ],
-            56.gap,
-            MenuSection(
-              label: 'Library',
-              children: [
-                MenuTile(
-                  icon: Icons.download_outlined,
-                  title: 'Downloads',
-                  onTap: () => _push(context, const DownloadQueueScreen()),
-                ),
-                MenuTile(
-                  icon: Icons.history_outlined,
-                  title: 'Reading history',
-                  onTap: () =>
-                      Navigator.pushReplacementNamed(context, '/history'),
-                ),
-                MenuTile(
-                  icon: Icons.bar_chart_outlined,
-                  title: 'Stats',
-                  onTap: () => _push(context, const StatsScreen()),
-                ),
-                MenuTile(
-                  icon: Icons.inbox_outlined,
-                  title: 'Inbox',
-                  onTap: () => _push(context, const InboxScreen()),
-                ),
-              ],
-            ),
-            32.gap,
-            MenuSection(
-              label: 'Preferences',
-              children: [
-                MenuTile(
-                  icon: Icons.brightness_6_outlined,
-                  title: 'Dark theme',
-                  trailing: Switch(
-                    value: isDarkTheme,
-                    thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
-                      WidgetState.selected: Icon(Icons.dark_mode_rounded),
-                      WidgetState.any: Icon(Icons.light_mode_rounded),
-                    }),
-                    onChanged: (_) => themeProvider.toggleDarkTheme(),
-                  ),
-                ),
-                MenuTile(
-                  icon: Icons.palette_outlined,
-                  title: 'Appearance',
-                  onTap: () => _push(context, const AppearancePage()),
-                ),
-                MenuTile(
-                  icon: Icons.settings_outlined,
-                  title: 'Settings',
-                  onTap: () => _push(context, const SettingsScreen()),
-                ),
-              ],
-            ),
-            32.gap,
-            MenuSection(
-              label: 'Support',
-              children: [
-                MenuTile(
-                  icon: Icons.workspace_premium_outlined,
-                  title: 'Support the developer',
-                  background: cs.secondaryContainer,
-                  foreground: cs.onSecondaryContainer,
-                  onTap: () => _push(context, const DonateScreen()),
-                ),
-                MenuTile(
-                  icon: Icons.lightbulb_outlined,
-                  title: 'Suggest a feature',
-                  onTap: () => _push(context, const HelpAndSupportScreen()),
-                ),
-                MenuTile(
-                  icon: Icons.alternate_email_outlined,
-                  title: 'Contact',
-                  onTap: () => _push(context, const HelpAndSupportScreen()),
-                ),
-                MenuTile(
-                  icon: Icons.info_outlined,
-                  title: 'About',
-                  onTap: () => _push(context, const AboutScreen()),
-                ),
-              ],
-            ),
-            if (authProvider.isAuthenticated) ...[
-              32.gap,
-              MenuSection(
-                label: 'Account',
-                children: [
-                  MenuTile(
-                    icon: Icons.logout_outlined,
-                    title: 'Log out',
-                    onTap: () {
-                      ConfirmSheet.show(
-                        context,
-                        icon: Icons.logout_rounded,
-                        title: 'Log out?',
-                        message:
-                            'You can sign back in anytime. Your library '
-                            'and downloads stay on this device.',
-                        confirmLabel: 'Log out',
-                        onConfirm: () async {
-                          await authProvider.logout();
-                          if (!context.mounted) return;
-                          Navigator.pushReplacementNamed(context, '/login');
-                        },
-                      );
-                    },
-                  ),
-                  MenuTile(
-                    icon: Icons.delete_forever_outlined,
-                    title: 'Delete account',
-                    foreground: cs.error,
-                    onTap: () {
-                      ConfirmSheet.show(
-                        context,
-                        icon: Icons.delete_forever_rounded,
-                        title: 'Delete account?',
-                        message:
-                            'This permanently erases your account, library, '
-                            "and reading history. This can't be undone.",
-                        confirmLabel: 'Delete forever',
-                        destructive: true,
-                        onConfirm: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Account deletion is not available yet.',
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 360,
+              pinned: true,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              // toolbarHeight: 72,
+              backgroundColor: headerColor,
+              surfaceTintColor: Colors.transparent,
+              leading: _showCollapsedTitle
+                  ? const CustomBackButton()
+                  : const SizedBox.shrink(),
+              leadingWidth: 56,
+              title: _showCollapsedTitle
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.transparent,
+                            child: ClipOval(
+                              child: OfflineImage(
+                                imageUrl: avatarUrl,
+                                width: 32,
+                                height: 32,
+                                fit: BoxFit.cover,
+                                fallback: Image.asset(
+                                  'images/jake.jpeg',
+                                  width: 32,
+                                  height: 32,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              displayName,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : null,
+              flexibleSpace: FlexibleSpaceBar(
+                collapseMode: CollapseMode.pin,
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(
+                      color: themeProvider.pureBlackDarkMode && isDarkTheme
+                          ? Colors.black
+                          : cs.surface,
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: MenuHeader(
+                        displayName: displayName,
+                        avatarUrl: avatarUrl,
+                        statValue: _formatListeningTime(readingMinutes),
+                        statLabel: 'read',
+                        secondaryStatValue: libraryCount.toString(),
+                        secondaryStatLabel: 'series',
+                        onEditTap: authProvider.isAuthenticated
+                            ? () => _push(context, const EditProfileScreen())
+                            : null,
+                        belowName: !authProvider.isAuthenticated
+                            ? [
+                                8.gap,
+                                FilledButton.icon(
+                                  onPressed: authProvider.isLoading
+                                      ? null
+                                      : () => _handleGoogleSignIn(
+                                            context,
+                                            authProvider,
+                                          ),
+                                  icon: Image.asset(
+                                    'images/google.png',
+                                    width: 20,
+                                    height: 20,
+                                  ),
+                                  label: Text(
+                                    authProvider.isLoading
+                                        ? 'Signing in...'
+                                        : 'Sign up with Google',
+                                  ),
+                                ),
+                                // 4.gap,
+                                // TextButton(
+                                //   onPressed: () =>
+                                //       Navigator.pushNamed(context, '/login'),
+                                //   child: Text(
+                                //     'Log in',
+                                //     style: TextStyle(color: cs.primary),
+                                //   ),
+                                // ),
+                              ]
+                            : null,
+                      ),
+                    ),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      child: SafeArea(
+                        child: CustomBackButton(
+                          iconSize: _showCollapsedTitle ? 28 : 36,
+                          margin: _showCollapsedTitle ? 8 : 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ] else ...[
-              32.gap,
-              MenuSection(
-                label: 'Account',
-                children: [
-                  MenuTile(
-                    icon: Icons.login_outlined,
-                    title: 'Log in',
-                    onTap: () => Navigator.pushNamed(context, '/login'),
-                  ),
-                ],
+            ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                BottomPadding.of(context) + kBottomNavigationBarHeight + 16,
               ),
-            ],
-            64.gap,
-            const VersionIndicator(),
-            8.gap,
-            DeveloperSignature(avatarUrl: user?.avatarUrl),
-            16.gap,
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  46.gap,
+                  MenuSection(
+                    label: 'Download Queue',
+                    children: [
+                      MenuTile(
+                        icon: Icons.cloud_download_outlined,
+                        title: 'Download Queue',
+                        onTap: () => _push(context, const DownloadQueueScreen()),
+                      ),
+                    ],
+                  ),
+                  32.gap,
+                  MenuSection(
+                    label: 'Library',
+                    children: [
+                      MenuTile(
+                        icon: Icons.label_outline,
+                        title: 'Categories',
+                        onTap: () =>
+                            Navigator.pushReplacementNamed(context, '/history'),
+                      ),
+                      MenuTile(
+                        icon: Icons.bar_chart_outlined,
+                        title: 'Stats',
+                        onTap: () => _push(context, const StatsScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.inbox_outlined,
+                        title: 'Inbox',
+                        onTap: () => _push(context, const InboxScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.theater_comedy_outlined,
+                        title: 'Incognito Mode',
+                        trailing: Switch(
+                          value: isDarkTheme,
+                          thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
+                            WidgetState.selected:
+                                Icon(Icons.theater_comedy_outlined),
+                            WidgetState.any: Icon(Icons.face_6_outlined),
+                          }),
+                          onChanged: (_) => themeProvider.toggleDarkTheme(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  32.gap,
+                  MenuSection(
+                    label: 'Preferences',
+                    children: [
+                      MenuTile(
+                        icon: Icons.brightness_6_outlined,
+                        title: 'Dark theme',
+                        trailing: Switch(
+                          value: isDarkTheme,
+                          thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
+                            WidgetState.selected: Icon(Icons.dark_mode_rounded),
+                            WidgetState.any: Icon(Icons.light_mode_rounded),
+                          }),
+                          onChanged: (_) => themeProvider.toggleDarkTheme(),
+                        ),
+                      ),
+                      MenuTile(
+                        icon: Icons.settings_outlined,
+                        title: 'Settings',
+                        onTap: () => _push(context, const SettingsScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.storage_outlined,
+                        title: 'Data & Storage',
+                        onTap: () => _push(context, const AppearancePage()),
+                      ),
+                    ],
+                  ),
+                  32.gap,
+                  MenuSection(
+                    label: 'Support',
+                    children: [
+                      MenuTile(
+                        icon: Icons.redeem_outlined,
+                        title: 'Support the Developer',
+                        onTap: () => _push(context, const DonateScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.lightbulb_outlined,
+                        title: 'Suggest a Feature',
+                        onTap: () => _push(context, const HelpAndSupportScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.contact_support_outlined,
+                        title: 'Help & Support',
+                        onTap: () => _push(context, const HelpAndSupportScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.info_outlined,
+                        title: 'About',
+                        onTap: () => _push(context, const AboutScreen()),
+                      ),
+                    ],
+                  ),
+                  if (authProvider.isAuthenticated) ...[
+                    32.gap,
+                    MenuSection(
+                      label: 'Account',
+                      children: [
+                        MenuTile(
+                          icon: Icons.logout_outlined,
+                          title: 'Log out',
+                          onTap: () {
+                            ConfirmSheet.show(
+                              context,
+                              icon: Icons.logout_rounded,
+                              title: 'Log out?',
+                              message:
+                                  'You can sign back in anytime. Your library '
+                                  'and downloads stay on this device.',
+                              confirmLabel: 'Log out',
+                              onConfirm: () async {
+                                await authProvider.logout();
+                                if (!context.mounted) return;
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  '/login',
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        MenuTile(
+                          icon: Icons.delete_forever_outlined,
+                          title: 'Delete account',
+                          foreground: cs.error,
+                          onTap: () {
+                            ConfirmSheet.show(
+                              context,
+                              icon: Icons.delete_forever_rounded,
+                              title: 'Delete account?',
+                              message:
+                                  'This permanently erases your account, library, '
+                                  "and reading history. This can't be undone.",
+                              confirmLabel: 'Delete forever',
+                              destructive: true,
+                              onConfirm: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Account deletion is not available yet.',
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    32.gap,
+                    MenuSection(
+                      label: 'Account',
+                      children: [
+                        MenuTile(
+                          icon: Icons.login_outlined,
+                          title: 'Log in',
+                          onTap: () => Navigator.pushNamed(context, '/login'),
+                        ),
+                      ],
+                    ),
+                  ],
+                  64.gap,
+                  const VersionIndicator(),
+                  8.gap,
+                  DeveloperSignature(avatarUrl: user?.avatarUrl),
+                  16.gap,
+                ]),
+              ),
+            ),
           ],
         ),
       ),

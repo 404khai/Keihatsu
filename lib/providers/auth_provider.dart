@@ -185,11 +185,19 @@ class AuthProvider with ChangeNotifier {
         _isInitialized = true;
       }
 
+      GoogleSignInAccount? googleUser;
+
       try {
-        await _googleSignIn.signOut();
+        googleUser = await _googleSignIn.attemptLightweightAuthentication();
+      } on GoogleSignInException catch (e) {
+        if (e.code == GoogleSignInExceptionCode.canceled) {
+          _isLoading = false;
+          notifyListeners();
+          return;
+        }
       } catch (_) {}
 
-      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
+      googleUser ??= await _googleSignIn.authenticate();
 
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;

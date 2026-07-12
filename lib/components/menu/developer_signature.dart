@@ -9,7 +9,7 @@ class DeveloperSignature extends StatelessWidget {
   const DeveloperSignature({
     super.key,
     this.avatarUrl,
-    this.developerName = 'Keihatsu',
+    this.developerName = '404khai',
   });
 
   final String? avatarUrl;
@@ -56,7 +56,7 @@ class DeveloperSignature extends StatelessWidget {
                     imageUrl: avatarUrl,
                     fit: BoxFit.cover,
                     fallback: Image.asset(
-                      'images/keihatsu.png',
+                      'images/404khai.jpeg',
                       fit: BoxFit.cover,
                     ),
                   ),

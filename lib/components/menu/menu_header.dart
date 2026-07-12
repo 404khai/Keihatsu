@@ -15,6 +15,7 @@ class MenuHeader extends StatelessWidget {
     required this.secondaryStatValue,
     required this.secondaryStatLabel,
     this.onEditTap,
+    this.belowName,
   });
 
   final String displayName;
@@ -24,6 +25,7 @@ class MenuHeader extends StatelessWidget {
   final String secondaryStatValue;
   final String secondaryStatLabel;
   final VoidCallback? onEditTap;
+  final List<Widget>? belowName;
 
   @override
   Widget build(BuildContext context) {
@@ -33,32 +35,36 @@ class MenuHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            padding: const EdgeInsets.only(top: 80, bottom: 4, left: 16, right: 16),
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                ClipPath(
-                  clipper: ShapeBorderClipper(
-                    shape: MaterialShapeBorder(shape: MaterialShapes.pill),
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: OfflineImage(
-                      imageUrl: avatarUrl,
-                      fit: BoxFit.cover,
-                      fallback: Image.asset(
-                        'images/avatar.jpeg',
+                SizedBox(
+                  width: 188,
+                  child: ClipPath(
+                    clipper: ShapeBorderClipper(
+                      shape: MaterialShapeBorder(shape: MaterialShapes.pill),
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: OfflineImage(
+                        imageUrl: avatarUrl,
                         fit: BoxFit.cover,
+                        fallback: Image.asset(
+                          'images/jake.jpeg',
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 Positioned(
-                  left: -8,
-                  top: -8,
+                  left: -6,
+                  top: -6,
                   child: _StatBadge(
                     value: statValue,
                     label: statLabel,
@@ -69,8 +75,8 @@ class MenuHeader extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  right: -8,
-                  bottom: -8,
+                  right: -6,
+                  bottom: -6,
                   child: _StatBadge(
                     value: secondaryStatValue,
                     label: secondaryStatLabel,
@@ -83,7 +89,7 @@ class MenuHeader extends StatelessWidget {
               ],
             ),
           ),
-          24.gap,
+          8.gap,
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -93,7 +99,7 @@ class MenuHeader extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: tt.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    height: 1.05,
+                    height: 1.0,
                   ),
                 ),
               ),
@@ -110,6 +116,7 @@ class MenuHeader extends StatelessWidget {
               ],
             ],
           ),
+          if (belowName != null) ...belowName!,
         ],
       ),
     );
@@ -140,8 +147,8 @@ class _StatBadge extends StatelessWidget {
     return Transform.rotate(
       angle: angle,
       child: Container(
-        width: 108,
-        height: 108,
+        width: 88,
+        height: 88,
         decoration: ShapeDecoration(
           color: background,
           shape: MaterialShapeBorder(shape: shape),
@@ -152,7 +159,7 @@ class _StatBadge extends StatelessWidget {
             Text(
               value,
               style: GoogleFonts.unbounded(
-                textStyle: tt.titleLarge,
+                textStyle: tt.titleMedium,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.5,
                 color: foreground,

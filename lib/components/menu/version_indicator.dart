@@ -36,7 +36,7 @@ class _VersionIndicatorState extends State<VersionIndicator> {
         Image.asset('images/keihatsu.png', height: 24),
         8.gap,
         Text(
-          'Keihatsu ${info.version} (${info.buildNumber})',
+          'Keihatsu v${info.version} (${info.buildNumber})',
           textAlign: TextAlign.center,
           style: GoogleFonts.robotoMono(
             textStyle: tt.labelSmall,
