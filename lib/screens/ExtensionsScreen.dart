@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../common/coming_soon.dart';
 import '../components/MainNavigationBar.dart';
+import '../components/floating_nav_scroll_scope.dart';
 import '../components/library/filter_tabs.dart';
 import '../models/local_models.dart';
 import '../services/sources_repository.dart';
@@ -164,6 +165,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
     final repo = Provider.of<SourcesRepository>(context, listen: false);
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: appBarColor,
@@ -191,6 +193,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: FilterTabs(
+              scrollable: false,
               tabs: [
                 FilterTab(
                   value: 'sources',
@@ -201,7 +204,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
                 ),
                 FilterTab(
                   value: 'plugin_store',
-                  label: 'Plugin Store',
+                  label: 'Plugins',
                   accent: brandColor,
                   onAccent: cs.onPrimary,
                   icon: Icons.storefront_outlined,
@@ -219,20 +222,22 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
             ),
           ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildSourcesTab(brandColor, textColor, cardColor, repo, cs, tt),
-                _buildPluginStoreTab(
-                  brandColor,
-                  textColor,
-                  cardColor,
-                  repo,
-                  cs,
-                  tt,
-                ),
-                _buildMigrateTab(textColor, cardColor, cs, tt),
-              ],
+            child: FloatingNavScrollScope(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildSourcesTab(brandColor, textColor, cardColor, repo, cs, tt),
+                  _buildPluginStoreTab(
+                    brandColor,
+                    textColor,
+                    cardColor,
+                    repo,
+                    cs,
+                    tt,
+                  ),
+                  _buildMigrateTab(textColor, cardColor, cs, tt),
+                ],
+              ),
             ),
           ),
         ],

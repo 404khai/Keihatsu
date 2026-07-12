@@ -6,6 +6,7 @@ import 'package:isar/isar.dart';
 import 'package:intl/intl.dart';
 import '../components/OfflineImage.dart';
 import '../components/MainNavigationBar.dart';
+import '../components/floating_nav_scroll_scope.dart';
 import '../theme_provider.dart';
 import '../providers/offline_library_provider.dart';
 import '../providers/auth_provider.dart';
@@ -157,6 +158,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             history.isNotEmpty && _selectedIds.length == history.length;
 
         return Scaffold(
+          extendBody: true,
           backgroundColor: bgColor,
           appBar: AppBar(
             backgroundColor: bgColor,
@@ -255,7 +257,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ],
           ),
 
-          body: isLoading
+          body: FloatingNavScrollScope(
+            child: isLoading
               ? const Center(child: CircularProgressIndicator())
               : history.isEmpty
               ? Center(
@@ -400,6 +403,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
               );
             },
+          ),
           ),
           bottomNavigationBar: MainNavigationBar(
             currentIndex: _currentIndex,

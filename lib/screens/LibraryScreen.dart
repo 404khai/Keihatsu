@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:isar/isar.dart';
 import 'package:provider/provider.dart';
 import '../components/MainNavigationBar.dart';
+import '../components/floating_nav_scroll_scope.dart';
 import '../components/LibraryDisplaySettingsSheet.dart';
 import '../components/OfflineImage.dart';
 import '../components/library/filter_tabs.dart';
@@ -127,6 +128,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     ];
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
@@ -214,7 +216,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         ],
       ),
-      body: offlineLibrary.isLoading
+      body: FloatingNavScrollScope(
+        child: offlineLibrary.isLoading
           ? Center(child: CircularProgressIndicator(color: brandColor))
           : offlineLibrary.library.isEmpty
           ? _buildEmptyState(textColor)
@@ -224,6 +227,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               textColor,
               prefs,
             ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddCategoryDialog,
         backgroundColor: brandColor,

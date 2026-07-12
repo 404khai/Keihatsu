@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:isar/isar.dart';
 import '../models/local_models.dart';
 import '../components/MainNavigationBar.dart';
+import '../components/floating_nav_scroll_scope.dart';
 import '../models/manga.dart';
 import '../providers/auth_provider.dart';
 import '../services/sources_api.dart';
@@ -89,6 +90,7 @@ class _HomePageState extends State<HomePage> {
     final Color textColor = isDarkMode ? Colors.white : Colors.black87;
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
@@ -120,10 +122,11 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshData,
-        color: brandColor,
-        child: SingleChildScrollView(
+      body: FloatingNavScrollScope(
+        child: RefreshIndicator(
+          onRefresh: _refreshData,
+          color: brandColor,
+          child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,6 +225,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 100), // Space for navigation bar
             ],
           ),
+        ),
         ),
       ),
       bottomNavigationBar: MainNavigationBar(

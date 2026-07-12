@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:keihatsu/components/CustomBackButton.dart';
+import 'package:keihatsu/components/floating_nav_scroll_scope.dart';
 import 'package:keihatsu/components/MainNavigationBar.dart';
 import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/bottom_padding.dart';
@@ -115,12 +116,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         showAuthenticatedPreview ? 42 : (user?.stats?.libraryCount ?? 10);
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: themeProvider.pureBlackDarkMode && isDarkTheme
           ? Colors.black
           : Theme.of(context).colorScheme.surface,
-      body: RefreshIndicator(
-        onRefresh: () => authProvider.refreshUserStats(),
-        child: CustomScrollView(
+      body: FloatingNavScrollScope(
+        child: RefreshIndicator(
+          onRefresh: () => authProvider.refreshUserStats(),
+          child: CustomScrollView(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
@@ -440,6 +443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
       bottomNavigationBar: MainNavigationBar(

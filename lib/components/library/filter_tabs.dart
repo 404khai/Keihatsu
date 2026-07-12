@@ -31,6 +31,7 @@ class FilterTabs extends StatefulWidget {
     required this.onSelected,
     this.height = 44,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.scrollable = true,
   });
 
   final List<FilterTab> tabs;
@@ -38,6 +39,7 @@ class FilterTabs extends StatefulWidget {
   final ValueChanged<String?> onSelected;
   final double height;
   final EdgeInsetsGeometry padding;
+  final bool scrollable;
 
   @override
   State<FilterTabs> createState() => _FilterTabsState();
@@ -110,6 +112,34 @@ class _FilterTabsState extends State<FilterTabs>
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.scrollable) {
+      return SizedBox(
+        height: widget.height,
+        child: Padding(
+          padding: widget.padding,
+          child: Row(
+            children: [
+              for (int i = 0; i < widget.tabs.length; i++)
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: i < widget.tabs.length - 1 ? 8 : 0,
+                    ),
+                    child: _FilterChip(
+                      key: _keyFor(widget.tabs[i].value),
+                      tab: widget.tabs[i],
+                      selected: widget.tabs[i].value == widget.selected,
+                      onTap: () => widget.onSelected(widget.tabs[i].value),
+                      compact: true,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: widget.height,
       child: ListView.builder(
@@ -137,11 +167,13 @@ class _FilterChip extends StatelessWidget {
     required this.tab,
     required this.selected,
     required this.onTap,
+    this.compact = false,
   });
 
   final FilterTab tab;
   final bool selected;
   final VoidCallback onTap;
+  final bool compact;
 
   static const double _idleRadius = 12;
   static const double _pillRadius = 22;
@@ -152,7 +184,7 @@ class _FilterChip extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: compact ? EdgeInsets.zero : const EdgeInsets.only(right: 8),
       child: SingleMotionBuilder(
         motion: MaterialSpringMotion.standardSpatialFast(),
         value: selected ? 1.0 : 0.0,
@@ -175,13 +207,15 @@ class _FilterChip extends StatelessWidget {
               onTap: onTap,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  tab.image != null ? 6 : 14,
+                  tab.image != null ? 6 : (compact ? 8 : 14),
                   6,
-                  16,
+                  compact ? 8 : 16,
                   6,
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment:
+                      compact ? MainAxisAlignment.center : MainAxisAlignment.start,
+                  mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
                   children: [
                     if (tab.image != null) ...[
                       ClipPath(
@@ -210,9 +244,12 @@ class _FilterChip extends StatelessWidget {
                     ],
                     Text(
                       tab.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: tt.labelLarge?.copyWith(
                         color: fg,
                         fontWeight: FontWeight.w700,
+                        fontSize: compact ? 13 : null,
                       ),
                     ),
                   ],
