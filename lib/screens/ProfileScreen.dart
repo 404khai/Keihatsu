@@ -12,6 +12,7 @@ import 'package:keihatsu/components/menu/menu_section.dart';
 import 'package:keihatsu/components/menu/menu_tile.dart';
 import 'package:keihatsu/components/menu/styled_sheet.dart';
 import 'package:keihatsu/components/menu/version_indicator.dart';
+import 'package:keihatsu/components/notification_pill.dart';
 import 'package:keihatsu/providers/auth_provider.dart';
 import 'package:keihatsu/screens/AboutScreen.dart';
 import 'package:keihatsu/screens/AppearancePage.dart';
@@ -128,7 +129,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverAppBar(
-              expandedHeight: 460,
+              // expandedHeight: 460,
+              expandedHeight: 420,
               pinned: true,
               elevation: 0,
               scrolledUnderElevation: 0,
@@ -210,8 +212,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Clipboard.setData(
                             ClipboardData(text: 'https://keihatsu.app/u/kaizel'),
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Profile link copied')),
+                          NotificationPill.show(
+                            context,
+                            message: 'Profile link copied',
+                            icon: Icons.insert_link_rounded,
                           );
                         },
                         onEditTap: showAuthenticatedPreview

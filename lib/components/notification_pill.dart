@@ -5,10 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../theme_provider.dart';
 
-/// Stadium-shaped notification pill with a leading icon badge.
-///
-/// Dark theme: charcoal body, mustard icon tile, dark rocket.
-/// Light theme: cream body, olive icon disc, white rocket.
+/// Stadium-shaped notification pill with a leading D-shaped icon badge.
 class NotificationPill extends StatelessWidget {
   const NotificationPill({
     super.key,
@@ -56,8 +53,8 @@ class NotificationPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final bool isDark = themeProvider.isDarkTheme;
-    final _PillPalette palette = _PillPalette.forTheme(isDark);
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final _PillPalette palette = _PillPalette.fromTheme(themeProvider, cs);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -69,34 +66,38 @@ class NotificationPill extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                color: Colors.black.withValues(
+                  alpha: themeProvider.isDarkTheme ? 0.35 : 0.12,
+                ),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _IconBadge(
-                icon: icon,
-                palette: palette,
-                isDark: isDark,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 20, 14),
-                child: Text(
-                  message,
-                  style: TextStyle(
-                    color: palette.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -0.1,
-                    height: 1.2,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _IconBadge(
+                  icon: icon,
+                  palette: palette,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 20, 14),
+                  child: Text(
+                    message,
+                    style: TextStyle(
+                      color: palette.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -0.1,
+                      height: 1.2,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         if (showPointer)
@@ -116,36 +117,24 @@ class _IconBadge extends StatelessWidget {
   const _IconBadge({
     required this.icon,
     required this.palette,
-    required this.isDark,
   });
 
   final IconData icon;
   final _PillPalette palette;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    if (isDark) {
-      return Container(
-        width: 48,
-        height: 48,
-        margin: const EdgeInsets.fromLTRB(6, 6, 0, 6),
-        decoration: BoxDecoration(
-          color: palette.iconBackground,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Icon(icon, color: palette.iconForeground, size: 22),
-      );
-    }
-
     return Container(
-      width: 48,
-      height: 48,
-      margin: const EdgeInsets.only(left: 6),
+      width: 52,
+      padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
         color: palette.iconBackground,
-        shape: BoxShape.circle,
+        borderRadius: const BorderRadius.horizontal(
+          left: Radius.circular(999),
+          right: Radius.circular(14),
+        ),
       ),
+      alignment: Alignment.center,
       child: Icon(icon, color: palette.iconForeground, size: 22),
     );
   }
@@ -166,24 +155,47 @@ class _PillPalette {
   final Color text;
   final Color pointer;
 
-  static _PillPalette forTheme(bool isDark) {
+  static _PillPalette fromTheme(ThemeProvider themeProvider, ColorScheme cs) {
+    final Color brand = themeProvider.brandColor;
+    final Color bg = themeProvider.bgColor;
+    final bool isDark = themeProvider.isDarkTheme;
+
     if (isDark) {
-      return const _PillPalette(
-        background: Color(0xFF1E1E1A),
-        iconBackground: Color(0xFFC4C878),
-        iconForeground: Color(0xFF141410),
-        text: Color(0xFFF3F3EE),
-        pointer: Color(0xFF6D701F),
+      final Color surface = themeProvider.pureBlackDarkMode
+          ? Colors.black
+          : cs.surface;
+      return _PillPalette(
+        background: Color.alphaBlend(
+          brand.withValues(alpha: 0.12),
+          Color.lerp(surface, const Color(0xFF1E1E1A), 0.65)!,
+        ),
+        iconBackground: _accentBadge(brand, isDark: true),
+        iconForeground: _onBadge(_accentBadge(brand, isDark: true)),
+        text: cs.onSurface,
+        pointer: _accentBadge(brand, isDark: true),
       );
     }
 
-    return const _PillPalette(
-      background: Color(0xFFF2F1E6),
-      iconBackground: Color(0xFF6D701F),
-      iconForeground: Colors.white,
-      text: Color(0xFF2A2824),
-      pointer: Color(0xFF6D701F),
+    return _PillPalette(
+      background: Color.lerp(bg, cs.surfaceContainer, 0.35)!,
+      iconBackground: _accentBadge(brand, isDark: false),
+      iconForeground: _onBadge(_accentBadge(brand, isDark: false)),
+      text: cs.onSurface,
+      pointer: _accentBadge(brand, isDark: false),
     );
+  }
+
+  static Color _accentBadge(Color brand, {required bool isDark}) {
+    if (isDark) {
+      return Color.lerp(brand, const Color(0xFFC4C878), 0.55)!;
+    }
+    return Color.lerp(brand, const Color(0xFF6D701F), 0.45)!;
+  }
+
+  static Color _onBadge(Color badge) {
+    return badge.computeLuminance() > 0.55
+        ? const Color(0xFF141410)
+        : Colors.white;
   }
 }
 

@@ -7,13 +7,8 @@ class ThemeProvider extends ChangeNotifier {
   static const String _bgColorKey = 'bg_color';
   static const String _pureBlackKey = 'pure_black_dark_mode';
 
-  static const Color roseBlushBrand = Color(0xFFFFBEEB);
-  static const Color roseBlushBg = Color(0xFFFBEBF7);
-  static const Color sunriseGoldBrand = Color(0xFFF9E216);
-  static const Color sunriseGoldBg = Color(0xFFFBFBEB);
-
   ThemeMode _themeMode = ThemeMode.system;
-  Color _brandColor = Colors.black;
+  Color _brandColor = const Color(0xFFEFEFEF);
   Color _bgColor = Colors.white;
   bool _pureBlackDarkMode = false;
 
@@ -39,14 +34,6 @@ class ThemeProvider extends ChangeNotifier {
     }
     return _bgColor;
   }
-
-  bool get isRoseBlush =>
-      _brandColor.value == roseBlushBrand.value &&
-      _bgColor.value == roseBlushBg.value;
-
-  bool get isSunriseGold =>
-      _brandColor.value == sunriseGoldBrand.value &&
-      _bgColor.value == sunriseGoldBg.value;
 
   Future<void> loadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
