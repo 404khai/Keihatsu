@@ -6,6 +6,9 @@ import 'package:isar/isar.dart';
 import '../models/local_models.dart';
 import '../components/MainNavigationBar.dart';
 import '../components/floating_nav_scroll_scope.dart';
+import '../components/home/home_updates_section.dart';
+import '../components/home/latest_updates_carousel.dart';
+import '../data/mock_home_updates.dart';
 import '../models/manga.dart';
 import '../providers/auth_provider.dart';
 import '../services/sources_api.dart';
@@ -97,14 +100,20 @@ class _HomePageState extends State<HomePage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Keihatsu',
-          style: GoogleFonts.hennyPenny(
-            textStyle: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-            ),
+          'Explore',
+          style: GoogleFonts.unbounded(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            color: textColor,
+            fontSize: 24,
           ),
+          // style: GoogleFonts.hennyPenny(
+          //   textStyle: TextStyle(
+          //     color: textColor,
+          //     fontWeight: FontWeight.bold,
+          //     fontSize: 24,
+          //   ),
+          // ),
         ),
         actions: [
           IconButton(
@@ -176,50 +185,42 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
 
-              // Latest Update Section
-              _buildSectionHeader(
-                "Latest Updates",
-                textColor,
+              // Latest Updates — M3E carousel
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Text(
+                  'Latest Updates',
+                  style: GoogleFonts.unbounded(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: textColor,
+                    fontSize: 24,
+                  ),
+                ),
+              ),
+              FutureBuilder<List<Manga>>(
+                future: _popularMangaFuture,
+                builder: (context, snapshot) {
+                  return LatestUpdatesCarousel(
+                    mangas: snapshot.data ?? const [],
+                    brandColor: brandColor,
+                    textColor: textColor,
+                    loading: snapshot.connectionState == ConnectionState.waiting,
+                    onShowAll: () {
+                      Navigator.pushReplacementNamed(context, '/library');
+                    },
+                  );
+                },
+              ),
+
+              // Grouped updates feed
+              HomeUpdatesSection(
+                brandColor: brandColor,
+                textColor: textColor,
+                groups: mockHomeUpdates,
                 onSeeMore: () {
                   Navigator.pushReplacementNamed(context, '/library');
                 },
-              ),
-              _buildFutureMangaList(
-                _popularMangaFuture,
-                brandColor,
-                textColor,
-                cardColor,
-                offlineLibrary,
-                height: 220,
-              ),
-
-              const SizedBox(height: 30),
-
-              // Latest Updates Section
-              // _buildSectionHeader("Latest Updates", textColor),
-              // _buildFutureMangaList(
-              //   _latestMangaFuture,
-              //   brandColor,
-              //   textColor,
-              //   cardColor,
-              //   offlineLibrary,
-              //   height: 200,
-              //   compact: true,
-              // ),
-
-              // const SizedBox(height: 30),
-
-              // Recommendations (Using Popular for now)
-              _buildSectionHeader("You might like", textColor),
-              _buildFutureMangaList(
-                _popularMangaFuture,
-                brandColor,
-                textColor,
-                cardColor,
-                offlineLibrary,
-                height: 200,
-                compact: true,
-                skip: 5,
               ),
 
               const SizedBox(height: 100), // Space for navigation bar
@@ -266,52 +267,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFutureMangaList(
-      Future<List<Manga>> future,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      OfflineLibraryProvider offlineLibrary, {
-        required double height,
-        bool compact = false,
-        int skip = 0,
-      }) {
-    return FutureBuilder<List<Manga>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            height: height,
-            child: Center(child: CircularProgressIndicator(color: brandColor)),
-          );
-        } else if (snapshot.hasError) {
-          return SizedBox(
-            height: height,
-            child: Center(
-              child: Icon(PhosphorIcons.warningCircle(), color: Colors.red),
-            ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return SizedBox(
-            height: height,
-            child: const Center(child: Text("No data found")),
-          );
-        }
-
-        final mangas = snapshot.data!.skip(skip).toList();
-        return _buildMangaList(
-          mangas,
-          brandColor,
-          textColor,
-          cardColor,
-          offlineLibrary,
-          height: height,
-          compact: compact,
-        );
-      },
-    );
-  }
-
   Widget _buildSectionHeader(
       String title,
       Color textColor, {
@@ -324,13 +279,19 @@ class _HomePageState extends State<HomePage> {
         children: [
           Text(
             title,
-            style: GoogleFonts.hennyPenny(
-              textStyle: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
+            style: GoogleFonts.unbounded(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+              color: textColor,
+              fontSize: 24,
             ),
+            // style: GoogleFonts.hennyPenny(
+            //   textStyle: TextStyle(
+            //     fontSize: 20,
+            //     fontWeight: FontWeight.bold,
+            //     color: textColor,
+            //   ),
+            // ),
           ),
           if (onSeeMore != null)
             IconButton(
