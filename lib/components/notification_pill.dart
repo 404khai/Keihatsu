@@ -14,6 +14,9 @@ class NotificationPill extends StatelessWidget {
     this.showPointer = false,
   });
 
+  static const double _pillInset = 6;
+  static const double _badgeSize = 36;
+
   final String message;
   final IconData icon;
   final bool showPointer;
@@ -74,22 +77,23 @@ class NotificationPill extends StatelessWidget {
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.all(_pillInset),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _IconBadge(
                   icon: icon,
                   palette: palette,
+                  size: _badgeSize,
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 20, 14),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
                   child: Text(
                     message,
                     style: TextStyle(
                       color: palette.text,
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                       letterSpacing: -0.1,
                       height: 1.2,
@@ -117,25 +121,27 @@ class _IconBadge extends StatelessWidget {
   const _IconBadge({
     required this.icon,
     required this.palette,
+    required this.size,
   });
 
   final IconData icon;
   final _PillPalette palette;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 52,
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: palette.iconBackground,
-        borderRadius: const BorderRadius.horizontal(
-          left: Radius.circular(999),
-          right: Radius.circular(14),
+        borderRadius: BorderRadius.horizontal(
+          left: Radius.circular(size / 2),
+          right: Radius.circular(size * 0.32),
         ),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, color: palette.iconForeground, size: 22),
+      child: Icon(icon, color: palette.iconForeground, size: size * 0.55),
     );
   }
 }
@@ -281,25 +287,28 @@ class _NotificationPillOverlayState extends State<_NotificationPillOverlay>
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: FadeTransition(
-            opacity: _opacity,
-            child: SlideTransition(
-              position: _slide,
-              child: Material(
-                color: Colors.transparent,
-                child: NotificationPill(
-                  message: widget.message,
-                  icon: widget.icon,
-                  showPointer: widget.showPointer,
+      bottom: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: FadeTransition(
+              opacity: _opacity,
+              child: SlideTransition(
+                position: _slide,
+                child: Material(
+                  color: Colors.transparent,
+                  child: NotificationPill(
+                    message: widget.message,
+                    icon: widget.icon,
+                    showPointer: widget.showPointer,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

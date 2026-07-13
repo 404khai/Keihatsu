@@ -1,150 +1,169 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:keihatsu/common/shape_values.dart';
+import 'package:keihatsu/data/mock_latest_updates_carousel.dart';
 import 'package:keihatsu/models/manga.dart';
 import 'package:keihatsu/screens/MangaDetailsScreen.dart';
-import 'package:material_shapes/material_shapes.dart';
 
-/// Flutter port of [CarouselWithShowAllButtonSample](https://cs.android.com/androidx/platform/frameworks/support/+/androidx-main:compose/material3/material3/samples/src/main/java/androidx/compose/material3/samples/CarouselSamples.kt)
-/// using a horizontal multi-browse layout and trailing show-all action.
-class LatestUpdatesCarousel extends StatelessWidget {
-  const LatestUpdatesCarousel({
+/// Hero-layout carousel — one large center item with smaller side peers.
+///
+/// Uses [CarouselView.weighted] with `[1, 7, 1]` flex weights, matching
+/// Flutter's Material 3 hero carousel pattern.
+class LatestUpdatesCarousel extends StatefulWidget {
+  LatestUpdatesCarousel({
     super.key,
-    required this.mangas,
+    List<Manga>? mangas,
     required this.brandColor,
     required this.textColor,
     required this.onShowAll,
-    this.loading = false,
-  });
+  }) : mangas = mangas ?? mockLatestUpdatesCarousel;
 
   final List<Manga> mangas;
   final Color brandColor;
   final Color textColor;
   final VoidCallback onShowAll;
-  final bool loading;
 
-  static const double _carouselHeight = 221;
-  static const double _itemHeight = 205;
-  static const double _preferredItemWidth = 186;
-  static const double _itemSpacing = 8;
+  static const double carouselHeight = 280;
+  static const double cornerRadius = 28;
+
+  @override
+  State<LatestUpdatesCarousel> createState() => _LatestUpdatesCarouselState();
+}
+
+class _LatestUpdatesCarouselState extends State<LatestUpdatesCarousel> {
+  late final CarouselController _controller = CarouselController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
+    if (widget.mangas.isEmpty) {
       return SizedBox(
-        height: _carouselHeight,
-        child: Center(child: CircularProgressIndicator(color: brandColor)),
-      );
-    }
-
-    if (mangas.isEmpty) {
-      return SizedBox(
-        height: _carouselHeight,
+        height: LatestUpdatesCarousel.carouselHeight,
         child: Center(
           child: Text(
             'No updates yet',
-            style: TextStyle(color: textColor.withValues(alpha: 0.6)),
+            style: TextStyle(
+              color: widget.textColor.withValues(alpha: 0.6),
+            ),
           ),
         ),
       );
     }
 
-    final ColorScheme cs = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: _carouselHeight,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: mangas.length,
-            separatorBuilder: (_, __) => const SizedBox(width: _itemSpacing),
-            itemBuilder: (context, index) {
-              final manga = mangas[index];
-              return _CarouselItem(
-                manga: manga,
-                width: _preferredItemWidth,
-                height: _itemHeight,
-                shape: index.isEven ? ShapeValues.cover : ShapeValues.coverFocused,
-              );
-            },
+    return SizedBox(
+      height: LatestUpdatesCarousel.carouselHeight,
+      child: CarouselView.weighted(
+        controller: _controller,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemSnapping: true,
+        flexWeights: const [2, 5, 2],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            LatestUpdatesCarousel.cornerRadius,
           ),
         ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: TextButton(
-              onPressed: onShowAll,
-              style: TextButton.styleFrom(
-                foregroundColor: cs.onPrimary,
-                backgroundColor: brandColor,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              child: Text(
-                'Show all',
-                style: GoogleFonts.unbounded(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  letterSpacing: -0.2,
-                ),
-              ),
+        onTap: (index) {
+          _controller.animateToItem(
+            index,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  MangaDetailsScreen(manga: widget.mangas[index]),
             ),
-          ),
-        ),
-      ],
+          );
+        },
+        children: [
+          for (final manga in widget.mangas)
+            _HeroCarouselCard(
+              manga: manga,
+              borderRadius: LatestUpdatesCarousel.cornerRadius,
+            ),
+        ],
+      ),
     );
   }
 }
 
-class _CarouselItem extends StatelessWidget {
-  const _CarouselItem({
+class _HeroCarouselCard extends StatelessWidget {
+  const _HeroCarouselCard({
     required this.manga,
-    required this.width,
-    required this.height,
-    required this.shape,
+    required this.borderRadius,
   });
 
   final Manga manga;
-  final double width;
-  final double height;
-  final RoundedPolygon shape;
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MangaDetailsScreen(manga: manga),
-          ),
-        );
-      },
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: ClipPath(
-          clipper: ShapeBorderClipper(
-            shape: MaterialShapeBorder(shape: shape),
-          ),
-          child: Image.network(
-            manga.thumbnailUrl,
-            width: width,
-            height: height,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image(
+            image: _thumbnailImage(manga.thumbnailUrl),
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
+            errorBuilder: (_, __, ___) => ColoredBox(
               color: Colors.grey.shade800,
               child: const Icon(Icons.broken_image, color: Colors.white54),
             ),
           ),
-        ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.75),
+                  ],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 24, 12, 12),
+                child: Text(
+                  manga.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.unbounded(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                    fontSize: 14,
+                    color: Colors.white,
+                    height: 1.2,
+                    shadows: const [
+                      Shadow(
+                        color: Colors.black54,
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+ImageProvider<Object> _thumbnailImage(String thumbnailUrl) {
+  if (thumbnailUrl.startsWith('http://') ||
+      thumbnailUrl.startsWith('https://')) {
+    return NetworkImage(thumbnailUrl);
+  }
+  return AssetImage(thumbnailUrl);
 }

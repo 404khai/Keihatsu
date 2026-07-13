@@ -34,10 +34,10 @@ class HomeUpdatesSection extends StatelessWidget {
                 child: Text(
                   'Updates',
                   style: GoogleFonts.unbounded(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -0.5,
                     color: textColor,
-                    fontSize: 24,
+                    fontSize: 20,
                   ),
                 ),
               ),
@@ -57,7 +57,7 @@ class HomeUpdatesSection extends StatelessWidget {
                 child: Text(
                   'See More',
                   style: GoogleFonts.unbounded(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                     fontSize: 13,
                     letterSpacing: -0.2,
                   ),
@@ -191,16 +191,16 @@ class _TrailingAction extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           if (scheduled)
-            Icon(Icons.calendar_today_outlined, color: color, size: 22)
+            Icon(Icons.calendar_month_outlined, color: color, size: 22)
           else
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: color.withValues(alpha: 0.35)),
-              ),
-              child: Icon(Icons.download_rounded, color: color, size: 20),
+              // decoration: BoxDecoration(
+              //   shape: BoxShape.circle,
+              //   border: Border.all(color: color.withValues(alpha: 0.35)),
+              // ),
+              child: Icon(Icons.download_for_offline_outlined, color: color, size: 23),
             ),
           if (scheduled)
             Positioned(

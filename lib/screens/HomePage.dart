@@ -5,6 +5,7 @@ import 'package:isar/isar.dart';
 import '../models/local_models.dart';
 import '../components/MainNavigationBar.dart';
 import '../components/floating_nav_scroll_scope.dart';
+import '../components/gradient_fade_app_bar.dart';
 import '../components/home/home_updates_section.dart';
 import '../components/home/latest_updates_carousel.dart';
 import '../components/home/notifications_bottom_sheet.dart';
@@ -22,7 +23,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
   final int _currentIndex = 0;
   // final SourcesApi _sourcesApi = SourcesApi();
 
@@ -95,11 +96,10 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       extendBody: true,
       backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: appBarColor,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: GradientFadeAppBar(
+        baseColor: appBarColor,
+        fadeAmount: appBarFade,
+        automaticallyImplyLeading: false,
         title: Text(
           'Explore',
           style: GoogleFonts.unbounded(
@@ -142,8 +142,10 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: FloatingNavScrollScope(
-        child: RefreshIndicator(
+      body: GradientFadeScrollListener(
+        onFadeChanged: updateAppBarFade,
+        child: FloatingNavScrollScope(
+          child: RefreshIndicator(
           onRefresh: _refreshData,
           color: brandColor,
           child: SingleChildScrollView(
@@ -230,6 +232,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 100), // Space for navigation bar
             ],
           ),
+        ),
         ),
         ),
       ),

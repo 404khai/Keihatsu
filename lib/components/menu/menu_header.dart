@@ -157,7 +157,7 @@ class MenuHeader extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (memberSince != null) ...[
-                  Icon(Icons.calendar_today_outlined,
+                  Icon(Icons.calendar_month_outlined,
                       size: 14, color: cs.onSurfaceVariant),
                   4.gap,
                   Text(

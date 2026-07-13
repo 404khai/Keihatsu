@@ -4,6 +4,7 @@ import 'package:isar/isar.dart';
 import 'package:provider/provider.dart';
 import '../components/MainNavigationBar.dart';
 import '../components/floating_nav_scroll_scope.dart';
+import '../components/gradient_fade_app_bar.dart';
 import '../components/LibraryDisplaySettingsSheet.dart';
 import '../components/OfflineImage.dart';
 import '../components/library/filter_tabs.dart';
@@ -22,7 +23,8 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> {
+class _LibraryScreenState extends State<LibraryScreen>
+    with GradientFadeAppBarMixin {
   final int _currentIndex = 1;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -142,11 +144,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Scaffold(
       extendBody: true,
       backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: appBarColor,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: GradientFadeAppBar(
+        baseColor: appBarColor,
+        fadeAmount: appBarFade,
+        automaticallyImplyLeading: false,
         title: _isSearching
             ? TextField(
           controller: _searchController,
@@ -235,8 +236,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         ],
       ),
-      body: FloatingNavScrollScope(
-        child: offlineLibrary.isLoading
+      body: GradientFadeScrollListener(
+        onFadeChanged: updateAppBarFade,
+        child: FloatingNavScrollScope(
+          child: offlineLibrary.isLoading
           ? Center(child: CircularProgressIndicator(color: brandColor))
           : offlineLibrary.library.isEmpty
           ? _buildEmptyState(textColor)
@@ -246,11 +249,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
               textColor,
               prefs,
             ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddCategoryDialog,
         backgroundColor: brandColor,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: Colors.black),
       ),
       bottomNavigationBar: MainNavigationBar(
         currentIndex: _currentIndex,

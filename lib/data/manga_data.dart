@@ -1,4 +1,5 @@
 const List<Map<String, String>> mangaData = [
+  {"title": "Mumumu", "count": "100", "image": "images/mumumu.jpeg", "bgImage": "images/mumumu2.png", "chapter": "Ch. 100", "time": "12:00 AM", "date": "1/1/26"},
   {"title": "Player", "count": "239", "image": "images/player.jpg", "bgImage": "images/player2.png", "chapter": "Ch. 245", "time": "1:23 AM", "date": "12/5/25"},
   {"title": "Ordeal", "count": "27", "image": "images/ordeal.png", "bgImage": "images/ordeal2.png", "chapter": "Ch. 100", "time": "12:41 AM", "date": "12/4/25"},
   {"title": "The Last...", "count": "15", "image": "images/adventurer.png", "bgImage": "images/adventurer2.png", "chapter": "Ch. 50", "time": "11:05 PM", "date": "12/4/25"},

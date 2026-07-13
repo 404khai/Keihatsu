@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../components/OfflineImage.dart';
 import '../components/MainNavigationBar.dart';
 import '../components/floating_nav_scroll_scope.dart';
+import '../components/gradient_fade_app_bar.dart';
 import '../theme_provider.dart';
 import '../providers/offline_library_provider.dart';
 import '../providers/auth_provider.dart';
@@ -23,7 +24,8 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends State<HistoryScreen>
+    with GradientFadeAppBarMixin {
   final int _currentIndex = 2; // History is index 2
   final Set<int> _selectedIds = {};
   bool _isSelectionMode = false;
@@ -168,11 +170,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return Scaffold(
           extendBody: true,
           backgroundColor: backgroundColor,
-          appBar: AppBar(
-            backgroundColor: appBarColor,
-            surfaceTintColor: Colors.transparent,
-            scrolledUnderElevation: 0,
-            elevation: 0,
+          appBar: GradientFadeAppBar(
+            baseColor: appBarColor,
+            fadeAmount: appBarFade,
+            automaticallyImplyLeading: false,
             leading: _isSelectionMode
                 ? IconButton(
               icon: Icon(Icons.close, color: textColor),
@@ -267,8 +268,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ],
           ),
 
-          body: FloatingNavScrollScope(
-            child: isLoading
+          body: GradientFadeScrollListener(
+            onFadeChanged: updateAppBarFade,
+            child: FloatingNavScrollScope(
+              child: isLoading
               ? const Center(child: CircularProgressIndicator())
               : history.isEmpty
               ? Center(
@@ -413,6 +416,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
               );
             },
+          ),
           ),
           ),
           bottomNavigationBar: MainNavigationBar(

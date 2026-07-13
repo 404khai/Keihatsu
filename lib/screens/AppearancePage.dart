@@ -79,10 +79,10 @@ class AppearancePage extends StatelessWidget {
                   _buildThemePreset(
                     context,
                     'Pebble',
+                    const Color(0xFF9CB4B3),
                     const Color(0xFFEFEFEF),
-                    Colors.white,
-                    themeProvider.brandColor == const Color(0xFFEFEFEF) &&
-                        themeProvider.bgColor == Colors.white,
+                    themeProvider.brandColor == const Color(0xFF9CB4B3),
+                        // themeProvider.bgColor == Colors.white,
                     textColor,
                   ),
 
