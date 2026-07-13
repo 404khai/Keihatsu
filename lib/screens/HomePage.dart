@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:isar/isar.dart';
 import '../models/local_models.dart';
@@ -8,14 +7,13 @@ import '../components/MainNavigationBar.dart';
 import '../components/floating_nav_scroll_scope.dart';
 import '../components/home/home_updates_section.dart';
 import '../components/home/latest_updates_carousel.dart';
+import '../components/home/notifications_bottom_sheet.dart';
 import '../data/mock_home_updates.dart';
 import '../models/manga.dart';
 import '../providers/auth_provider.dart';
-import '../services/sources_api.dart';
 import '../theme_provider.dart';
 import '../providers/offline_library_provider.dart';
 import 'MangaDetailsScreen.dart';
-import 'SearchScreen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -26,23 +24,23 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final int _currentIndex = 0;
-  final SourcesApi _sourcesApi = SourcesApi();
+  // final SourcesApi _sourcesApi = SourcesApi();
 
-  late Future<List<Manga>> _popularMangaFuture;
+  // late Future<List<Manga>> _popularMangaFuture;
 
-  final String _defaultSourceId = 'manhuatop';
+  // final String _defaultSourceId = 'manhuatop';
 
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _loadData();
+  // }
 
-  void _loadData() {
-    _popularMangaFuture = _sourcesApi
-        .getMangaList(_defaultSourceId, 'popular')
-        .then((page) => page.mangas);
-  }
+  // void _loadData() {
+  //   _popularMangaFuture = _sourcesApi
+  //       .getMangaList(_defaultSourceId, 'popular')
+  //       .then((page) => page.mangas);
+  // }
 
   Future<List<Manga>> _fetchHistory(BuildContext context) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -75,30 +73,33 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _refreshData() async {
-    setState(() {
-      _loadData();
-    });
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final offlineLibrary = Provider.of<OfflineLibraryProvider>(context);
+    final ColorScheme cs = Theme.of(context).colorScheme;
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final bool isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final Color cardColor = isDarkMode
-        ? Colors.white10
-        : Colors.white.withOpacity(0.5);
-    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color backgroundColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surface;
+    final Color appBarColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surfaceContainer;
+    final Color cardColor = cs.surfaceContainer;
+    final Color textColor = cs.onSurface;
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: bgColor,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: appBarColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
           'Explore',
           style: GoogleFonts.unbounded(
@@ -116,18 +117,28 @@ class _HomePageState extends State<HomePage> {
           // ),
         ),
         actions: [
+          // IconButton(
+          //   onPressed: () {
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(builder: (context) => const SearchScreen()),
+          //     );
+          //   },
+          //   icon: Icon(Icons.search_rounded, color: textColor),
+          // ),
           IconButton(
             onPressed: () {
-              Navigator.push(
+              NotificationsBottomSheet.show(
                 context,
-                MaterialPageRoute(builder: (context) => const SearchScreen()),
+                brandColor: brandColor,
+                bgColor: backgroundColor,
               );
             },
-            icon: Icon(Icons.search_rounded, color: textColor),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.notifications, color: textColor),
+            icon: Icon(
+              Icons.circle_notifications,
+              color: textColor,
+              size: 32,
+            ),
           ),
         ],
       ),
@@ -189,27 +200,20 @@ class _HomePageState extends State<HomePage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
                 child: Text(
-                  'Latest Updates',
+                  'You might like',
                   style: GoogleFonts.unbounded(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -0.5,
                     color: textColor,
-                    fontSize: 24,
+                    fontSize: 20,
                   ),
                 ),
               ),
-              FutureBuilder<List<Manga>>(
-                future: _popularMangaFuture,
-                builder: (context, snapshot) {
-                  return LatestUpdatesCarousel(
-                    mangas: snapshot.data ?? const [],
-                    brandColor: brandColor,
-                    textColor: textColor,
-                    loading: snapshot.connectionState == ConnectionState.waiting,
-                    onShowAll: () {
-                      Navigator.pushReplacementNamed(context, '/library');
-                    },
-                  );
+              LatestUpdatesCarousel(
+                brandColor: brandColor,
+                textColor: textColor,
+                onShowAll: () {
+                  Navigator.pushReplacementNamed(context, '/library');
                 },
               ),
 
@@ -272,6 +276,7 @@ class _HomePageState extends State<HomePage> {
       Color textColor, {
         VoidCallback? onSeeMore,
       }) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
       child: Row(
@@ -297,15 +302,15 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               onPressed: onSeeMore,
               icon: Icon(
-                PhosphorIcons.arrowRight(),
-                color: textColor.withOpacity(0.6),
+                Icons.arrow_forward_rounded,
+                color: cs.onSurfaceVariant,
                 size: 20,
               ),
             )
           else
             Icon(
-              PhosphorIcons.caretRight(),
-              color: textColor.withOpacity(0.4),
+              Icons.chevron_right_rounded,
+              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
               size: 18,
             ),
         ],
@@ -374,7 +379,7 @@ class _HomePageState extends State<HomePage> {
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withOpacity(0.8),
+                                Colors.black.withValues(alpha: 0.8),
                               ],
                             ),
                           ),
@@ -390,8 +395,8 @@ class _HomePageState extends State<HomePage> {
                             color: brandColor,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            PhosphorIcons.bookBookmark(PhosphorIconsStyle.fill),
+                          child: const Icon(
+                            Icons.bookmark_rounded,
                             color: Colors.white,
                             size: 14,
                           ),

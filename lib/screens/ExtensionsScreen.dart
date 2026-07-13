@@ -194,6 +194,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: FilterTabs(
               scrollable: false,
+              height: 52,
               tabs: [
                 FilterTab(
                   value: 'sources',
@@ -474,21 +475,22 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
         hintText: 'Search extensions',
         hintStyle: TextStyle(color: cs.onSurfaceVariant),
         prefixIcon: Icon(
-          PhosphorIcons.magnifyingGlass(),
+          Icons.search_rounded,
           color: cs.onSurfaceVariant,
         ),
         filled: true,
         fillColor: cardColor,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(999),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(999),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(999),
           borderSide: BorderSide(color: brandColor.withValues(alpha: 0.35)),
         ),
       ),

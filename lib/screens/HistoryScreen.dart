@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:isar/isar.dart';
 import 'package:intl/intl.dart';
@@ -72,9 +71,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       context: context,
       builder: (context) {
         final themeProvider = Provider.of<ThemeProvider>(context);
-        final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-        final textColor = isDarkMode ? Colors.white : Colors.black87;
-        final bgColor = themeProvider.effectiveBgColor;
+        final ColorScheme cs = Theme.of(context).colorScheme;
+        final bool isDarkTheme = themeProvider.isDarkTheme;
+        final textColor = cs.onSurface;
+        final bgColor = themeProvider.pureBlackDarkMode && isDarkTheme
+            ? Colors.black
+            : cs.surface;
 
         return AlertDialog(
           backgroundColor: bgColor,
@@ -84,14 +86,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           content: Text(
             content,
-            style: TextStyle(color: textColor.withOpacity(0.8)),
+            style: TextStyle(color: cs.onSurfaceVariant),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
                 "Cancel",
-                style: TextStyle(color: textColor.withOpacity(0.6)),
+                style: TextStyle(color: cs.onSurfaceVariant),
               ),
             ),
             TextButton(
@@ -138,10 +140,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final ColorScheme cs = Theme.of(context).colorScheme;
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final bool isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color backgroundColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surface;
+    final Color appBarColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surfaceContainer;
+    final Color textColor = cs.onSurface;
 
     return StreamBuilder<List<LocalManga>>(
       stream: Provider.of<MangaRepository>(context, listen: false).isar
@@ -159,9 +167,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
         return Scaffold(
           extendBody: true,
-          backgroundColor: bgColor,
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            backgroundColor: bgColor,
+            backgroundColor: appBarColor,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             elevation: 0,
             leading: _isSelectionMode
                 ? IconButton(
@@ -190,7 +200,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   value: allSelected,
                   onChanged: (_) => _selectAll(history),
                   activeColor: brandColor,
-                  side: BorderSide(color: textColor.withOpacity(0.6), width: 2),
+                  side: BorderSide(color: cs.onSurfaceVariant, width: 2),
                 ),
                 IconButton(
                   onPressed: () {
@@ -268,13 +278,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Icon(
                   Icons.history,
                   size: 64,
-                  color: textColor.withOpacity(0.4),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   "No reading history",
                   style: TextStyle(
-                    color: textColor.withOpacity(0.6),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                     fontSize: 16,
                   ),
                 ),
@@ -303,7 +313,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         formatDate(manga.lastReadAt!),
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: textColor.withOpacity(0.6),
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                         ),
                       ),
                     ),
@@ -510,9 +520,9 @@ class _HistoryItemState extends State<HistoryItem> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final offlineLibrary = Provider.of<OfflineLibraryProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final ColorScheme cs = Theme.of(context).colorScheme;
     final brandColor = themeProvider.brandColor;
-    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final textColor = isDarkMode ? Colors.white : Colors.black87;
+    final textColor = cs.onSurface;
 
     final isInLibrary = offlineLibrary.isInLibrary(
       widget.manga.mangaId,
@@ -584,9 +594,9 @@ class _HistoryItemState extends State<HistoryItem> {
                 children: [
                   Text(
                     widget.manga.title,
-                    style: GoogleFonts.hennyPenny(
+                    style: GoogleFonts.unbounded(
                       textStyle: TextStyle(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         fontSize: 16,
                         color: textColor,
                       ),
@@ -600,7 +610,7 @@ class _HistoryItemState extends State<HistoryItem> {
                         ? "${_lastReadChapter!.name} - ${formatTime(_lastReadChapter!.lastReadAt)}"
                         : "Reading...",
                     style: TextStyle(
-                      color: textColor.withOpacity(0.6),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                       fontSize: 13,
                     ),
                     maxLines: 1,
@@ -624,8 +634,8 @@ class _HistoryItemState extends State<HistoryItem> {
                 },
                 icon: Icon(
                   isInLibrary
-                      ? PhosphorIcons.bookBookmark(PhosphorIconsStyle.fill)
-                      : PhosphorIcons.bookBookmark(),
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_outline_rounded,
                   size: 20,
                   color: isInLibrary ? brandColor : textColor,
                 ),
@@ -641,7 +651,7 @@ class _HistoryItemState extends State<HistoryItem> {
                   value: widget.isSelected,
                   onChanged: (_) => widget.onTap(),
                   activeColor: brandColor,
-                  side: BorderSide(color: textColor.withOpacity(0.6), width: 2),
+                  side: BorderSide(color: cs.onSurfaceVariant, width: 2),
                 ),
               ),
           ],
