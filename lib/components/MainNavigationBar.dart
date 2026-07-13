@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'expandable_floating_main_nav.dart';
+import 'scaffold_floating_main_nav.dart';
 
 /// Bottom navigation for main tabs.
 ///
 /// Legacy [BottomNavigationBar] implementation is preserved below (commented).
-/// Active UI: M3E [ExpandableHorizontalFloatingToolbar] port — see
+/// Active UI: M3E [HorizontalFloatingToolbarAsScaffoldFabSample] port — see
 /// https://cs.android.com/androidx/platform/frameworks/support/+/androidx-main:compose/material3/material3/samples/src/main/java/androidx/compose/material3/samples/FloatingToolbarSamples.kt
+///
+/// Previous [ExpandableFloatingMainNav] implementation is kept in
+/// `expandable_floating_main_nav.dart` (unchanged).
 class MainNavigationBar extends StatelessWidget {
   final int currentIndex;
   final Color brandColor;
@@ -19,10 +23,15 @@ class MainNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ExpandableFloatingMainNav(
+    return ScaffoldFloatingMainNav(
       currentIndex: currentIndex,
       brandColor: brandColor,
     );
+
+    // return ExpandableFloatingMainNav(
+    //   currentIndex: currentIndex,
+    //   brandColor: brandColor,
+    // );
   }
 }
 
