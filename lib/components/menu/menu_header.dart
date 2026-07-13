@@ -185,14 +185,16 @@ class MenuHeader extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: FilledButton.icon(
                     onPressed: onShareTap,
-                    style: OutlinedButton.styleFrom(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: cs.surfaceContainerHigh,
+                      foregroundColor: cs.onSurface,
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(22),
                       ),
-                      side: BorderSide(color: cs.outlineVariant),
                     ),
                     icon: Icon(Icons.ios_share_rounded,
                         size: 18, color: cs.onSurface),
@@ -209,7 +211,7 @@ class MenuHeader extends StatelessWidget {
                   onTap: onEditTap ?? () {},
                   rest: MaterialShapes.circle,
                   pressed: MaterialShapes.sunny,
-                  outlined: true,
+                  color: cs.surfaceContainerHigh,
                   height: 44,
                   padding: EdgeInsets.zero,
                   child: SizedBox(

@@ -6,6 +6,7 @@ import '../models/local_models.dart';
 import '../components/MainNavigationBar.dart';
 import '../components/floating_nav_scroll_scope.dart';
 import '../components/gradient_fade_app_bar.dart';
+import '../components/keihatsu_refresh_indicator.dart';
 import '../components/home/home_updates_section.dart';
 import '../components/home/latest_updates_carousel.dart';
 import '../components/home/notifications_bottom_sheet.dart';
@@ -145,9 +146,8 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
       body: GradientFadeScrollListener(
         onFadeChanged: updateAppBarFade,
         child: FloatingNavScrollScope(
-          child: RefreshIndicator(
+          child: KeihatsuRefreshIndicator(
           onRefresh: _refreshData,
-          color: brandColor,
           child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(

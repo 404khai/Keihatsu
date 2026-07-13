@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:keihatsu/components/CustomBackButton.dart';
 import 'package:keihatsu/components/floating_nav_scroll_scope.dart';
+import 'package:keihatsu/components/keihatsu_refresh_indicator.dart';
 import 'package:keihatsu/components/MainNavigationBar.dart';
 import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/bottom_padding.dart';
@@ -122,7 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? Colors.black
           : Theme.of(context).colorScheme.surface,
       body: FloatingNavScrollScope(
-        child: RefreshIndicator(
+        child: KeihatsuRefreshIndicator(
           onRefresh: () => authProvider.refreshUserStats(),
           child: CustomScrollView(
           controller: _scrollController,

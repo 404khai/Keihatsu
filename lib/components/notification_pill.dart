@@ -163,39 +163,40 @@ class _PillPalette {
 
   static _PillPalette fromTheme(ThemeProvider themeProvider, ColorScheme cs) {
     final Color brand = themeProvider.brandColor;
-    final Color bg = themeProvider.bgColor;
-    final bool isDark = themeProvider.isDarkTheme;
-
-    if (isDark) {
-      final Color surface = themeProvider.pureBlackDarkMode
-          ? Colors.black
-          : cs.surface;
-      return _PillPalette(
-        background: Color.alphaBlend(
-          brand.withValues(alpha: 0.12),
-          Color.lerp(surface, const Color(0xFF1E1E1A), 0.65)!,
-        ),
-        iconBackground: _accentBadge(brand, isDark: true),
-        iconForeground: _onBadge(_accentBadge(brand, isDark: true)),
-        text: cs.onSurface,
-        pointer: _accentBadge(brand, isDark: true),
-      );
-    }
+    final Color invertedBackground = _invertedPageBackground(themeProvider);
+    final Color invertedOnSurface = _invertedPageOnSurface(themeProvider);
 
     return _PillPalette(
-      background: Color.lerp(bg, cs.surfaceContainer, 0.35)!,
-      iconBackground: _accentBadge(brand, isDark: false),
-      iconForeground: _onBadge(_accentBadge(brand, isDark: false)),
-      text: cs.onSurface,
-      pointer: _accentBadge(brand, isDark: false),
+      background: invertedBackground,
+      iconBackground: brand,
+      iconForeground: _onBadge(brand),
+      text: invertedOnSurface,
+      pointer: brand,
     );
   }
 
-  static Color _accentBadge(Color brand, {required bool isDark}) {
-    if (isDark) {
-      return Color.lerp(brand, const Color(0xFFC4C878), 0.55)!;
+  /// Inverts the active page background: light app → dark page bg, dark app → light page bg.
+  static Color _invertedPageBackground(ThemeProvider themeProvider) {
+    if (themeProvider.isDarkTheme) {
+      return themeProvider.bgColor;
     }
-    return Color.lerp(brand, const Color(0xFF6D701F), 0.45)!;
+
+    final ColorScheme darkScheme = ColorScheme.fromSeed(
+      seedColor: themeProvider.brandColor,
+      primary: themeProvider.brandColor,
+      brightness: Brightness.dark,
+    );
+    return darkScheme.surface;
+  }
+
+  static Color _invertedPageOnSurface(ThemeProvider themeProvider) {
+    final ColorScheme invertedScheme = ColorScheme.fromSeed(
+      seedColor: themeProvider.brandColor,
+      primary: themeProvider.brandColor,
+      brightness:
+          themeProvider.isDarkTheme ? Brightness.light : Brightness.dark,
+    );
+    return invertedScheme.onSurface;
   }
 
   static Color _onBadge(Color badge) {
