@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../common/coming_soon.dart';
 import '../components/MainNavigationBar.dart';
 import '../components/floating_nav_scroll_scope.dart';
+import '../components/gradient_fade_app_bar.dart';
 import '../components/library/filter_tabs.dart';
 import '../models/local_models.dart';
 import '../services/sources_repository.dart';
@@ -21,7 +22,7 @@ class ExtensionsScreen extends StatefulWidget {
 }
 
 class _ExtensionsScreenState extends State<ExtensionsScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, GradientFadeAppBarMixin {
   static const List<String> _tabIds = ['sources', 'plugin_store', 'migrate'];
 
   final int _currentIndex = 3;
@@ -167,11 +168,10 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
     return Scaffold(
       extendBody: true,
       backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: appBarColor,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: GradientFadeAppBar(
+        baseColor: appBarColor,
+        fadeAmount: appBarFade,
+        automaticallyImplyLeading: false,
         title: Text(
           'Extensions',
           style: GoogleFonts.unbounded(
@@ -188,60 +188,64 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: FilterTabs(
-              scrollable: false,
-              height: 52,
-              tabs: [
-                FilterTab(
-                  value: 'sources',
-                  label: 'Sources',
-                  accent: brandColor,
-                  onAccent: cs.onPrimary,
-                  icon: Icons.extension_outlined,
-                ),
-                FilterTab(
-                  value: 'plugin_store',
-                  label: 'Plugins',
-                  accent: brandColor,
-                  onAccent: cs.onPrimary,
-                  icon: Icons.storefront_outlined,
-                ),
-                FilterTab(
-                  value: 'migrate',
-                  label: 'Migrate',
-                  accent: brandColor,
-                  onAccent: cs.onPrimary,
-                  icon: Icons.swap_horiz_rounded,
-                ),
-              ],
-              selected: _selectedTab,
-              onSelected: _selectTab,
-            ),
-          ),
-          Expanded(
-            child: FloatingNavScrollScope(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildSourcesTab(brandColor, textColor, cardColor, repo, cs, tt),
-                  _buildPluginStoreTab(
-                    brandColor,
-                    textColor,
-                    cardColor,
-                    repo,
-                    cs,
-                    tt,
+      body: GradientFadeScrollListener(
+        onFadeChanged: updateAppBarFade,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: FilterTabs(
+                scrollable: true,
+                large: true,
+                height: 56,
+                tabs: [
+                  FilterTab(
+                    value: 'sources',
+                    label: 'Sources',
+                    accent: brandColor,
+                    onAccent: cs.onPrimary,
+                    icon: Icons.extension_outlined,
                   ),
-                  _buildMigrateTab(textColor, cardColor, cs, tt),
+                  FilterTab(
+                    value: 'plugin_store',
+                    label: 'Plugins',
+                    accent: brandColor,
+                    onAccent: cs.onPrimary,
+                    icon: Icons.storefront_outlined,
+                  ),
+                  FilterTab(
+                    value: 'migrate',
+                    label: 'Migrate',
+                    accent: brandColor,
+                    onAccent: cs.onPrimary,
+                    icon: Icons.swap_horiz_rounded,
+                  ),
                 ],
+                selected: _selectedTab,
+                onSelected: _selectTab,
               ),
             ),
-          ),
-        ],
+            Expanded(
+              child: FloatingNavScrollScope(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildSourcesTab(brandColor, textColor, cardColor, repo, cs, tt),
+                    _buildPluginStoreTab(
+                      brandColor,
+                      textColor,
+                      cardColor,
+                      repo,
+                      cs,
+                      tt,
+                    ),
+                    _buildMigrateTab(textColor, cardColor, cs, tt),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: MainNavigationBar(
         currentIndex: _currentIndex,

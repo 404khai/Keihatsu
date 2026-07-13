@@ -8,8 +8,8 @@ import '../theme_provider.dart';
 
 /// Flutter port of [HorizontalFloatingToolbarAsScaffoldFabSample](https://cs.android.com/androidx/platform/frameworks/support/+/androidx-main:compose/material3/material3/samples/src/main/java/androidx/compose/material3/samples/FloatingToolbarSamples.kt).
 ///
-/// Nav icons sit to the left of a fixed search FAB on the end. On scroll collapse
-/// they slide right into the search button; scrolling up expands them back out.
+/// A full-width nav pill floats separately from a trailing search FAB. On scroll
+/// collapse the nav slides right into the search button; scrolling up expands it.
 class ScaffoldFloatingMainNav extends StatelessWidget {
   const ScaffoldFloatingMainNav({
     super.key,
@@ -19,6 +19,10 @@ class ScaffoldFloatingMainNav extends StatelessWidget {
 
   final int currentIndex;
   final Color brandColor;
+
+  static const double _barHeight = 56;
+  static const double _searchSize = 56;
+  static const double _gap = 8;
 
   static const List<_NavDestination> _destinations = [
     _NavDestination(
@@ -84,9 +88,9 @@ class ScaffoldFloatingMainNav extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 56 + bottomInset + 8,
+      height: _barHeight + bottomInset + 8,
       child: Align(
-        alignment: Alignment.bottomRight,
+        alignment: Alignment.bottomCenter,
         child: Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset > 0 ? bottomInset : 8),
           child: SingleMotionBuilder(
@@ -96,58 +100,72 @@ class ScaffoldFloatingMainNav extends StatelessWidget {
               final double visibility = progress.clamp(0.0, 1.0);
               final bool collapsed = visibility < 0.02;
 
-              return Material(
-                elevation: isDark ? 8 : 4,
-                shadowColor: Colors.black.withValues(alpha: 0.35),
-                color: toolbarColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: SizedBox(
-                  height: 56,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipRect(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          widthFactor: collapsed ? 0 : visibility,
-                          child: Opacity(
-                            opacity: visibility,
-                            child: Transform.translate(
-                              offset: Offset(48 * (1 - visibility), 0),
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 4),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    for (final destination in _destinations)
-                                      _NavIconButton(
-                                        icon: currentIndex == destination.index
-                                            ? destination.selectedIcon
-                                            : destination.icon,
-                                        selected:
-                                            currentIndex == destination.index,
-                                        brandColor: brandColor,
-                                        unselectedColor: cs.onSurfaceVariant,
-                                        onTap: () =>
-                                            _navigate(context, destination),
-                                      ),
-                                  ],
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double navWidth = constraints.maxWidth;
+
+                        return ClipRect(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            widthFactor: collapsed ? 0 : visibility,
+                            child: Opacity(
+                              opacity: visibility,
+                              child: Transform.translate(
+                                offset: Offset(32 * (1 - visibility), 0),
+                                child: Material(
+                                  elevation: isDark ? 8 : 4,
+                                  shadowColor:
+                                      Colors.black.withValues(alpha: 0.35),
+                                  color: toolbarColor,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(28),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: SizedBox(
+                                    width: navWidth,
+                                    height: _barHeight,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        for (final destination in _destinations)
+                                          _NavIconButton(
+                                            icon: currentIndex ==
+                                                    destination.index
+                                                ? destination.selectedIcon
+                                                : destination.icon,
+                                            selected: currentIndex ==
+                                                destination.index,
+                                            brandColor: brandColor,
+                                            unselectedColor:
+                                                cs.onSurfaceVariant,
+                                            onTap: () => _navigate(
+                                              context,
+                                              destination,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      _SearchFabButton(
-                        brandColor: brandColor,
-                        onTap: () => _openSearch(context),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
-                ),
+                  SizedBox(width: _gap * visibility),
+                  _SearchFabButton(
+                    brandColor: brandColor,
+                    isDark: isDark,
+                    onTap: () => _openSearch(context),
+                  ),
+                ],
               );
             },
           ),
@@ -190,7 +208,7 @@ class _NavIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onTap,
-      icon: Icon(icon, size: 24),
+      icon: Icon(icon, size: 30),
       color: selected ? brandColor : unselectedColor,
       tooltip: '',
       visualDensity: VisualDensity.compact,
@@ -203,38 +221,41 @@ class _NavIconButton extends StatelessWidget {
 class _SearchFabButton extends StatelessWidget {
   const _SearchFabButton({
     required this.brandColor,
+    required this.isDark,
     required this.onTap,
   });
 
   final Color brandColor;
+  final bool isDark;
   final VoidCallback onTap;
+
+  static const double _size = ScaffoldFloatingMainNav._searchSize;
+
+  static const Color _searchIconColor = Color(0xFF1C1C1C);
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
-    final Color fill = Color.lerp(brandColor, cs.primaryContainer, 0.55)!;
-    final Color iconColor =
-        Color.lerp(cs.onPrimary, cs.onPrimaryContainer, 0.55)!;
+    final Color fill = Color.lerp(brandColor, cs.primaryContainer, 0.20)!;
+    const Color iconColor = _searchIconColor;
 
-    return Padding(
-      padding: const EdgeInsets.all(6),
-      child: Material(
-        color: fill,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: Center(
-              child: Icon(
-                Icons.search_rounded,
-                color: iconColor,
-                size: 26,
-              ),
+    return Material(
+      elevation: isDark ? 8 : 4,
+      shadowColor: Colors.black.withAlpha((0.35 * 255).round()),
+      color: fill,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: _size,
+          height: _size,
+          child: Center(
+            child: Icon(
+              Icons.search_rounded,
+              color: iconColor,
+              size: 26,
             ),
           ),
         ),

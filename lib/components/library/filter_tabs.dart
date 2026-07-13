@@ -32,6 +32,7 @@ class FilterTabs extends StatefulWidget {
     this.height = 44,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
     this.scrollable = true,
+    this.large = false,
   });
 
   final List<FilterTab> tabs;
@@ -40,6 +41,7 @@ class FilterTabs extends StatefulWidget {
   final double height;
   final EdgeInsetsGeometry padding;
   final bool scrollable;
+  final bool large;
 
   @override
   State<FilterTabs> createState() => _FilterTabsState();
@@ -131,6 +133,7 @@ class _FilterTabsState extends State<FilterTabs>
                       selected: widget.tabs[i].value == widget.selected,
                       onTap: () => widget.onSelected(widget.tabs[i].value),
                       compact: true,
+                      large: widget.large,
                     ),
                   ),
                 ),
@@ -154,6 +157,7 @@ class _FilterTabsState extends State<FilterTabs>
             tab: tab,
             selected: tab.value == widget.selected,
             onTap: () => widget.onSelected(tab.value),
+            large: widget.large,
           );
         },
       ),
@@ -168,12 +172,14 @@ class _FilterChip extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.compact = false,
+    this.large = false,
   });
 
   final FilterTab tab;
   final bool selected;
   final VoidCallback onTap;
   final bool compact;
+  final bool large;
 
   static const double _idleRadius = 12;
   static const double _pillRadius = 22;
@@ -207,10 +213,10 @@ class _FilterChip extends StatelessWidget {
               onTap: onTap,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  tab.image != null ? 6 : (compact ? 8 : 14),
-                  6,
-                  compact ? 8 : 16,
-                  6,
+                  tab.image != null ? 6 : (compact ? 8 : (large ? 18 : 14)),
+                  large ? 10 : 6,
+                  compact ? 8 : (large ? 20 : 16),
+                  large ? 10 : 6,
                 ),
                 child: Row(
                   mainAxisAlignment:
@@ -239,8 +245,8 @@ class _FilterChip extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                     ] else if (tab.icon != null) ...[
-                      Icon(tab.icon, size: 18, color: fg),
-                      const SizedBox(width: 6),
+                      Icon(tab.icon, size: large ? 22 : 18, color: fg),
+                      SizedBox(width: large ? 8 : 6),
                     ],
                     Text(
                       tab.label,
@@ -249,7 +255,7 @@ class _FilterChip extends StatelessWidget {
                       style: tt.labelLarge?.copyWith(
                         color: fg,
                         fontWeight: FontWeight.w700,
-                        fontSize: compact ? 13 : null,
+                        fontSize: compact ? 13 : (large ? 16 : null),
                       ),
                     ),
                   ],
