@@ -138,7 +138,7 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
             icon: Icon(
               Icons.circle_notifications,
               color: textColor,
-              size: 32,
+              size: 40,
             ),
           ),
         ],
