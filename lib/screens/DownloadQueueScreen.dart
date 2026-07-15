@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -70,32 +72,86 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
     return List<DownloadQueueItem>.from(_mockItems!);
   }
 
-  void _reorderExtensionChapters(
+  void _reorderMangas(
     String sourceId,
-    List<DownloadQueueItem> extensionItems,
     int oldIndex,
     int newIndex,
     DownloadProvider? provider,
     bool usingMock,
   ) {
     if (usingMock) {
-      final List<DownloadQueueItem> extensionChapters = (_mockItems ?? [])
+      final List<DownloadQueueItem> sourceItems = (_mockItems ?? [])
           .where((item) => item.sourceId == sourceId)
           .sorted((a, b) => a.priority.compareTo(b.priority))
           .toList();
 
+      final List<String> mangaIds = [];
+      final Set<String> seen = {};
+      for (final item in sourceItems) {
+        if (seen.add(item.mangaId)) mangaIds.add(item.mangaId);
+      }
+
       if (oldIndex < newIndex) newIndex -= 1;
-      final DownloadQueueItem moved = extensionChapters.removeAt(oldIndex);
-      extensionChapters.insert(newIndex, moved);
+      final String moved = mangaIds.removeAt(oldIndex);
+      mangaIds.insert(newIndex, moved);
+
+      final List<DownloadQueueItem> rebuilt = [];
+      for (final mangaId in mangaIds) {
+        rebuilt.addAll(
+          sourceItems.where((item) => item.mangaId == mangaId),
+        );
+      }
+
+      final List<DownloadQueueItem> allSorted = (_mockItems ?? [])
+          .sorted((a, b) => a.priority.compareTo(b.priority));
+      final List<DownloadQueueItem> finalList = [];
+      var rebuiltCursor = 0;
+
+      for (final item in allSorted) {
+        if (item.sourceId == sourceId) {
+          finalList.add(rebuilt[rebuiltCursor++]);
+        } else {
+          finalList.add(item);
+        }
+      }
+
+      for (var i = 0; i < finalList.length; i++) {
+        finalList[i].priority = i;
+      }
+
+      setState(() => _mockItems = finalList);
+      return;
+    }
+
+    provider?.reorderMangasOfExtension(sourceId, oldIndex, newIndex);
+  }
+
+  void _reorderChaptersOfManga(
+    String sourceId,
+    String mangaId,
+    int oldIndex,
+    int newIndex,
+    DownloadProvider? provider,
+    bool usingMock,
+  ) {
+    if (usingMock) {
+      final List<DownloadQueueItem> mangaChapters = (_mockItems ?? [])
+          .where((item) => item.sourceId == sourceId && item.mangaId == mangaId)
+          .sorted((a, b) => a.priority.compareTo(b.priority))
+          .toList();
+
+      if (oldIndex < newIndex) newIndex -= 1;
+      final DownloadQueueItem moved = mangaChapters.removeAt(oldIndex);
+      mangaChapters.insert(newIndex, moved);
 
       final List<DownloadQueueItem> allSorted = (_mockItems ?? [])
           .sorted((a, b) => a.priority.compareTo(b.priority));
       final List<DownloadQueueItem> rebuilt = [];
-      var extensionCursor = 0;
+      var chapterCursor = 0;
 
       for (final item in allSorted) {
-        if (item.sourceId == sourceId) {
-          rebuilt.add(extensionChapters[extensionCursor++]);
+        if (item.sourceId == sourceId && item.mangaId == mangaId) {
+          rebuilt.add(mangaChapters[chapterCursor++]);
         } else {
           rebuilt.add(item);
         }
@@ -109,7 +165,30 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
       return;
     }
 
-    provider?.reorderChaptersInExtension(sourceId, oldIndex, newIndex);
+    provider?.reorderChaptersOfManga(sourceId, mangaId, oldIndex, newIndex);
+  }
+
+  void _toggleChapterPause(
+    DownloadQueueItem chapter,
+    DownloadProvider provider,
+    bool usingMock,
+  ) {
+    if (usingMock) {
+      setState(() {
+        if (chapter.status == 1) {
+          chapter.status = 4;
+        } else if (chapter.status == 4) {
+          chapter.status = 0;
+        }
+      });
+      return;
+    }
+
+    if (chapter.status == 1) {
+      provider.pauseDownload(chapter.chapterId);
+    } else if (chapter.status == 4) {
+      provider.resumeDownload(chapter.chapterId);
+    }
   }
 
   @override
@@ -221,25 +300,57 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
   ) {
     final String sourceId = items.first.sourceId;
     final String? image = extensionImageFor(sourceId);
-    final List<DownloadQueueItem> sortedChapters =
-        List<DownloadQueueItem>.from(items)
-          ..sort((a, b) => a.priority.compareTo(b.priority));
-    final int chapterCount = sortedChapters.length;
+
+    final Map<String, List<DownloadQueueItem>> groupedByManga =
+        groupBy(items, (DownloadQueueItem i) => i.mangaId);
+    final List<String> sortedMangaIds = groupedByManga.keys.toList()
+      ..sort((a, b) {
+        final int priorityA = groupedByManga[a]!
+            .map((i) => i.priority)
+            .reduce(math.min);
+        final int priorityB = groupedByManga[b]!
+            .map((i) => i.priority)
+            .reduce(math.min);
+        return priorityA.compareTo(priorityB);
+      });
+
+    final List<DownloadMangaGroupData> mangaGroups = [
+      for (final mangaId in sortedMangaIds)
+        DownloadMangaGroupData(
+          mangaId: mangaId,
+          mangaTitle: groupedByManga[mangaId]!.first.mangaTitle,
+          mangaThumbnail: groupedByManga[mangaId]!.first.mangaThumbnail,
+          chapters: List<DownloadQueueItem>.from(groupedByManga[mangaId]!)
+            ..sort((a, b) => a.priority.compareTo(b.priority)),
+        ),
+    ];
+
+    final int chapterCount = items.length;
 
     return DownloadSection(
       label: extensionName,
       image: image,
       meta: '$chapterCount chapter${chapterCount == 1 ? '' : 's'}',
-      child: DownloadExtensionChapterList(
-        chapters: sortedChapters,
-        onReorder: (oldIndex, newIndex) => _reorderExtensionChapters(
+      child: DownloadExtensionMangaList(
+        mangaGroups: mangaGroups,
+        onReorderManga: (oldIndex, newIndex) => _reorderMangas(
           sourceId,
-          sortedChapters,
           oldIndex,
           newIndex,
           provider,
           usingMock,
         ),
+        onReorderChapters: (mangaId, oldIndex, newIndex) =>
+            _reorderChaptersOfManga(
+          sourceId,
+          mangaId,
+          oldIndex,
+          newIndex,
+          provider,
+          usingMock,
+        ),
+        onToggleChapterPause: (chapter) =>
+            _toggleChapterPause(chapter, provider, usingMock),
       ),
     );
   }

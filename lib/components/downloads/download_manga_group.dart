@@ -7,21 +7,52 @@ import 'package:keihatsu/models/local_models.dart';
 import 'package:material_shapes/material_shapes.dart';
 import 'package:material_wavy_progress_indicator/material_wavy_progress_indicator.dart';
 
-/// Flat, reorderable chapter list for one extension.
-///
-/// Chapters can be reordered independently — moving one chapter to the top
-/// does not move other chapters from the same manga or extension.
-class DownloadExtensionChapterList extends StatelessWidget {
-  const DownloadExtensionChapterList({
-    super.key,
+class DownloadMangaGroupData {
+  const DownloadMangaGroupData({
+    required this.mangaId,
+    required this.mangaTitle,
+    required this.mangaThumbnail,
     required this.chapters,
-    required this.onReorder,
+  });
+
+  final String mangaId;
+  final String mangaTitle;
+  final String? mangaThumbnail;
+  final List<DownloadQueueItem> chapters;
+}
+
+/// Collapsible manga groups within one extension. Drag a manga row to reorder
+/// the whole group; drag sub-chapter handles to reorder within a manga.
+class DownloadExtensionMangaList extends StatelessWidget {
+  const DownloadExtensionMangaList({
+    super.key,
+    required this.mangaGroups,
+    required this.onReorderManga,
+    required this.onReorderChapters,
+    this.onToggleChapterPause,
     this.borderRadius,
   });
 
-  final List<DownloadQueueItem> chapters;
-  final void Function(int oldIndex, int newIndex) onReorder;
+  final List<DownloadMangaGroupData> mangaGroups;
+  final void Function(int oldIndex, int newIndex) onReorderManga;
+  final void Function(String mangaId, int oldIndex, int newIndex)
+      onReorderChapters;
+  final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
   final BorderRadius? borderRadius;
+
+  BorderRadius _radiusFor(int index) {
+    const Radius outer = Radius.circular(MenuSection.outerRadius);
+    const Radius inner = Radius.circular(MenuSection.innerRadius);
+
+    if (mangaGroups.length == 1) {
+      return borderRadius ?? BorderRadius.circular(MenuSection.outerRadius);
+    }
+
+    return BorderRadius.vertical(
+      top: index == 0 ? outer : inner,
+      bottom: index == mangaGroups.length - 1 ? outer : inner,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +69,8 @@ class DownloadExtensionChapterList extends StatelessWidget {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         buildDefaultDragHandles: false,
-        itemCount: chapters.length,
-        onReorder: onReorder,
+        itemCount: mangaGroups.length,
+        onReorder: onReorderManga,
         proxyDecorator: (child, index, animation) {
           return Material(
             elevation: 6,
@@ -49,126 +80,39 @@ class DownloadExtensionChapterList extends StatelessWidget {
           );
         },
         itemBuilder: (context, index) {
-          final DownloadQueueItem chapter = chapters[index];
-          final bool showMangaHeader = index == 0 ||
-              chapters[index - 1].mangaId != chapter.mangaId;
+          final DownloadMangaGroupData group = mangaGroups[index];
 
-          return _ChapterReorderRow(
-            key: ValueKey(chapter.chapterId),
-            chapter: chapter,
-            index: index,
-            showMangaHeader: showMangaHeader,
-            isLast: index == chapters.length - 1,
+          return Column(
+            key: ValueKey(group.mangaId),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (index > 0)
+                Divider(
+                  height: MenuSection.tileGap,
+                  thickness: MenuSection.tileGap,
+                  color: cs.surface,
+                ),
+              ReorderableDragStartListener(
+                index: index,
+                child: DownloadMangaGroup(
+                  mangaTitle: group.mangaTitle,
+                  mangaThumbnail: group.mangaThumbnail,
+                  chapters: group.chapters,
+                  borderRadius: _radiusFor(index),
+                  onToggleChapterPause: onToggleChapterPause,
+                  onReorderChapters: group.chapters.length > 1
+                      ? (oldIndex, newIndex) => onReorderChapters(
+                            group.mangaId,
+                            oldIndex,
+                            newIndex,
+                          )
+                      : null,
+                ),
+              ),
+            ],
           );
         },
       ),
-    );
-  }
-}
-
-class _ChapterReorderRow extends StatelessWidget {
-  const _ChapterReorderRow({
-    super.key,
-    required this.chapter,
-    required this.index,
-    required this.showMangaHeader,
-    required this.isLast,
-  });
-
-  final DownloadQueueItem chapter;
-  final int index;
-  final bool showMangaHeader;
-  final bool isLast;
-
-  static const double _coverWidth = 52;
-  static const double _horizontalPadding = 12;
-  static const double _gap = 14;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme cs = Theme.of(context).colorScheme;
-    final TextTheme tt = Theme.of(context).textTheme;
-
-    return Column(
-      key: key,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            _horizontalPadding,
-            showMangaHeader ? 12 : 8,
-            16,
-            8,
-          ),
-          child: Row(
-            crossAxisAlignment:
-                showMangaHeader ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: _coverWidth,
-                child: Center(
-                  child: ReorderableDragStartListener(
-                    index: index,
-                    child: Icon(
-                      Icons.drag_indicator_rounded,
-                      color: cs.onSurfaceVariant,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
-              _gap.gap,
-              if (showMangaHeader)
-                ClipPath(
-                  clipper: ShapeBorderClipper(
-                    shape: MaterialShapeBorder(shape: ShapeValues.cover),
-                  ),
-                  child: SizedBox(
-                    width: _coverWidth,
-                    height: _coverWidth,
-                    child: _CoverImage(path: chapter.mangaThumbnail),
-                  ),
-                )
-              else
-                SizedBox(width: _coverWidth),
-              _gap.gap,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showMangaHeader) ...[
-                      Text(
-                        chapter.mangaTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      4.gap,
-                    ],
-                    Text(
-                      chapter.chapterName,
-                      style: showMangaHeader ? tt.bodySmall : tt.bodyMedium,
-                    ),
-                    2.gap,
-                    Text(
-                      sizeLabelMb(40 + chapter.chapterNumber * 8),
-                      style: tt.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _StatusIndicator(item: chapter),
-            ],
-          ),
-        ),
-        if (!isLast)
-          Divider(
-            height: 1,
-            indent: _horizontalPadding + _coverWidth + _gap,
-            color: cs.outlineVariant.withValues(alpha: 0.2),
-          ),
-      ],
     );
   }
 }
@@ -184,6 +128,7 @@ class DownloadMangaGroup extends StatefulWidget {
     this.borderRadius,
     this.initiallyExpanded = false,
     this.onReorderChapters,
+    this.onToggleChapterPause,
   });
 
   final String mangaTitle;
@@ -192,6 +137,7 @@ class DownloadMangaGroup extends StatefulWidget {
   final BorderRadius? borderRadius;
   final bool initiallyExpanded;
   final void Function(int oldIndex, int newIndex)? onReorderChapters;
+  final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
 
   @override
   State<DownloadMangaGroup> createState() => _DownloadMangaGroupState();
@@ -199,7 +145,8 @@ class DownloadMangaGroup extends StatefulWidget {
 
 class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
   late bool _expanded = widget.initiallyExpanded;
-  late List<DownloadQueueItem> _chapters = List<DownloadQueueItem>.from(widget.chapters);
+  late List<DownloadQueueItem> _chapters =
+      List<DownloadQueueItem>.from(widget.chapters);
 
   @override
   void didUpdateWidget(covariant DownloadMangaGroup oldWidget) {
@@ -233,7 +180,7 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
     return '${_chapters.length} chapter${_chapters.length == 1 ? '' : 's'}';
   }
 
-  void _handleReorder(int oldIndex, int newIndex) {
+  void _handleChapterReorder(int oldIndex, int newIndex) {
     if (oldIndex < newIndex) newIndex -= 1;
     setState(() {
       final item = _chapters.removeAt(oldIndex);
@@ -247,7 +194,7 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final TextTheme tt = Theme.of(context).textTheme;
     final DownloadQueueItem primary = _primaryChapter;
-    final bool canReorder =
+    final bool canReorderChapters =
         widget.onReorderChapters != null && _hasMultipleChapters;
 
     return Material(
@@ -319,20 +266,25 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                       color: cs.onSurfaceVariant,
                     )
                   else
-                    _StatusIndicator(item: primary),
+                    _StatusIndicator(
+                      item: primary,
+                      onTogglePause: widget.onToggleChapterPause == null
+                          ? null
+                          : () => widget.onToggleChapterPause!(primary),
+                    ),
                 ],
               ),
             ),
           ),
           if (_hasMultipleChapters && _expanded) ...[
             Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.3)),
-            if (canReorder)
+            if (canReorderChapters)
               ReorderableListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 buildDefaultDragHandles: false,
                 itemCount: _chapters.length,
-                onReorder: _handleReorder,
+                onReorder: _handleChapterReorder,
                 proxyDecorator: (child, index, animation) {
                   return Material(
                     elevation: 4,
@@ -347,6 +299,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                     chapter: _chapters[index],
                     index: index,
                     isLast: index == _chapters.length - 1,
+                    onTogglePause: widget.onToggleChapterPause == null
+                        ? null
+                        : () => widget.onToggleChapterPause!(_chapters[index]),
                   );
                 },
               )
@@ -355,34 +310,17 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                 if (i > 0)
                   Divider(
                     height: 1,
-                    indent: 78,
+                    indent: 12,
                     color: cs.outlineVariant.withValues(alpha: 0.2),
                   ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(78, 8, 16, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _chapters[i].chapterName,
-                              style: tt.bodyMedium,
-                            ),
-                            2.gap,
-                            Text(
-                              sizeLabelMb(40 + _chapters[i].chapterNumber * 8),
-                              style: tt.labelSmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _StatusIndicator(item: _chapters[i]),
-                    ],
-                  ),
+                _NestedChapterRow(
+                  chapter: _chapters[i],
+                  index: i,
+                  isLast: i == _chapters.length - 1,
+                  enableDrag: false,
+                  onTogglePause: widget.onToggleChapterPause == null
+                      ? null
+                      : () => widget.onToggleChapterPause!(_chapters[i]),
                 ),
               ],
             8.gap,
@@ -399,62 +337,71 @@ class _NestedChapterRow extends StatelessWidget {
     required this.chapter,
     required this.index,
     required this.isLast,
+    this.enableDrag = true,
+    this.onTogglePause,
   });
 
   final DownloadQueueItem chapter;
   final int index;
   final bool isLast;
+  final bool enableDrag;
+  final VoidCallback? onTogglePause;
+
+  static const double _horizontalPadding = 12;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final TextTheme tt = Theme.of(context).textTheme;
 
+    final Widget dragHandle = Icon(
+      Icons.drag_indicator_rounded,
+      color: cs.onSurfaceVariant,
+      size: 18,
+    );
+
     return Column(
       key: key,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 16, 8),
+          padding: const EdgeInsets.fromLTRB(_horizontalPadding, 6, 16, 6),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(
-                width: 52,
-                child: Center(
-                  child: ReorderableDragStartListener(
-                    index: index,
-                    child: Icon(
-                      Icons.drag_indicator_rounded,
+              if (enableDrag)
+                ReorderableDragStartListener(
+                  index: index,
+                  child: dragHandle,
+                )
+              else
+                dragHandle,
+              8.gap,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(chapter.chapterName, style: tt.bodyMedium),
+                  Text(
+                    sizeLabelMb(40 + chapter.chapterNumber * 8),
+                    style: tt.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
-                      size: 22,
+                      height: 1.2,
                     ),
                   ),
-                ),
+                ],
               ),
-              14.gap,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(chapter.chapterName, style: tt.bodyMedium),
-                    2.gap,
-                    Text(
-                      sizeLabelMb(40 + chapter.chapterNumber * 8),
-                      style: tt.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+              const Spacer(),
+              _StatusIndicator(
+                item: chapter,
+                onTogglePause: onTogglePause,
               ),
-              _StatusIndicator(item: chapter),
             ],
           ),
         ),
         if (!isLast)
           Divider(
             height: 1,
-            indent: 78,
+            indent: _horizontalPadding,
             color: cs.outlineVariant.withValues(alpha: 0.2),
           ),
       ],
@@ -463,17 +410,22 @@ class _NestedChapterRow extends StatelessWidget {
 }
 
 class _StatusIndicator extends StatelessWidget {
-  const _StatusIndicator({required this.item});
+  const _StatusIndicator({
+    required this.item,
+    this.onTogglePause,
+  });
 
   final DownloadQueueItem item;
+  final VoidCallback? onTogglePause;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
+    final bool canToggle =
+        onTogglePause != null && (item.status == 1 || item.status == 4);
 
-    switch (item.status) {
-      case 1:
-        return SizedBox(
+    final Widget indicator = switch (item.status) {
+      1 => SizedBox(
           width: 44,
           height: 44,
           child: Stack(
@@ -485,9 +437,21 @@ class _StatusIndicator extends StatelessWidget {
               Icon(Icons.stop_rounded, size: 20, color: cs.primary),
             ],
           ),
-        );
-      case 0:
-        return SizedBox(
+        ),
+      4 => SizedBox(
+          width: 44,
+          height: 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularWavyProgressIndicator(
+                value: item.progress.clamp(0.0, 1.0),
+              ),
+              Icon(Icons.play_arrow_rounded, size: 24, color: cs.primary),
+            ],
+          ),
+        ),
+      0 => SizedBox(
           width: 44,
           height: 44,
           child: Stack(
@@ -501,14 +465,21 @@ class _StatusIndicator extends StatelessWidget {
               ),
             ],
           ),
-        );
-      case 4:
-        return Icon(Icons.pause_circle_outline, color: cs.tertiary, size: 28);
-      case 3:
-        return Icon(Icons.error_outline, color: cs.error, size: 28);
-      default:
-        return const SizedBox(width: 44, height: 44);
-    }
+        ),
+      3 => Icon(Icons.error_outline, color: cs.error, size: 28),
+      _ => const SizedBox(width: 44, height: 44),
+    };
+
+    if (!canToggle) return indicator;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTogglePause,
+        customBorder: const CircleBorder(),
+        child: indicator,
+      ),
+    );
   }
 }
 
