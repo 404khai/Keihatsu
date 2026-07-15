@@ -116,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? 240
         : (user?.stats?.totalReadingTimeMinutes ?? 120);
     final int libraryCount =
-        showAuthenticatedPreview ? 42 : (user?.stats?.libraryCount ?? 10);
+        showAuthenticatedPreview ? 17 : (user?.stats?.libraryCount ?? 10);
 
     return Scaffold(
       extendBody: true,

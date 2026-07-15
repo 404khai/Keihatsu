@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,7 +7,9 @@ import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
 import 'package:keihatsu/components/profile/shaped_action_button.dart';
 import 'package:material_shapes/material_shapes.dart';
-import 'package:motor/motor.dart';
+
+const Duration _kBadgeMorphDuration = Duration(milliseconds: 600);
+const double _kBadgeMorphRotationDegrees = 45;
 
 /// One expressive stat shown on a profile header badge.
 class MenuHeaderStat {
@@ -335,7 +338,6 @@ class _DuotoneFireIcon extends StatelessWidget {
 
 class _MorphingStatBadge extends StatefulWidget {
   const _MorphingStatBadge({
-    super.key,
     required this.stat,
     required this.background,
     required this.foreground,
@@ -351,43 +353,48 @@ class _MorphingStatBadge extends StatefulWidget {
   State<_MorphingStatBadge> createState() => _MorphingStatBadgeState();
 }
 
-class _MorphingStatBadgeState extends State<_MorphingStatBadge> {
+class _MorphingStatBadgeState extends State<_MorphingStatBadge>
+    with SingleTickerProviderStateMixin {
+  static const double _badgeSize = 88;
+
+  late AnimationController _controller;
+  late Morph _morph;
   late RoundedPolygon _fromShape;
-  double _morphTarget = 1;
+  late RoundedPolygon _toShape;
 
   @override
   void initState() {
     super.initState();
     _fromShape = widget.stat.shape;
+    _toShape = widget.stat.shape;
+    _morph = Morph(_fromShape.normalized(), _toShape.normalized());
+    _controller = AnimationController(
+      vsync: this,
+      duration: _kBadgeMorphDuration,
+    );
   }
 
   @override
   void didUpdateWidget(covariant _MorphingStatBadge oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.stat.shape != widget.stat.shape ||
-        oldWidget.stat.value != widget.stat.value ||
-        oldWidget.stat.label != widget.stat.label) {
+    if (oldWidget.stat.shape == widget.stat.shape &&
+        oldWidget.stat.value == widget.stat.value &&
+        oldWidget.stat.label == widget.stat.label) {
+      return;
+    }
+
+    if (oldWidget.stat.shape != widget.stat.shape) {
       _fromShape = oldWidget.stat.shape;
-      _morphTarget = 0;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() => _morphTarget = 1);
-        Future<void>.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) setState(() => _fromShape = widget.stat.shape);
-        });
-      });
+      _toShape = widget.stat.shape;
+      _morph = Morph(_fromShape.normalized(), _toShape.normalized());
+      _controller.forward(from: 0);
     }
   }
 
-  ShapeBorder _shapeAt(double t) {
-    final MaterialShapeBorder target =
-        MaterialShapeBorder(shape: widget.stat.shape);
-    if (t <= 0) {
-      return MaterialShapeBorder(shape: _fromShape);
-    }
-    if (t >= 1) return target;
-    final MaterialShapeBorder from = MaterialShapeBorder(shape: _fromShape);
-    return from.lerpTo(target, t)!;
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -396,50 +403,120 @@ class _MorphingStatBadgeState extends State<_MorphingStatBadge> {
 
     return Transform.rotate(
       angle: widget.angle,
-      child: SingleMotionBuilder(
-        motion: const MaterialSpringMotion.expressiveSpatialFast(),
-        value: _morphTarget,
-        builder: (context, t, _) {
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final double progress =
+              Curves.easeOutCubic.transform(_controller.value);
+          final double morphRotation = progress *
+              _kBadgeMorphRotationDegrees *
+              math.pi /
+              180;
+
           return SizedBox(
-            width: 88,
-            height: 88,
-            child: ClipPath(
-              clipper: ShapeBorderClipper(shape: _shapeAt(t)),
-              child: ColoredBox(
-                color: widget.background,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 280),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      child: Text(
-                        widget.stat.value,
-                        key: ValueKey(widget.stat.value),
-                        style: GoogleFonts.unbounded(
-                          textStyle: tt.titleMedium,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
-                          color: widget.foreground,
+            width: _badgeSize,
+            height: _badgeSize,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size.square(_badgeSize),
+                  painter: _MorphBadgeShapePainter(
+                    morph: _morph,
+                    progress: progress,
+                    color: widget.background,
+                    rotationRadians: morphRotation,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: _kBadgeMorphDuration,
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: ScaleTransition(
+                              scale: Tween<double>(begin: 0.92, end: 1)
+                                  .animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Text(
+                          widget.stat.value,
+                          key: ValueKey(widget.stat.value),
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.unbounded(
+                            textStyle: tt.titleMedium,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.5,
+                            color: widget.foreground,
+                          ),
                         ),
                       ),
-                    ),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 280),
-                      child: Text(
-                        widget.stat.label,
-                        key: ValueKey(widget.stat.label),
-                        style: tt.labelSmall?.copyWith(color: widget.foreground),
+                      AnimatedSwitcher(
+                        duration: _kBadgeMorphDuration,
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: Text(
+                          widget.stat.label,
+                          key: ValueKey(widget.stat.label),
+                          textAlign: TextAlign.center,
+                          style: tt.labelSmall?.copyWith(color: widget.foreground),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           );
         },
       ),
     );
+  }
+}
+
+class _MorphBadgeShapePainter extends CustomPainter {
+  const _MorphBadgeShapePainter({
+    required this.morph,
+    required this.progress,
+    required this.color,
+    required this.rotationRadians,
+  });
+
+  final Morph morph;
+  final double progress;
+  final Color color;
+  final double rotationRadians;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Path path = morph.toPath(progress: progress);
+    final Rect bounds = path.getBounds();
+
+    final double scale = size.shortestSide * 0.94 /
+        math.max(bounds.width, bounds.height);
+
+    canvas.save();
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.rotate(rotationRadians);
+    canvas.scale(scale);
+    canvas.translate(-bounds.center.dx, -bounds.center.dy);
+    canvas.drawPath(path, Paint()..color = color);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MorphBadgeShapePainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.color != color ||
+        oldDelegate.rotationRadians != rotationRadians ||
+        oldDelegate.morph != morph;
   }
 }
