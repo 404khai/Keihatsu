@@ -25,6 +25,7 @@ import 'package:keihatsu/screens/InboxScreen.dart';
 import 'package:keihatsu/screens/SettingsScreen.dart';
 import 'package:keihatsu/screens/StatsScreen.dart';
 import 'package:keihatsu/theme_provider.dart';
+import 'package:material_shapes/material_shapes.dart';
 import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -194,17 +195,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: MenuHeader(
                         displayName: displayName,
                         avatarUrl: avatarUrl,
-                        statValue: _formatListeningTime(readingMinutes),
-                        statLabel: 'read',
-                        secondaryStatValue: libraryCount.toString(),
-                        secondaryStatLabel: 'series',
+                        stats: [
+                          MenuHeaderStat(
+                            value: _formatListeningTime(readingMinutes),
+                            label: 'reading time',
+                            shape: MaterialShapes.sunny,
+                          ),
+                          MenuHeaderStat(
+                            value: libraryCount.toString(),
+                            label: 'read',
+                            shape: MaterialShapes.cookie9Sided,
+                          ),
+                          MenuHeaderStat(
+                            value: '18',
+                            label: 'comments',
+                            shape: MaterialShapes.gem,
+                          ),
+                          MenuHeaderStat(
+                            value: libraryCount.toString(),
+                            label: 'in library',
+                            shape: MaterialShapes.clover4Leaf,
+                          ),
+                        ],
                         bio: showAuthenticatedPreview
                             ? 'El Endministrator, Creator of Keihatsu'
                             : null,
                         memberSince:
                             showAuthenticatedPreview ? '2025' : null,
                         location:
-                            showAuthenticatedPreview ? 'Switzerland' : null,
+                            showAuthenticatedPreview ? '2 day streak' : null,
                         badgeIcon: showAuthenticatedPreview
                             ? Icons.hardware_rounded
                             : null,
