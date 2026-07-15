@@ -297,12 +297,18 @@ class _ElasticNotificationTileState extends State<_ElasticNotificationTile>
   static const double _tileHeight = 72;
   static const double _actionThreshold = 76;
   static const double _maxDrag = 132;
-  static const double _anchorSize = 56;
+  static const double _sphereHeight = 56;
+  static const double _sphereGap = 12;
 
   late final AnimationController _snapController;
   Animation<double> _snapAnimation = const AlwaysStoppedAnimation<double>(0);
 
   double _dragOffset = 0;
+
+  double _sphereWidth(double dragExtent) {
+    if (dragExtent <= _sphereGap) return 0;
+    return dragExtent - _sphereGap;
+  }
 
   @override
   void initState() {
@@ -323,6 +329,7 @@ class _ElasticNotificationTileState extends State<_ElasticNotificationTile>
   }
 
   void _animateTo(double target) {
+    _snapController.stop();
     _snapAnimation = Tween<double>(
       begin: _dragOffset,
       end: target,
@@ -332,7 +339,7 @@ class _ElasticNotificationTileState extends State<_ElasticNotificationTile>
     ));
     _snapController
       ..value = 0
-      ..forward();
+      ..forward(from: 0);
   }
 
   void _handleDragUpdate(DragUpdateDetails details) {
@@ -365,34 +372,37 @@ class _ElasticNotificationTileState extends State<_ElasticNotificationTile>
     final Color titleColor = cs.onSurface.withValues(alpha: textOpacity);
     final Color bodyColor = cs.onSurfaceVariant.withValues(alpha: textOpacity);
 
-    return ClipRRect(
-      borderRadius: widget.borderRadius,
-      child: SizedBox(
-        height: _tileHeight,
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            if (_dragOffset > 0)
-              _ElasticSwipeReveal(
-                extent: _dragOffset,
-                fromLeft: true,
-                height: _tileHeight,
-                anchorSize: _anchorSize,
+    return SizedBox(
+      height: _tileHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (_dragOffset > _sphereGap)
+            Positioned(
+              left: 0,
+              top: (_tileHeight - _sphereHeight) / 2,
+              child: _SeparateActionSphere(
+                width: _sphereWidth(_dragOffset),
+                height: _sphereHeight,
                 color: cs.errorContainer,
                 icon: Icons.delete_outline_rounded,
                 iconColor: cs.onErrorContainer,
               ),
-            if (_dragOffset < 0)
-              _ElasticSwipeReveal(
-                extent: -_dragOffset,
-                fromLeft: false,
-                height: _tileHeight,
-                anchorSize: _anchorSize,
+            ),
+          if (_dragOffset < -_sphereGap)
+            Positioned(
+              right: 0,
+              top: (_tileHeight - _sphereHeight) / 2,
+              child: _SeparateActionSphere(
+                width: _sphereWidth(-_dragOffset),
+                height: _sphereHeight,
                 color: const Color(0xFFCDEA91),
                 icon: Icons.mark_email_read_outlined,
                 iconColor: const Color(0xFF1A1A14),
               ),
-            GestureDetector(
+            ),
+          Positioned.fill(
+            child: GestureDetector(
               onHorizontalDragUpdate: _handleDragUpdate,
               onHorizontalDragEnd: _handleDragEnd,
               behavior: HitTestBehavior.opaque,
@@ -400,6 +410,12 @@ class _ElasticNotificationTileState extends State<_ElasticNotificationTile>
                 offset: Offset(_dragOffset, 0),
                 child: Material(
                   color: cs.surfaceContainer,
+                  elevation: _dragOffset.abs() > 2 ? 2 : 0,
+                  shadowColor: Colors.black.withValues(alpha: 0.28),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: widget.borderRadius,
+                  ),
+                  clipBehavior: Clip.antiAlias,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -466,68 +482,42 @@ class _ElasticNotificationTileState extends State<_ElasticNotificationTile>
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ElasticSwipeReveal extends StatelessWidget {
-  const _ElasticSwipeReveal({
-    required this.extent,
-    required this.fromLeft,
+class _SeparateActionSphere extends StatelessWidget {
+  const _SeparateActionSphere({
+    required this.width,
     required this.height,
-    required this.anchorSize,
     required this.color,
     required this.icon,
     required this.iconColor,
   });
 
-  final double extent;
-  final bool fromLeft;
+  final double width;
   final double height;
-  final double anchorSize;
   final Color color;
   final IconData icon;
   final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
-    if (extent <= 0) return const SizedBox.shrink();
+    if (width <= 0) return const SizedBox.shrink();
 
-    final double width = (anchorSize + extent * 0.95).clamp(anchorSize, 280);
-
-    return Align(
-      alignment: fromLeft ? Alignment.centerLeft : Alignment.centerRight,
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.horizontal(
-                    left: Radius.circular(fromLeft ? height / 2 : 12),
-                    right: Radius.circular(fromLeft ? 12 : height / 2),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: fromLeft ? 0 : null,
-              right: fromLeft ? null : 0,
-              top: 0,
-              bottom: 0,
-              width: anchorSize,
-              child: Center(
-                child: Icon(icon, color: iconColor, size: 26),
-              ),
-            ),
-          ],
+    return SizedBox(
+      width: width,
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(height / 2),
+        ),
+        child: Center(
+          child: Icon(icon, color: iconColor, size: 24),
         ),
       ),
     );
