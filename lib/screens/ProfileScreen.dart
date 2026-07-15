@@ -139,9 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               scrolledUnderElevation: 0,
               backgroundColor: headerColor,
               surfaceTintColor: Colors.transparent,
-              leading: _showCollapsedTitle
-                  ? const CustomBackButton()
-                  : const SizedBox.shrink(),
+              leading: const CustomBackButton(),
               leadingWidth: 56,
               title: _showCollapsedTitle
                   ? Padding(
@@ -266,16 +264,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         //         ),
                         //       ]
                         //     : null,
-                      ),
-                    ),
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      child: SafeArea(
-                        child: CustomBackButton(
-                          iconSize: _showCollapsedTitle ? 28 : 36,
-                          margin: _showCollapsedTitle ? 8 : 10,
-                        ),
                       ),
                     ),
                   ],

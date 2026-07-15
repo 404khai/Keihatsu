@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:keihatsu/components/CustomBackButton.dart';
 import 'package:keihatsu/components/keihatsu_refresh_indicator.dart';
 import 'package:keihatsu/data/mock_updates_feed.dart';
 import 'package:keihatsu/screens/UpcomingCalendarScreen.dart';
@@ -42,52 +43,54 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: () => Navigator.maybePop(context),
-                            icon: Icon(Icons.arrow_back_rounded, color: textColor),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Updates',
-                              style: GoogleFonts.unbounded(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.5,
-                                color: textColor,
-                                fontSize: 28,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () {},
-                            icon: Icon(Icons.filter_list_rounded, color: textColor),
-                          ),
-                          IconButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const UpcomingCalendarScreen(),
-                                ),
-                              );
-                            },
-                            icon: Icon(Icons.calendar_month_outlined, color: textColor),
-                          ),
-                          IconButton(
-                            onPressed: _refresh,
-                            icon: Icon(Icons.refresh_rounded, color: textColor),
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(4, 4, 0, 16),
+              SliverAppBar(
+                pinned: true,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                backgroundColor: backgroundColor,
+                surfaceTintColor: Colors.transparent,
+                leading: const CustomBackButton(),
+                leadingWidth: 56,
+                title: Text(
+                  'Updates',
+                  style: GoogleFonts.unbounded(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: textColor,
+                    fontSize: 24,
+                  ),
+                ),
+                actions: [
+                  IconButton(
+                    onPressed: () {},
+                    icon: Icon(Icons.filter_list_rounded, color: textColor),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => const UpcomingCalendarScreen(),
+                        ),
+                      );
+                    },
+                    icon: Icon(Icons.calendar_month_outlined, color: textColor),
+                  ),
+                ],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(52),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
                         child: Text(
                           'Last updated 14hrs ago',
                           style: TextStyle(
@@ -97,7 +100,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
