@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:keihatsu/components/CustomBackButton.dart';
 import 'package:keihatsu/data/mock_updates_feed.dart';
 import 'package:keihatsu/theme_provider.dart';
 import 'package:provider/provider.dart';
@@ -102,13 +103,10 @@ class _UpcomingCalendarScreenState extends State<UpcomingCalendarScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 12, 0),
+              padding: const EdgeInsets.fromLTRB(4, 8, 12, 0),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: Icon(Icons.arrow_back_rounded, color: textColor),
-                  ),
+                  const CustomBackButton(),
                   Expanded(
                     child: Text(
                       'Upcoming',

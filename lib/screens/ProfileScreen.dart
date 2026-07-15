@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:keihatsu/components/CustomBackButton.dart';
 import 'package:keihatsu/components/floating_nav_scroll_scope.dart';
 import 'package:keihatsu/components/keihatsu_refresh_indicator.dart';
 import 'package:keihatsu/components/MainNavigationBar.dart';
@@ -139,8 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               scrolledUnderElevation: 0,
               backgroundColor: headerColor,
               surfaceTintColor: Colors.transparent,
-              leading: const CustomBackButton(),
-              leadingWidth: 56,
+              automaticallyImplyLeading: false,
               title: _showCollapsedTitle
                   ? Padding(
                       padding: const EdgeInsets.only(top: 5),
