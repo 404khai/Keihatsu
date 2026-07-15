@@ -15,6 +15,7 @@ import '../models/manga.dart';
 import '../providers/auth_provider.dart';
 import '../theme_provider.dart';
 import '../providers/offline_library_provider.dart';
+import '../screens/UpdatesScreen.dart';
 import 'MangaDetailsScreen.dart';
 
 class HomePage extends StatefulWidget {
@@ -225,7 +226,12 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
                 textColor: textColor,
                 groups: mockHomeUpdates,
                 onSeeMore: () {
-                  Navigator.pushReplacementNamed(context, '/library');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const UpdatesScreen(),
+                    ),
+                  );
                 },
               ),
 

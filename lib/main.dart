@@ -39,6 +39,7 @@ import 'screens/ProfileScreen.dart';
 import 'screens/AppearancePage.dart';
 import 'screens/ExtensionsScreen.dart';
 import 'screens/SettingsScreen.dart';
+import 'screens/UpdatesScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -248,6 +249,7 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/appearance': (context) => const AppearancePage(),
         '/home': (context) => const HomePage(),
+        '/updates': (context) => const UpdatesScreen(),
         '/extensions': (context) => const ExtensionsScreen(),
         '/settings': (context) => const SettingsScreen(),
       },

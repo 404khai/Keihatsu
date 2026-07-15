@@ -80,7 +80,6 @@ class NotificationPill extends StatelessWidget {
 
   static const double _pillInset = 6;
   static const double _badgeSize = 36;
-  static const double _stackPeekOffset = 58;
 
   final String message;
   final IconData icon;
@@ -91,6 +90,7 @@ class NotificationPill extends StatelessWidget {
   static _PersistentPillData? _persistentPill;
   static _TransientPillData? _transientPill;
   static Timer? _transientTimer;
+  static Timer? _persistentDismissTimer;
   static VoidCallback? _rebuildStack;
 
   static void show(
@@ -130,11 +130,28 @@ class NotificationPill extends StatelessWidget {
     _rebuildStack?.call();
   }
 
-  static void hidePersistent(String id) {
+  static void hidePersistent(
+    String id, {
+    String farewellMessage = 'Incognito mode off',
+    Duration farewellDuration = const Duration(milliseconds: 1400),
+  }) {
     if (_persistentPill?.id != id) return;
-    _persistentPill = null;
+    _persistentDismissTimer?.cancel();
+
+    final IconData icon = _persistentPill!.icon;
+    _persistentPill = _PersistentPillData(
+      id: id,
+      message: farewellMessage,
+      icon: icon,
+    );
     _rebuildStack?.call();
-    _maybeRemoveStack();
+
+    _persistentDismissTimer = Timer(farewellDuration, () {
+      if (_persistentPill?.id != id) return;
+      _persistentPill = null;
+      _rebuildStack?.call();
+      _maybeRemoveStack();
+    });
   }
 
   static void _ensureStack(BuildContext context) {
@@ -196,14 +213,18 @@ class NotificationPill extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
-                  child: Text(
-                    message,
-                    style: TextStyle(
-                      color: resolvedPalette.text,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -0.1,
-                      height: 1.2,
+                  child: ExcludeSemantics(
+                    child: Text(
+                      message,
+                      style: TextStyle(
+                        color: resolvedPalette.text,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.1,
+                        height: 1.2,
+                        decoration: TextDecoration.none,
+                        decorationThickness: 0,
+                      ),
                     ),
                   ),
                 ),
@@ -278,37 +299,36 @@ class _NotificationPillStackState extends State<_NotificationPillStack> {
 
     return SafeArea(
       bottom: false,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.topCenter,
-            children: [
-              if (persistent != null)
-                Padding(
-                  padding: EdgeInsets.only(top: stacked ? NotificationPill._stackPeekOffset : 0),
-                  child: AnimatedOpacity(
+      child: ExcludeFocus(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.topCenter,
+              children: [
+                if (persistent != null)
+                  AnimatedOpacity(
                     duration: const Duration(milliseconds: 220),
-                    opacity: stacked ? 0.92 : 1,
+                    opacity: stacked ? 0.55 : 1,
                     child: AnimatedScale(
                       duration: const Duration(milliseconds: 220),
-                      scale: stacked ? 0.96 : 1,
+                      scale: stacked ? 0.94 : 1,
                       child: NotificationPill(
                         message: persistent.message,
                         icon: persistent.icon,
                       ),
                     ),
                   ),
-                ),
-              if (transient != null)
-                _TransientPillOverlay(
-                  message: transient.message,
-                  icon: transient.icon,
-                  showPointer: transient.showPointer,
-                ),
-            ],
+                if (transient != null)
+                  _TransientPillOverlay(
+                    message: transient.message,
+                    icon: transient.icon,
+                    showPointer: transient.showPointer,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
