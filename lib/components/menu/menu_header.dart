@@ -241,7 +241,7 @@ class _MenuHeaderState extends State<MenuHeader> {
                   16.gap,
                 ],
                 if (widget.location != null) ...[
-                  const _DuotoneFireIcon(size: 14),
+                  const _DuotoneFireIcon(size: 20),
                   4.gap,
                   Text(
                     widget.location!,

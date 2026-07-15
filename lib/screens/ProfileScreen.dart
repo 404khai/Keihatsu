@@ -199,7 +199,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           MenuHeaderStat(
                             value: _formatListeningTime(readingMinutes),
                             label: 'reading time',
-                            shape: MaterialShapes.sunny,
+                            shape: MaterialShapes.clover4Leaf,
                           ),
                           MenuHeaderStat(
                             value: libraryCount.toString(),
@@ -209,12 +209,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           MenuHeaderStat(
                             value: '18',
                             label: 'comments',
-                            shape: MaterialShapes.gem,
+                            shape: MaterialShapes.sunny,
                           ),
                           MenuHeaderStat(
                             value: libraryCount.toString(),
                             label: 'in library',
-                            shape: MaterialShapes.clover4Leaf,
+                            shape: MaterialShapes.gem,
                           ),
                         ],
                         bio: showAuthenticatedPreview
