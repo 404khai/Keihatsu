@@ -27,6 +27,8 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
   )..addListener(() => setState(() {}))
     ..repeat();
 
+  List<DownloadQueueItem>? _mockItems;
+
   @override
   void dispose() {
     _fakeDownload.dispose();
@@ -40,7 +42,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
           .toList();
     }
 
-    return mockDownloadQueue.map((download) {
+    _mockItems ??= mockDownloadQueue.map((download) {
       if (download.status != 1) return download;
 
       return DownloadQueueItem()
@@ -56,6 +58,58 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
         ..progress = _fakeDownload.value
         ..priority = download.priority;
     }).toList();
+
+    if (_mockItems != null) {
+      for (final item in _mockItems!) {
+        if (item.status == 1) {
+          item.progress = _fakeDownload.value;
+        }
+      }
+    }
+
+    return List<DownloadQueueItem>.from(_mockItems!);
+  }
+
+  void _reorderExtensionChapters(
+    String sourceId,
+    List<DownloadQueueItem> extensionItems,
+    int oldIndex,
+    int newIndex,
+    DownloadProvider? provider,
+    bool usingMock,
+  ) {
+    if (usingMock) {
+      final List<DownloadQueueItem> extensionChapters = (_mockItems ?? [])
+          .where((item) => item.sourceId == sourceId)
+          .sorted((a, b) => a.priority.compareTo(b.priority))
+          .toList();
+
+      if (oldIndex < newIndex) newIndex -= 1;
+      final DownloadQueueItem moved = extensionChapters.removeAt(oldIndex);
+      extensionChapters.insert(newIndex, moved);
+
+      final List<DownloadQueueItem> allSorted = (_mockItems ?? [])
+          .sorted((a, b) => a.priority.compareTo(b.priority));
+      final List<DownloadQueueItem> rebuilt = [];
+      var extensionCursor = 0;
+
+      for (final item in allSorted) {
+        if (item.sourceId == sourceId) {
+          rebuilt.add(extensionChapters[extensionCursor++]);
+        } else {
+          rebuilt.add(item);
+        }
+      }
+
+      for (var i = 0; i < rebuilt.length; i++) {
+        rebuilt[i].priority = i;
+      }
+
+      setState(() => _mockItems = rebuilt);
+      return;
+    }
+
+    provider?.reorderChaptersInExtension(sourceId, oldIndex, newIndex);
   }
 
   @override
@@ -70,7 +124,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
     final Color appBarColor = themeProvider.pureBlackDarkMode && isDarkTheme
         ? Colors.black
         : cs.surfaceContainer;
-    final Color textColor = isDarkTheme ? Colors.white : Colors.black87;
+    final Color textColor = cs.onSurface;
 
     return Consumer<DownloadProvider>(
       builder: (context, provider, child) {
@@ -136,6 +190,8 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
                       _buildExtensionSection(
                         sortedExtensions[i],
                         groupedByExtension[sortedExtensions[i]]!,
+                        provider,
+                        usingMock,
                       ),
                     ],
                     if (usingMock) ...[
@@ -160,34 +216,31 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
   Widget _buildExtensionSection(
     String extensionName,
     List<DownloadQueueItem> items,
+    DownloadProvider provider,
+    bool usingMock,
   ) {
     final String sourceId = items.first.sourceId;
     final String? image = extensionImageFor(sourceId);
-
-    final groupedByManga = groupBy(items, (DownloadQueueItem i) => i.mangaId);
-    final sortedMangaIds = groupedByManga.keys.toList()
-      ..sort((a, b) {
-        final priorityA = groupedByManga[a]!.map((i) => i.priority).min;
-        final priorityB = groupedByManga[b]!.map((i) => i.priority).min;
-        return priorityA.compareTo(priorityB);
-      });
-
-    final int chapterCount = items.length;
+    final List<DownloadQueueItem> sortedChapters =
+        List<DownloadQueueItem>.from(items)
+          ..sort((a, b) => a.priority.compareTo(b.priority));
+    final int chapterCount = sortedChapters.length;
 
     return DownloadSection(
       label: extensionName,
       image: image,
       meta: '$chapterCount chapter${chapterCount == 1 ? '' : 's'}',
-      children: [
-        for (final mangaId in sortedMangaIds)
-          DownloadMangaGroup(
-            key: ValueKey(mangaId),
-            mangaTitle: groupedByManga[mangaId]!.first.mangaTitle,
-            mangaThumbnail: groupedByManga[mangaId]!.first.mangaThumbnail,
-            chapters: groupedByManga[mangaId]!
-              ..sort((a, b) => a.priority.compareTo(b.priority)),
-          ),
-      ],
+      child: DownloadExtensionChapterList(
+        chapters: sortedChapters,
+        onReorder: (oldIndex, newIndex) => _reorderExtensionChapters(
+          sourceId,
+          sortedChapters,
+          oldIndex,
+          newIndex,
+          provider,
+          usingMock,
+        ),
+      ),
     );
   }
 }

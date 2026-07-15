@@ -218,6 +218,89 @@ class DownloadProvider with ChangeNotifier {
     }
   }
 
+  Future<void> reorderChaptersInExtension(
+    String sourceId,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    final List<DownloadQueueItem> extensionItems = _queue
+        .where((i) => i.sourceId == sourceId)
+        .sorted((a, b) => a.priority.compareTo(b.priority))
+        .toList();
+
+    if (oldIndex < 0 ||
+        oldIndex >= extensionItems.length ||
+        newIndex < 0 ||
+        newIndex > extensionItems.length) {
+      return;
+    }
+
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+
+    final DownloadQueueItem moved = extensionItems.removeAt(oldIndex);
+    extensionItems.insert(newIndex, moved);
+
+    final List<DownloadQueueItem> allSorted =
+        _queue.sorted((a, b) => a.priority.compareTo(b.priority));
+    final List<DownloadQueueItem> rebuilt = [];
+    var extensionCursor = 0;
+
+    for (final DownloadQueueItem item in allSorted) {
+      if (item.sourceId == sourceId) {
+        rebuilt.add(extensionItems[extensionCursor++]);
+      } else {
+        rebuilt.add(item);
+      }
+    }
+
+    await _applyPriorityOrder(rebuilt);
+  }
+
+  Future<void> reorderInGlobalQueue(int oldIndex, int newIndex) async {
+    final sorted = _queue.sorted((a, b) => a.priority.compareTo(b.priority));
+
+    if (oldIndex < 0 ||
+        oldIndex >= sorted.length ||
+        newIndex < 0 ||
+        newIndex > sorted.length) {
+      return;
+    }
+
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+
+    final item = sorted.removeAt(oldIndex);
+    sorted.insert(newIndex, item);
+
+    await _applyPriorityOrder(sorted);
+  }
+
+  Future<void> moveChapterToQueueFront(String chapterId) async {
+    final sorted = _queue.sorted((a, b) => a.priority.compareTo(b.priority));
+    final int index = sorted.indexWhere((i) => i.chapterId == chapterId);
+    if (index <= 0) return;
+
+    final item = sorted.removeAt(index);
+    sorted.insert(0, item);
+    await _applyPriorityOrder(sorted);
+  }
+
+  Future<void> _applyPriorityOrder(List<DownloadQueueItem> ordered) async {
+    await isar.writeTxn(() async {
+      for (var i = 0; i < ordered.length; i++) {
+        ordered[i].priority = i;
+        await isar.downloadQueueItems.put(ordered[i]);
+      }
+    });
+
+    _queue = await isar.downloadQueueItems.where().sortByPriority().findAll();
+    notifyListeners();
+    _processQueue();
+  }
+
   Future<void> reorderChaptersOfManga(
       String sourceId,
       String mangaId,

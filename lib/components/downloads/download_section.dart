@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:keihatsu/components/downloads/download_manga_group.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
-import 'package:keihatsu/components/menu/menu_section.dart';
 
 class DownloadSection extends StatelessWidget {
   const DownloadSection({
@@ -11,35 +9,14 @@ class DownloadSection extends StatelessWidget {
     this.image,
     this.meta,
     this.action,
-    required this.children,
+    required this.child,
   });
 
   final String label;
   final String? image;
   final String? meta;
   final Widget? action;
-  final List<DownloadMangaGroup> children;
-
-  BorderRadius _radiusFor(int index) {
-    const Radius outer = Radius.circular(MenuSection.outerRadius);
-    const Radius inner = Radius.circular(MenuSection.innerRadius);
-
-    return BorderRadius.vertical(
-      top: index == 0 ? outer : inner,
-      bottom: index == children.length - 1 ? outer : inner,
-    );
-  }
-
-  DownloadMangaGroup _positioned(DownloadMangaGroup group, int index) {
-    return DownloadMangaGroup(
-      key: group.key,
-      mangaTitle: group.mangaTitle,
-      mangaThumbnail: group.mangaThumbnail,
-      chapters: group.chapters,
-      borderRadius: _radiusFor(index),
-      initiallyExpanded: group.initiallyExpanded,
-    );
-  }
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -94,10 +71,7 @@ class DownloadSection extends StatelessWidget {
             ],
           ),
         ),
-        for (int i = 0; i < children.length; i++) ...[
-          if (i > 0) MenuSection.tileGap.gap,
-          _positioned(children[i], i),
-        ],
+        child,
       ],
     );
   }

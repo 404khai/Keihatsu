@@ -7,6 +7,8 @@ import '../components/OfflineImage.dart';
 import '../components/MainNavigationBar.dart';
 import '../components/floating_nav_scroll_scope.dart';
 import '../components/gradient_fade_app_bar.dart';
+import '../components/menu/bottom_padding.dart';
+import '../providers/floating_nav_provider.dart';
 import '../theme_provider.dart';
 import '../providers/offline_library_provider.dart';
 import '../providers/auth_provider.dart';
@@ -29,6 +31,17 @@ class _HistoryScreenState extends State<HistoryScreen>
   final int _currentIndex = 2; // History is index 2
   final Set<int> _selectedIds = {};
   bool _isSelectionMode = false;
+
+  static const double _navClearance = 88;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<FloatingNavProvider>().expand();
+    });
+  }
 
   void _toggleSelection(int id) {
     setState(() {
@@ -295,7 +308,12 @@ class _HistoryScreenState extends State<HistoryScreen>
             ),
           )
               : ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              BottomPadding.of(context) + _navClearance,
+            ),
             itemCount: history.length,
             itemBuilder: (context, index) {
               final manga = history[index];
