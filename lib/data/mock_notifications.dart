@@ -24,6 +24,20 @@ class AppNotification {
   final IconData? icon;
   final Color? iconColor;
   final bool unread;
+
+  AppNotification copyWith({bool? unread}) {
+    return AppNotification(
+      id: id,
+      title: title,
+      description: description,
+      timestamp: timestamp,
+      category: category,
+      thumbnailUrl: thumbnailUrl,
+      icon: icon,
+      iconColor: iconColor,
+      unread: unread ?? this.unread,
+    );
+  }
 }
 
 final List<AppNotification> mockNotifications = [

@@ -40,6 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final ScrollController _scrollController = ScrollController();
   bool _showCollapsedTitle = false;
+  bool _incognitoMode = false;
 
   @override
   void initState() {
@@ -325,13 +326,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.theater_comedy_outlined,
                         title: 'Incognito Mode',
                         trailing: Switch(
-                          value: isDarkTheme,
+                          value: _incognitoMode,
                           thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
                             WidgetState.selected:
                                 Icon(Icons.theater_comedy_outlined),
                             WidgetState.any: Icon(Icons.face_6_outlined),
                           }),
-                          onChanged: (_) => themeProvider.toggleDarkTheme(),
+                          onChanged: (enabled) {
+                            setState(() => _incognitoMode = enabled);
+                            if (enabled) {
+                              NotificationPill.showPersistent(
+                                context,
+                                id: 'incognito',
+                                message: 'Incognito mode on',
+                                icon: Icons.theater_comedy,
+                              );
+                            } else {
+                              NotificationPill.hidePersistent('incognito');
+                            }
+                          },
                         ),
                       ),
                     ],
