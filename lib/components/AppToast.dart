@@ -15,6 +15,7 @@ class AppToast {
       BuildContext context, {
         required String message,
         AppToastType type = AppToastType.success,
+        IconData? icon,
         Duration duration = const Duration(seconds: 3),
       }) {
     _currentEntry?.remove();
@@ -28,6 +29,7 @@ class AppToast {
       builder: (context) => _AppToastOverlay(
         message: message,
         type: type,
+        icon: icon,
         duration: duration,
         onRemove: () {
           entry.remove();
@@ -52,6 +54,7 @@ class _AppToastOverlay extends StatefulWidget {
   const _AppToastOverlay({
     required this.message,
     required this.type,
+    this.icon,
     required this.duration,
     required this.onRemove,
     required this.onDismissed,
@@ -59,6 +62,7 @@ class _AppToastOverlay extends StatefulWidget {
 
   final String message;
   final AppToastType type;
+  final IconData? icon;
   final Duration duration;
   final VoidCallback onRemove;
   final VoidCallback onDismissed;
@@ -120,6 +124,7 @@ class _AppToastOverlayState extends State<_AppToastOverlay>
     final textColor = isDarkMode ? Colors.white : Colors.black87;
 
     final toastColors = _resolveToastColors(widget.type);
+    final IconData displayIcon = widget.icon ?? toastColors.icon;
 
     return IgnorePointer(
       ignoring: false,
@@ -164,7 +169,7 @@ class _AppToastOverlayState extends State<_AppToastOverlay>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          toastColors.icon,
+                          displayIcon,
                           color: toastColors.accent,
                           size: 18,
                         ),

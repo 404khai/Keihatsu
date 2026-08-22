@@ -1,0 +1,3 @@
+- Ensure that the date in history page shows as 24th April 2026, not 2026-04-24.
+- Ensure that if I'm offline, the cover art of manga in library still display
+- Ensure that the user's profile pic and background pic in ProfileScreen still display even when offline

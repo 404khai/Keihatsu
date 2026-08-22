@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import '../components/CustomBackButton.dart';
+import '../components/keihatsu_refresh_indicator.dart';
 import '../models/user.dart';
 import '../services/auth_api.dart';
 import '../services/sources_repository.dart';
@@ -128,7 +129,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
 
           final profile = snapshot.data!;
 
-          return RefreshIndicator(
+          return KeihatsuRefreshIndicator(
             onRefresh: _refreshProfile,
             child: CustomScrollView(
               controller: _scrollController,

@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:isar/isar.dart';
 import '../models/local_models.dart';
 import '../components/MainNavigationBar.dart';
+import '../components/floating_nav_scroll_scope.dart';
+import '../components/gradient_fade_app_bar.dart';
+import '../components/keihatsu_refresh_indicator.dart';
+import '../components/home/home_updates_section.dart';
+import '../components/home/latest_updates_carousel.dart';
+import '../components/home/notifications_bottom_sheet.dart';
+import '../data/mock_home_updates.dart';
 import '../models/manga.dart';
 import '../providers/auth_provider.dart';
-import '../services/sources_api.dart';
 import '../theme_provider.dart';
 import '../providers/offline_library_provider.dart';
+import '../screens/UpdatesScreen.dart';
 import 'MangaDetailsScreen.dart';
-import 'SearchScreen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,25 +25,25 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
   final int _currentIndex = 0;
-  final SourcesApi _sourcesApi = SourcesApi();
+  // final SourcesApi _sourcesApi = SourcesApi();
 
-  late Future<List<Manga>> _popularMangaFuture;
+  // late Future<List<Manga>> _popularMangaFuture;
 
-  final String _defaultSourceId = 'manhuatop';
+  // final String _defaultSourceId = 'manhuatop';
 
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _loadData();
+  // }
 
-  void _loadData() {
-    _popularMangaFuture = _sourcesApi
-        .getMangaList(_defaultSourceId, 'popular')
-        .then((page) => page.mangas);
-  }
+  // void _loadData() {
+  //   _popularMangaFuture = _sourcesApi
+  //       .getMangaList(_defaultSourceId, 'popular')
+  //       .then((page) => page.mangas);
+  // }
 
   Future<List<Manga>> _fetchHistory(BuildContext context) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -71,59 +76,80 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _refreshData() async {
-    setState(() {
-      _loadData();
-    });
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final offlineLibrary = Provider.of<OfflineLibraryProvider>(context);
+    final ColorScheme cs = Theme.of(context).colorScheme;
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final bool isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final Color cardColor = isDarkMode
-        ? Colors.white10
-        : Colors.white.withOpacity(0.5);
-    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color backgroundColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surface;
+    final Color appBarColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surfaceContainer;
+    final Color cardColor = cs.surfaceContainer;
+    final Color textColor = cs.onSurface;
 
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
+      extendBody: true,
+      backgroundColor: backgroundColor,
+      appBar: GradientFadeAppBar(
+        baseColor: appBarColor,
+        fadeAmount: appBarFade,
+        automaticallyImplyLeading: false,
         title: Text(
-          'Keihatsu',
-          style: GoogleFonts.hennyPenny(
-            textStyle: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-            ),
+          'Explore',
+          style: GoogleFonts.unbounded(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            color: textColor,
+            fontSize: 24,
           ),
+          // style: GoogleFonts.hennyPenny(
+          //   textStyle: TextStyle(
+          //     color: textColor,
+          //     fontWeight: FontWeight.bold,
+          //     fontSize: 24,
+          //   ),
+          // ),
         ),
         actions: [
+          // IconButton(
+          //   onPressed: () {
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(builder: (context) => const SearchScreen()),
+          //     );
+          //   },
+          //   icon: Icon(Icons.search_rounded, color: textColor),
+          // ),
           IconButton(
             onPressed: () {
-              Navigator.push(
+              NotificationsBottomSheet.show(
                 context,
-                MaterialPageRoute(builder: (context) => const SearchScreen()),
+                brandColor: brandColor,
+                bgColor: backgroundColor,
               );
             },
-            icon: Icon(Icons.search_rounded, color: textColor),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.notifications, color: textColor),
+            icon: Icon(
+              Icons.circle_notifications,
+              color: textColor,
+              size: 40,
+            ),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshData,
-        color: brandColor,
-        child: SingleChildScrollView(
+      body: GradientFadeScrollListener(
+        onFadeChanged: updateAppBarFade,
+        child: FloatingNavScrollScope(
+          child: KeihatsuRefreshIndicator(
+          onRefresh: _refreshData,
+          child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,55 +199,47 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
 
-              // Latest Update Section
-              _buildSectionHeader(
-                "Latest Updates",
-                textColor,
-                onSeeMore: () {
+              // Latest Updates — M3E carousel
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Text(
+                  'You might like',
+                  style: GoogleFonts.unbounded(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.5,
+                    color: textColor,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              LatestUpdatesCarousel(
+                brandColor: brandColor,
+                textColor: textColor,
+                onShowAll: () {
                   Navigator.pushReplacementNamed(context, '/library');
                 },
               ),
-              _buildFutureMangaList(
-                _popularMangaFuture,
-                brandColor,
-                textColor,
-                cardColor,
-                offlineLibrary,
-                height: 220,
-              ),
 
-              const SizedBox(height: 30),
-
-              // Latest Updates Section
-              // _buildSectionHeader("Latest Updates", textColor),
-              // _buildFutureMangaList(
-              //   _latestMangaFuture,
-              //   brandColor,
-              //   textColor,
-              //   cardColor,
-              //   offlineLibrary,
-              //   height: 200,
-              //   compact: true,
-              // ),
-
-              // const SizedBox(height: 30),
-
-              // Recommendations (Using Popular for now)
-              _buildSectionHeader("You might like", textColor),
-              _buildFutureMangaList(
-                _popularMangaFuture,
-                brandColor,
-                textColor,
-                cardColor,
-                offlineLibrary,
-                height: 200,
-                compact: true,
-                skip: 5,
+              // Grouped updates feed
+              HomeUpdatesSection(
+                brandColor: brandColor,
+                textColor: textColor,
+                groups: mockHomeUpdates,
+                onSeeMore: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const UpdatesScreen(),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 100), // Space for navigation bar
             ],
           ),
+        ),
+        ),
         ),
       ),
       bottomNavigationBar: MainNavigationBar(
@@ -262,57 +280,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFutureMangaList(
-      Future<List<Manga>> future,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      OfflineLibraryProvider offlineLibrary, {
-        required double height,
-        bool compact = false,
-        int skip = 0,
-      }) {
-    return FutureBuilder<List<Manga>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            height: height,
-            child: Center(child: CircularProgressIndicator(color: brandColor)),
-          );
-        } else if (snapshot.hasError) {
-          return SizedBox(
-            height: height,
-            child: Center(
-              child: Icon(PhosphorIcons.warningCircle(), color: Colors.red),
-            ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return SizedBox(
-            height: height,
-            child: const Center(child: Text("No data found")),
-          );
-        }
-
-        final mangas = snapshot.data!.skip(skip).toList();
-        return _buildMangaList(
-          mangas,
-          brandColor,
-          textColor,
-          cardColor,
-          offlineLibrary,
-          height: height,
-          compact: compact,
-        );
-      },
-    );
-  }
-
   Widget _buildSectionHeader(
       String title,
       Color textColor, {
         VoidCallback? onSeeMore,
       }) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
       child: Row(
@@ -320,27 +293,33 @@ class _HomePageState extends State<HomePage> {
         children: [
           Text(
             title,
-            style: GoogleFonts.hennyPenny(
-              textStyle: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
+            style: GoogleFonts.unbounded(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+              color: textColor,
+              fontSize: 24,
             ),
+            // style: GoogleFonts.hennyPenny(
+            //   textStyle: TextStyle(
+            //     fontSize: 20,
+            //     fontWeight: FontWeight.bold,
+            //     color: textColor,
+            //   ),
+            // ),
           ),
           if (onSeeMore != null)
             IconButton(
               onPressed: onSeeMore,
               icon: Icon(
-                PhosphorIcons.arrowRight(),
-                color: textColor.withOpacity(0.6),
+                Icons.arrow_forward_rounded,
+                color: cs.onSurfaceVariant,
                 size: 20,
               ),
             )
           else
             Icon(
-              PhosphorIcons.caretRight(),
-              color: textColor.withOpacity(0.4),
+              Icons.chevron_right_rounded,
+              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
               size: 18,
             ),
         ],
@@ -409,7 +388,7 @@ class _HomePageState extends State<HomePage> {
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withOpacity(0.8),
+                                Colors.black.withValues(alpha: 0.8),
                               ],
                             ),
                           ),
@@ -425,8 +404,8 @@ class _HomePageState extends State<HomePage> {
                             color: brandColor,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            PhosphorIcons.bookBookmark(PhosphorIconsStyle.fill),
+                          child: const Icon(
+                            Icons.bookmark_rounded,
                             color: Colors.white,
                             size: 14,
                           ),

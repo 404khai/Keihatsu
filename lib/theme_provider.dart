@@ -8,7 +8,7 @@ class ThemeProvider extends ChangeNotifier {
   static const String _pureBlackKey = 'pure_black_dark_mode';
 
   ThemeMode _themeMode = ThemeMode.system;
-  Color _brandColor = Colors.black;
+  Color _brandColor = const Color(0xFFEFEFEF);
   Color _bgColor = Colors.white;
   bool _pureBlackDarkMode = false;
 
@@ -20,10 +20,16 @@ class ThemeProvider extends ChangeNotifier {
   Color get brandColor => _brandColor;
   Color get bgColor => _bgColor;
   bool get pureBlackDarkMode => _pureBlackDarkMode;
-  bool get isDarkMode => _themeMode == ThemeMode.dark || _pureBlackDarkMode;
+  bool get isDarkTheme =>
+      _themeMode == ThemeMode.dark ||
+      (_themeMode == ThemeMode.system &&
+          WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+              Brightness.dark);
+
+  bool get isDarkMode => isDarkTheme;
 
   Color get effectiveBgColor {
-    if (_pureBlackDarkMode) {
+    if (_pureBlackDarkMode && isDarkTheme) {
       return Colors.black;
     }
     return _bgColor;
@@ -54,12 +60,16 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
-    _pureBlackDarkMode = (mode == ThemeMode.dark);
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_themeModeKey, mode.index);
-    await prefs.setBool(_pureBlackKey, _pureBlackDarkMode);
+  }
+
+  Future<void> toggleDarkTheme() async {
+    final ThemeMode newMode =
+        isDarkTheme ? ThemeMode.light : ThemeMode.dark;
+    await setThemeMode(newMode);
   }
 
   Future<void> setThemeColors(Color brand, Color bg) async {
@@ -74,11 +84,9 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> setPureBlackDarkMode(bool value) async {
     _pureBlackDarkMode = value;
-    _themeMode = value ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_pureBlackKey, value);
-    await prefs.setInt(_themeModeKey, _themeMode.index);
   }
 }

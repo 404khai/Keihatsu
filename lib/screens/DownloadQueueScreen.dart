@@ -1,13 +1,18 @@
-import 'dart:io';
+import 'dart:math' as math;
+
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:keihatsu/components/CustomBackButton.dart';
+import 'package:keihatsu/components/downloads/download_manga_group.dart';
+import 'package:keihatsu/components/downloads/download_section.dart';
+import 'package:keihatsu/components/menu/bottom_padding.dart';
+import 'package:keihatsu/components/menu/menu_extensions.dart';
+import 'package:keihatsu/data/mock_download_queue.dart';
+import 'package:keihatsu/models/local_models.dart';
+import 'package:keihatsu/providers/download_provider.dart';
+import 'package:keihatsu/theme_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:collection/collection.dart';
-import '../theme_provider.dart';
-import '../components/CustomBackButton.dart';
-import '../providers/download_provider.dart';
-import '../models/local_models.dart';
 
 class DownloadQueueScreen extends StatefulWidget {
   const DownloadQueueScreen({super.key});
@@ -16,514 +21,336 @@ class DownloadQueueScreen extends StatefulWidget {
   State<DownloadQueueScreen> createState() => _DownloadQueueScreenState();
 }
 
-class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
-  final Set<String> _expandedMangaIds = {};
+class _DownloadQueueScreenState extends State<DownloadQueueScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fakeDownload = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 5),
+  )..addListener(() => setState(() {}))
+    ..repeat();
+
+  List<DownloadQueueItem>? _mockItems;
+
+  @override
+  void dispose() {
+    _fakeDownload.dispose();
+    super.dispose();
+  }
+
+  List<DownloadQueueItem> _resolveItems(List<DownloadQueueItem> source) {
+    if (source.isNotEmpty) {
+      return source
+          .where((d) => d.status == 0 || d.status == 1 || d.status == 4)
+          .toList();
+    }
+
+    _mockItems ??= mockDownloadQueue.map((download) {
+      if (download.status != 1) return download;
+
+      return DownloadQueueItem()
+        ..chapterId = download.chapterId
+        ..mangaId = download.mangaId
+        ..sourceId = download.sourceId
+        ..chapterName = download.chapterName
+        ..chapterNumber = download.chapterNumber
+        ..mangaTitle = download.mangaTitle
+        ..mangaThumbnail = download.mangaThumbnail
+        ..extensionName = download.extensionName
+        ..status = 1
+        ..progress = _fakeDownload.value
+        ..priority = download.priority;
+    }).toList();
+
+    if (_mockItems != null) {
+      for (final item in _mockItems!) {
+        if (item.status == 1) {
+          item.progress = _fakeDownload.value;
+        }
+      }
+    }
+
+    return List<DownloadQueueItem>.from(_mockItems!);
+  }
+
+  void _reorderMangas(
+    String sourceId,
+    int oldIndex,
+    int newIndex,
+    DownloadProvider? provider,
+    bool usingMock,
+  ) {
+    if (usingMock) {
+      final List<DownloadQueueItem> sourceItems = (_mockItems ?? [])
+          .where((item) => item.sourceId == sourceId)
+          .sorted((a, b) => a.priority.compareTo(b.priority))
+          .toList();
+
+      final List<String> mangaIds = [];
+      final Set<String> seen = {};
+      for (final item in sourceItems) {
+        if (seen.add(item.mangaId)) mangaIds.add(item.mangaId);
+      }
+
+      if (oldIndex < newIndex) newIndex -= 1;
+      final String moved = mangaIds.removeAt(oldIndex);
+      mangaIds.insert(newIndex, moved);
+
+      final List<DownloadQueueItem> rebuilt = [];
+      for (final mangaId in mangaIds) {
+        rebuilt.addAll(
+          sourceItems.where((item) => item.mangaId == mangaId),
+        );
+      }
+
+      final List<DownloadQueueItem> allSorted = (_mockItems ?? [])
+          .sorted((a, b) => a.priority.compareTo(b.priority));
+      final List<DownloadQueueItem> finalList = [];
+      var rebuiltCursor = 0;
+
+      for (final item in allSorted) {
+        if (item.sourceId == sourceId) {
+          finalList.add(rebuilt[rebuiltCursor++]);
+        } else {
+          finalList.add(item);
+        }
+      }
+
+      for (var i = 0; i < finalList.length; i++) {
+        finalList[i].priority = i;
+      }
+
+      setState(() => _mockItems = finalList);
+      return;
+    }
+
+    provider?.reorderMangasOfExtension(sourceId, oldIndex, newIndex);
+  }
+
+  void _reorderChaptersOfManga(
+    String sourceId,
+    String mangaId,
+    int oldIndex,
+    int newIndex,
+    DownloadProvider? provider,
+    bool usingMock,
+  ) {
+    if (usingMock) {
+      final List<DownloadQueueItem> mangaChapters = (_mockItems ?? [])
+          .where((item) => item.sourceId == sourceId && item.mangaId == mangaId)
+          .sorted((a, b) => a.priority.compareTo(b.priority))
+          .toList();
+
+      if (oldIndex < newIndex) newIndex -= 1;
+      final DownloadQueueItem moved = mangaChapters.removeAt(oldIndex);
+      mangaChapters.insert(newIndex, moved);
+
+      final List<DownloadQueueItem> allSorted = (_mockItems ?? [])
+          .sorted((a, b) => a.priority.compareTo(b.priority));
+      final List<DownloadQueueItem> rebuilt = [];
+      var chapterCursor = 0;
+
+      for (final item in allSorted) {
+        if (item.sourceId == sourceId && item.mangaId == mangaId) {
+          rebuilt.add(mangaChapters[chapterCursor++]);
+        } else {
+          rebuilt.add(item);
+        }
+      }
+
+      for (var i = 0; i < rebuilt.length; i++) {
+        rebuilt[i].priority = i;
+      }
+
+      setState(() => _mockItems = rebuilt);
+      return;
+    }
+
+    provider?.reorderChaptersOfManga(sourceId, mangaId, oldIndex, newIndex);
+  }
+
+  void _toggleChapterPause(
+    DownloadQueueItem chapter,
+    DownloadProvider provider,
+    bool usingMock,
+  ) {
+    if (usingMock) {
+      setState(() {
+        if (chapter.status == 1) {
+          chapter.status = 4;
+        } else if (chapter.status == 4) {
+          chapter.status = 0;
+        }
+      });
+      return;
+    }
+
+    if (chapter.status == 1) {
+      provider.pauseDownload(chapter.chapterId);
+    } else if (chapter.status == 4) {
+      provider.resumeDownload(chapter.chapterId);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final bool isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
-    final Color cardColor = isDarkMode
-        ? Colors.white10
-        : Colors.white.withOpacity(0.5);
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final TextTheme tt = Theme.of(context).textTheme;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color backgroundColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surface;
+    final Color appBarColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surfaceContainer;
+    final Color textColor = cs.onSurface;
 
     return Consumer<DownloadProvider>(
       builder: (context, provider, child) {
-        final queue = provider.queue;
+        final List<DownloadQueueItem> items = _resolveItems(provider.queue);
+        final bool usingMock = provider.queue.isEmpty;
+
         final groupedByExtension = groupBy(
-          queue,
-              (DownloadQueueItem i) => i.extensionName,
+          items,
+          (DownloadQueueItem i) => i.extensionName,
         );
 
+        final sortedExtensions = groupedByExtension.keys.toList()..sort();
+
         return Scaffold(
-          backgroundColor: bgColor,
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            backgroundColor: bgColor,
+            backgroundColor: appBarColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
+            scrolledUnderElevation: 0,
             leading: const CustomBackButton(),
             title: Text(
               'Download Queue',
-              style: GoogleFonts.hennyPenny(
-                textStyle: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                ),
+              style: GoogleFonts.unbounded(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+                color: textColor,
+                fontSize: 24,
               ),
             ),
             actions: [
-              IconButton(
-                icon: Icon(
-                  provider.isGlobalPaused
-                      ? Icons.play_arrow_rounded
-                      : Icons.pause_rounded,
-                  color: textColor,
+              if (!usingMock)
+                IconButton(
+                  icon: Icon(
+                    provider.isGlobalPaused
+                        ? Icons.play_arrow_rounded
+                        : Icons.pause_rounded,
+                    color: textColor,
+                  ),
+                  onPressed: provider.toggleGlobalPause,
+                  tooltip:
+                      provider.isGlobalPaused ? 'Resume All' : 'Pause All',
                 ),
-                onPressed: () {
-                  provider.toggleGlobalPause();
-                },
-                tooltip: provider.isGlobalPaused ? 'Resume All' : 'Pause All',
-              ),
             ],
           ),
-          body: queue.isEmpty
-              ? _buildEmptyState(textColor)
+          body: items.isEmpty
+              ? Center(
+                  child: Text(
+                    'No active downloads',
+                    style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                )
               : ListView(
-            padding: const EdgeInsets.all(20),
-            children: groupedByExtension.entries.map((entry) {
-              return _buildExtensionGroup(
-                entry.key,
-                entry.value,
-                brandColor,
-                textColor,
-                cardColor,
-                provider,
-              );
-            }).toList(),
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => provider.toggleGlobalPause(),
-            backgroundColor: brandColor,
-            child: Icon(
-              provider.isGlobalPaused
-                  ? Icons.play_arrow_rounded
-                  : Icons.pause_rounded,
-              color: Colors.white,
-            ),
-          ),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    BottomPadding.of(context),
+                  ),
+                  children: [
+                    for (int i = 0; i < sortedExtensions.length; i++) ...[
+                      if (i > 0) 32.gap,
+                      _buildExtensionSection(
+                        sortedExtensions[i],
+                        groupedByExtension[sortedExtensions[i]]!,
+                        provider,
+                        usingMock,
+                      ),
+                    ],
+                    if (usingMock) ...[
+                      24.gap,
+                      Center(
+                        child: Text(
+                          'Preview data — start a download to see your queue',
+                          textAlign: TextAlign.center,
+                          style: tt.labelMedium?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
         );
       },
     );
   }
 
-  Widget _buildEmptyState(Color textColor) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            PhosphorIcons.cloudArrowDown(),
-            size: 80,
-            color: textColor.withOpacity(0.1),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'No active downloads',
-            style: GoogleFonts.delius(
-              textStyle: TextStyle(
-                color: textColor.withOpacity(0.4),
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildExtensionSection(
+    String extensionName,
+    List<DownloadQueueItem> items,
+    DownloadProvider provider,
+    bool usingMock,
+  ) {
+    final String sourceId = items.first.sourceId;
+    final String? image = extensionImageFor(sourceId);
 
-  Widget _buildExtensionGroup(
-      String extensionName,
-      List<DownloadQueueItem> items,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      DownloadProvider provider,
-      ) {
-    // Group items by manga
-    // We need to maintain the order based on the priority of the first chapter of each manga
-    // 1. Group by mangaId
-    final groupedByManga = groupBy(items, (DownloadQueueItem i) => i.mangaId);
-
-    // 2. Sort groups by priority (min priority of items in group)
-    final sortedMangaKeys = groupedByManga.keys.toList()
+    final Map<String, List<DownloadQueueItem>> groupedByManga =
+        groupBy(items, (DownloadQueueItem i) => i.mangaId);
+    final List<String> sortedMangaIds = groupedByManga.keys.toList()
       ..sort((a, b) {
-        final priorityA = groupedByManga[a]!.map((i) => i.priority).min;
-        final priorityB = groupedByManga[b]!.map((i) => i.priority).min;
+        final int priorityA = groupedByManga[a]!
+            .map((i) => i.priority)
+            .reduce(math.min);
+        final int priorityB = groupedByManga[b]!
+            .map((i) => i.priority)
+            .reduce(math.min);
         return priorityA.compareTo(priorityB);
       });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 5, bottom: 10, top: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                extensionName.toUpperCase(),
-                style: GoogleFonts.hennyPenny(
-                  textStyle: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: brandColor,
-                  ),
-                ),
-              ),
-              // Option to pause extension could go here
-            ],
-          ),
+    final List<DownloadMangaGroupData> mangaGroups = [
+      for (final mangaId in sortedMangaIds)
+        DownloadMangaGroupData(
+          mangaId: mangaId,
+          mangaTitle: groupedByManga[mangaId]!.first.mangaTitle,
+          mangaThumbnail: groupedByManga[mangaId]!.first.mangaThumbnail,
+          chapters: List<DownloadQueueItem>.from(groupedByManga[mangaId]!)
+            ..sort((a, b) => a.priority.compareTo(b.priority)),
         ),
-        ...sortedMangaKeys.asMap().entries.map((entry) {
-          final index = entry.key;
-          final mangaId = entry.value;
-          final mangaItems = groupedByManga[mangaId]!
-            ..sort((a, b) => a.priority.compareTo(b.priority));
+    ];
 
-          return _buildMangaCard(
-            mangaId,
-            mangaItems,
-            brandColor,
-            textColor,
-            cardColor,
-            provider,
-            index, // Index of manga in this extension
-            sortedMangaKeys.length,
-            items.first.sourceId,
-          );
-        }),
-      ],
-    );
-  }
+    final int chapterCount = items.length;
 
-  Widget _buildMangaCard(
-      String mangaId,
-      List<DownloadQueueItem> items,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      DownloadProvider provider,
-      int mangaIndex,
-      int totalMangas,
-      String sourceId,
-      ) {
-    final firstItem = items.first;
-    final isExpanded = _expandedMangaIds.contains(mangaId);
-    final downloadingCount = items
-        .where((i) => i.status == 1 || i.status == 0)
-        .length;
-    final failedCount = items.where((i) => i.status == 3).length;
-    final isPaused = items.every((i) => i.status == 4);
-
-    String statusText;
-    if (isPaused) {
-      statusText = "Paused";
-    } else if (failedCount > 0) {
-      statusText = "$downloadingCount downloading, $failedCount failed";
-    } else {
-      statusText = "$downloadingCount chapters downloading";
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 25),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedMangaIds.remove(mangaId);
-                } else {
-                  _expandedMangaIds.add(mangaId);
-                }
-              });
-            },
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: _buildThumbnail(firstItem.mangaThumbnail),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        firstItem.mangaTitle,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        statusText,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isPaused || failedCount > 0
-                              ? Colors.orange
-                              : textColor.withOpacity(0.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Manga Actions
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, color: textColor),
-                  onSelected: (value) {
-                    if (value == 'pause') {
-                      provider.togglePauseManga(sourceId, mangaId);
-                    } else if (value == 'cancel') {
-                      provider.cancelMangaDownloads(sourceId, mangaId);
-                    } else if (value == 'top') {
-                      provider.reorderMangasOfExtension(
-                        sourceId,
-                        mangaIndex,
-                        0,
-                      );
-                    } else if (value == 'up' && mangaIndex > 0) {
-                      provider.reorderMangasOfExtension(
-                        sourceId,
-                        mangaIndex,
-                        mangaIndex - 1,
-                      );
-                    } else if (value == 'down' &&
-                        mangaIndex < totalMangas - 1) {
-                      provider.reorderMangasOfExtension(
-                        sourceId,
-                        mangaIndex,
-                        mangaIndex + 1,
-                      );
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'pause',
-                      child: Text(isPaused ? 'Resume' : 'Pause'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'cancel',
-                      child: Text('Cancel All'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'top',
-                      child: Text('Move to Top'),
-                    ),
-                    if (mangaIndex > 0)
-                      const PopupMenuItem(value: 'up', child: Text('Move Up')),
-                    if (mangaIndex < totalMangas - 1)
-                      const PopupMenuItem(
-                        value: 'down',
-                        child: Text('Move Down'),
-                      ),
-                  ],
-                ),
-                Icon(
-                  isExpanded
-                      ? Icons.arrow_drop_up_rounded
-                      : Icons.arrow_drop_down_rounded,
-                  color: textColor.withOpacity(0.5),
-                  size: 30,
-                ),
-              ],
-            ),
-          ),
-          if (isExpanded) ...[
-            const Divider(height: 30, color: Colors.white10),
-            // Use ReorderableListView for chapters
-            // Note: ReorderableListView inside ListView needs shrinkWrap and physics
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: items.length,
-              onReorder: (oldIndex, newIndex) {
-                provider.reorderChaptersOfManga(
-                  sourceId,
-                  mangaId,
-                  oldIndex,
-                  newIndex,
-                );
-              },
-              itemBuilder: (context, index) {
-                final chapter = items[index];
-                return Padding(
-                  key: ValueKey(
-                    chapter.chapterId,
-                  ), // Important for ReorderableListView
-                  padding: const EdgeInsets.only(bottom: 15),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              chapter.chapterName,
-                              style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          _buildStatusBadge(chapter, brandColor),
-                          IconButton(
-                            icon: Icon(
-                              chapter.status == 4
-                                  ? Icons.play_arrow_rounded
-                                  : Icons.pause_rounded,
-                              size: 20,
-                              color: textColor.withOpacity(0.7),
-                            ),
-                            onPressed: () {
-                              if (chapter.status == 4) {
-                                provider.resumeDownload(chapter.chapterId);
-                              } else {
-                                provider.pauseDownload(chapter.chapterId);
-                              }
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.close,
-                              size: 20,
-                              color: Colors.red[300],
-                            ),
-                            onPressed: () {
-                              provider.removeFromQueue(chapter.chapterId);
-                            },
-                          ),
-                          // Drag handle is implicit on right for ReorderableListView
-                        ],
-                      ),
-                      if (chapter.status == 1 || chapter.status == 3) ...[
-                        // Downloading or Failed
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: LinearProgressIndicator(
-                            value: chapter.status == 3 ? 1.0 : chapter.progress,
-                            backgroundColor: Colors.white10,
-                            color: chapter.status == 3
-                                ? Colors.red
-                                : brandColor,
-                            minHeight: 6,
-                          ),
-                        ),
-                        if (chapter.status == 3)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              chapter.error ?? "Failed",
-                              style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildThumbnail(String? path) {
-    if (path == null) {
-      return Container(
-        width: 50,
-        height: 70,
-        color: Colors.grey[800],
-        child: const Icon(Icons.image, color: Colors.white24),
-      );
-    }
-
-    // Check if it's a URL (http/https)
-    if (path.startsWith('http')) {
-      return Image.network(
-        path,
-        width: 50,
-        height: 70,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          width: 50,
-          height: 70,
-          color: Colors.grey[800],
-          child: const Icon(Icons.broken_image, color: Colors.white24),
+    return DownloadSection(
+      label: extensionName,
+      image: image,
+      meta: '$chapterCount chapter${chapterCount == 1 ? '' : 's'}',
+      child: DownloadExtensionMangaList(
+        mangaGroups: mangaGroups,
+        onReorderManga: (oldIndex, newIndex) => _reorderMangas(
+          sourceId,
+          oldIndex,
+          newIndex,
+          provider,
+          usingMock,
         ),
-      );
-    }
-
-    // Otherwise treat as local file
-    return Image.file(
-      File(path),
-      width: 50,
-      height: 70,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Container(
-        width: 50,
-        height: 70,
-        color: Colors.grey[800],
-        child: const Icon(Icons.image_not_supported, color: Colors.white24),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(DownloadQueueItem item, Color brandColor) {
-    String text;
-    Color color;
-
-    switch (item.status) {
-      case 0:
-        text = "Queued";
-        color = Colors.grey;
-        break;
-      case 1:
-        text = "Downloading";
-        color = brandColor;
-        break;
-      case 2:
-        text = "Completed";
-        color = Colors.green;
-        break;
-      case 3:
-        text = "Failed";
-        color = Colors.red;
-        break;
-      case 4:
-        text = "Paused";
-        color = Colors.orange;
-        break;
-      default:
-        text = "";
-        color = Colors.grey;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
+        onReorderChapters: (mangaId, oldIndex, newIndex) =>
+            _reorderChaptersOfManga(
+          sourceId,
+          mangaId,
+          oldIndex,
+          newIndex,
+          provider,
+          usingMock,
         ),
+        onToggleChapterPause: (chapter) =>
+            _toggleChapterPause(chapter, provider, usingMock),
       ),
     );
   }

@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
+import 'package:keihatsu/components/floating_nav_scroll_scope.dart';
+import 'package:keihatsu/components/keihatsu_refresh_indicator.dart';
+import 'package:keihatsu/components/MainNavigationBar.dart';
+import 'package:keihatsu/components/OfflineImage.dart';
+import 'package:keihatsu/components/menu/bottom_padding.dart';
+import 'package:keihatsu/components/menu/developer_signature.dart';
+import 'package:keihatsu/components/menu/menu_extensions.dart';
+import 'package:keihatsu/components/menu/menu_header.dart';
+import 'package:keihatsu/components/menu/menu_section.dart';
+import 'package:keihatsu/components/menu/menu_tile.dart';
+import 'package:keihatsu/components/menu/styled_sheet.dart';
+import 'package:keihatsu/components/menu/version_indicator.dart';
+import 'package:keihatsu/components/notification_pill.dart';
+import 'package:keihatsu/providers/auth_provider.dart';
 import 'package:keihatsu/screens/AboutScreen.dart';
+import 'package:keihatsu/screens/AppearancePage.dart';
 import 'package:keihatsu/screens/DonateScreen.dart';
+import 'package:keihatsu/screens/DownloadQueueScreen.dart';
+import 'package:keihatsu/screens/EditProfileScreen.dart';
 import 'package:keihatsu/screens/HelpAndSupportScreen.dart';
 import 'package:keihatsu/screens/InboxScreen.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:keihatsu/screens/SettingsScreen.dart';
+import 'package:keihatsu/screens/StatsScreen.dart';
+import 'package:keihatsu/theme_provider.dart';
+import 'package:material_shapes/material_shapes.dart';
 import 'package:provider/provider.dart';
-import '../components/MainNavigationBar.dart';
-import '../components/OfflineImage.dart';
-import '../theme_provider.dart';
-import '../providers/auth_provider.dart';
-import 'SettingsScreen.dart';
-import 'StatsScreen.dart';
-import 'DownloadQueueScreen.dart';
-import 'EditProfileScreen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,921 +35,443 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  int _currentIndex = 4; // Profile is index 4
-  late ScrollController _scrollController;
-  bool _showTitle = false;
-  String? _primedAvatarUrl;
-  String? _primedBannerUrl;
+  static const int _currentIndex = 4;
 
-  Future<void> _showLogoutSheet(AuthProvider authProvider) async {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final bgColor = themeProvider.effectiveBgColor;
-    final textColor = themeProvider.pureBlackDarkMode
-        ? Colors.white
-        : Colors.black87;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SvgPicture.asset('images/warning.svg', width: 42, height: 42),
-                const SizedBox(height: 18),
-                Text(
-                  'Are you sure you want to log out',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(sheetContext),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: textColor.withOpacity(0.15)),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(
-                            color: textColor.withOpacity(0.75),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          Navigator.pop(sheetContext);
-                          await authProvider.logout();
-                          if (!mounted) return;
-                          Navigator.pushReplacementNamed(context, '/login');
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: const Text(
-                          'Yes, Logout',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+  final ScrollController _scrollController = ScrollController();
+  bool _showCollapsedTitle = false;
+  bool _incognitoMode = false;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(() {
-      if (_scrollController.offset > 120) {
-        if (!_showTitle) setState(() => _showTitle = true);
-      } else {
-        if (_showTitle) setState(() => _showTitle = false);
-      }
-    });
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final bool show = _scrollController.offset > 160;
+    if (show != _showCollapsedTitle) {
+      setState(() => _showCollapsedTitle = show);
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _primeProfileImages(String? avatarUrl, String? bannerUrl) {
-    _primeImage(avatarUrl, isAvatar: true);
-    _primeImage(bannerUrl, isAvatar: false);
+  String _formatListeningTime(int minutes) {
+    if (minutes < 60) return '${minutes}m';
+    final int hours = (minutes / 60).floor();
+    return '${hours}h';
   }
 
-  void _primeImage(String? imageUrl, {required bool isAvatar}) {
-    final trimmedUrl = imageUrl?.trim();
-    if (trimmedUrl == null || trimmedUrl.isEmpty) {
-      return;
-    }
-
-    final previousUrl = isAvatar ? _primedAvatarUrl : _primedBannerUrl;
-    if (previousUrl == trimmedUrl) {
-      return;
-    }
-
-    if (isAvatar) {
-      _primedAvatarUrl = trimmedUrl;
-    } else {
-      _primedBannerUrl = trimmedUrl;
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      precacheImage(CachedNetworkImageProvider(trimmedUrl), context);
-    });
+  void _push(BuildContext context, Widget screen) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
   }
+
+  // Future<void> _handleGoogleSignIn(
+  //   BuildContext context,
+  //   AuthProvider authProvider,
+  // ) async {
+  //   try {
+  //     await authProvider.loginWithGoogle();
+  //     if (!context.mounted || !authProvider.isAuthenticated) return;
+  //     Navigator.pushReplacementNamed(context, '/home');
+  //   } catch (e) {
+  //     if (!context.mounted) return;
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('Sign in failed: $e')),
+  //     );
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color headerColor = cs.surfaceContainer;
 
-    _primeProfileImages(user?.avatarUrl, user?.bannerUrl);
+    // Preview authenticated profile layout.
+    // final bool isAuthenticated = authProvider.isAuthenticated;
+    const bool showAuthenticatedPreview = true;
 
-    final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final Color cardColor = themeProvider.pureBlackDarkMode
-        ? Colors.white10
-        : Colors.white.withOpacity(0.55);
-    final Color textColor = themeProvider.pureBlackDarkMode
-        ? Colors.white
-        : Colors.black87;
+    final String displayName = showAuthenticatedPreview
+        ? 'Kaizel'
+        : (authProvider.isAuthenticated
+            ? (user?.username ?? 'Reader')
+            : 'Mystery Reader');
+    final String? avatarUrl = showAuthenticatedPreview
+        ? null
+        : (authProvider.isAuthenticated ? user?.avatarUrl : null);
+
+    final int readingMinutes = showAuthenticatedPreview
+        ? 240
+        : (user?.stats?.totalReadingTimeMinutes ?? 120);
+    final int libraryCount =
+        showAuthenticatedPreview ? 17 : (user?.stats?.libraryCount ?? 10);
 
     return Scaffold(
-      backgroundColor: bgColor,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await authProvider.refreshUserStats();
-        },
-        child: CustomScrollView(
+      extendBody: true,
+      backgroundColor: themeProvider.pureBlackDarkMode && isDarkTheme
+          ? Colors.black
+          : Theme.of(context).colorScheme.surface,
+      body: FloatingNavScrollScope(
+        child: KeihatsuRefreshIndicator(
+          onRefresh: () => authProvider.refreshUserStats(),
+          child: CustomScrollView(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverAppBar(
-              expandedHeight: 160,
+              // expandedHeight: 460,
+              expandedHeight: 420,
               pinned: true,
-              backgroundColor: bgColor,
               elevation: 0,
-              title: _showTitle
-                  ? Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.transparent,
-                    child: ClipOval(
-                      child: OfflineImage(
-                        imageUrl: user?.avatarUrl,
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.cover,
-                        fallback: Image.asset(
-                          'images/avatar.jpeg',
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      user?.username ?? "",
-                      style: GoogleFonts.denkOne(
-                        textStyle: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  _buildTopIcons(brandColor, isScrolled: true),
-                ],
-              )
-                  : null,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    SizedBox(
-                      height: 140,
-                      width: double.infinity,
-                      child: Stack(
-                        fit: StackFit.expand,
+              scrolledUnderElevation: 0,
+              backgroundColor: headerColor,
+              surfaceTintColor: Colors.transparent,
+              automaticallyImplyLeading: false,
+              title: _showCollapsedTitle
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Row(
                         children: [
-                          OfflineImage(
-                            imageUrl: user?.bannerUrl,
-                            fit: BoxFit.cover,
-                            fallback: Image.asset(
-                              'images/profileBg.jpeg',
-                              fit: BoxFit.cover,
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.transparent,
+                            child: ClipOval(
+                              child: OfflineImage(
+                                imageUrl: avatarUrl,
+                                width: 32,
+                                height: 32,
+                                fit: BoxFit.cover,
+                                fallback: Image.asset(
+                                  'images/jake.jpeg',
+                                  width: 32,
+                                  height: 32,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
                             ),
                           ),
-                          ColoredBox(color: Colors.black.withOpacity(0.4)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              displayName,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
+                    )
+                  : null,
+              flexibleSpace: FlexibleSpaceBar(
+                collapseMode: CollapseMode.pin,
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(
+                      color: themeProvider.pureBlackDarkMode && isDarkTheme
+                          ? Colors.black
+                          : cs.surface,
                     ),
-                    if (!_showTitle)
-                      SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 5,
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: MenuHeader(
+                        displayName: displayName,
+                        avatarUrl: avatarUrl,
+                        stats: [
+                          MenuHeaderStat(
+                            value: _formatListeningTime(readingMinutes),
+                            label: 'reading time',
+                            shape: MaterialShapes.clover4Leaf,
                           ),
-                          child: Align(
-                            alignment: Alignment.topRight,
-                            child: _buildTopIcons(brandColor),
+                          MenuHeaderStat(
+                            value: libraryCount.toString(),
+                            label: 'read',
+                            shape: MaterialShapes.cookie9Sided,
                           ),
-                        ),
-                      ),
-                    Positioned(
-                      bottom: 10,
-                      left: 20,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: bgColor,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: OfflineImage(
-                            imageUrl: user?.avatarUrl,
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                            fallback: Image.asset(
-                              'images/avatar.jpeg',
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                            ),
+                          MenuHeaderStat(
+                            value: '18',
+                            label: 'comments',
+                            shape: MaterialShapes.sunny,
                           ),
-                        ),
+                          MenuHeaderStat(
+                            value: libraryCount.toString(),
+                            label: 'in library',
+                            shape: MaterialShapes.gem,
+                          ),
+                        ],
+                        bio: showAuthenticatedPreview
+                            ? 'El Endministrator, Creator of Keihatsu'
+                            : null,
+                        memberSince:
+                            showAuthenticatedPreview ? '2025' : null,
+                        location:
+                            showAuthenticatedPreview ? '2 day streak' : null,
+                        badgeIcon: showAuthenticatedPreview
+                            ? Icons.hardware_rounded
+                            : null,
+                        showProfileActions: showAuthenticatedPreview,
+                        onShareTap: () {
+                          Clipboard.setData(
+                            ClipboardData(text: 'https://keihatsu.app/u/kaizel'),
+                          );
+                          NotificationPill.show(
+                            context,
+                            message: 'Profile link copied',
+                            icon: Icons.insert_link_rounded,
+                          );
+                        },
+                        onEditTap: showAuthenticatedPreview
+                            ? () => _push(context, const EditProfileScreen())
+                            : null,
+                        // Guest sign-in — commented to preview authenticated layout.
+                        // belowName: !authProvider.isAuthenticated
+                        //     ? [
+                        //         8.gap,
+                        //         FilledButton.icon(
+                        //           onPressed: authProvider.isLoading
+                        //               ? null
+                        //               : () => _handleGoogleSignIn(
+                        //                     context,
+                        //                     authProvider,
+                        //                   ),
+                        //           icon: Image.asset(
+                        //             'images/google.png',
+                        //             width: 20,
+                        //             height: 20,
+                        //           ),
+                        //           label: Text(
+                        //             authProvider.isLoading
+                        //                 ? 'Signing in...'
+                        //                 : 'Sign up with Google',
+                        //           ),
+                        //         ),
+                        //       ]
+                        //     : null,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Transform.translate(
-                offset: const Offset(0, 10),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (authProvider.isAuthenticated) ...[
-                                  Row(
-                                    children: [
-                                      Text(
-                                        user?.username ?? "",
-                                        style: GoogleFonts.hennyPenny(
-                                          textStyle: TextStyle(
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.bold,
-                                            color: textColor,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      GestureDetector(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                              const EditProfileScreen(),
-                                            ),
-                                          );
-                                        },
-                                        child: Icon(
-                                          Icons.edit_rounded,
-                                          size: 20,
-                                          color: textColor.withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Text(
-                                    user?.bio ?? "No bio available",
-                                    style: TextStyle(
-                                      color: textColor.withOpacity(0.6),
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        PhosphorIcons.calendarDots(),
-                                        size: 18,
-                                        color: textColor.withOpacity(0.4),
-                                      ),
-                                      const SizedBox(width: 5),
-                                      Text(
-                                        user?.createdAt != null
-                                            ? "Member since ${user!.createdAt!.year}"
-                                            : "",
-                                        style: TextStyle(
-                                          color: textColor.withOpacity(0.4),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ] else ...[
-                                  const SizedBox(height: 10),
-                                  _buildGoogleSignUpButton(
-                                    authProvider,
-                                    brandColor,
-                                    textColor,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: brandColor.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: Icon(
-                              PhosphorIcons.shareNetwork(),
-                              color: textColor,
-                            ),
-                          ),
-                        ],
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                BottomPadding.of(context) + kBottomNavigationBarHeight + 16,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  46.gap,
+                  MenuSection(
+                    label: 'Download Queue',
+                    children: [
+                      MenuTile(
+                        icon: Icons.cloud_download_outlined,
+                        title: 'Download Queue',
+                        onTap: () => _push(context, const DownloadQueueScreen()),
                       ),
-                    ),
-                    const SizedBox(height: 30),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildStatItem(
-                              user?.stats?.libraryCount.toString() ?? "0",
-                              "in Library",
-                              textColor,
-                            ),
-                            _buildDivider(textColor),
-                            _buildStatItem(
-                              _formatReadingTime(
-                                user?.stats?.totalReadingTimeMinutes ?? 0,
-                              ),
-                              "reading",
-                              textColor,
-                            ),
-                            _buildDivider(textColor),
-                            _buildStatItem(
-                              user?.stats?.mangasReadToday.toString() ?? "0",
-                              "mangas read",
-                              textColor,
-                            ),
-                            _buildDivider(textColor),
-                            _buildStatItem(
-                              user?.stats?.commentsCount.toString() ?? "0",
-                              "comments",
-                              textColor,
-                            ),
-                          ],
-                        ),
+                    ],
+                  ),
+                  32.gap,
+                  MenuSection(
+                    label: 'Library',
+                    children: [
+                      MenuTile(
+                        icon: Icons.label_outline,
+                        title: 'Categories',
+                        onTap: () =>
+                            Navigator.pushReplacementNamed(context, '/history'),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildImageBadge(
-                              'images/badge1.png',
-                              "Night Owl",
-                              textColor,
-                            ),
-                            _buildImageBadge(
-                              'images/badge2.png',
-                              "Touch Grass",
-                              textColor,
-                            ),
-                            _buildImageBadge(
-                              'images/badge3.png',
-                              "Offline Samurai",
-                              textColor,
-                            ),
-                            _buildImageBadge(
-                              'images/badge4.png',
-                              "Keyboard Warrior",
-                              textColor,
-                            ),
-                          ],
-                        ),
+                      MenuTile(
+                        icon: Icons.bar_chart_outlined,
+                        title: 'Stats',
+                        onTap: () => _push(context, const StatsScreen()),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          _buildSingleTile(
-                            "Download Queue",
-                            PhosphorIcons.cloudArrowDown(),
-                            cardColor,
-                            textColor,
-                            onTap: () {
-                              Navigator.push(
+                      MenuTile(
+                        icon: Icons.inbox_outlined,
+                        title: 'Inbox',
+                        onTap: () => _push(context, const InboxScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.theater_comedy_outlined,
+                        title: 'Incognito Mode',
+                        trailing: Switch(
+                          value: _incognitoMode,
+                          thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
+                            WidgetState.selected:
+                                Icon(Icons.theater_comedy_outlined),
+                            WidgetState.any: Icon(Icons.face_6_outlined),
+                          }),
+                          onChanged: (enabled) {
+                            setState(() => _incognitoMode = enabled);
+                            if (enabled) {
+                              NotificationPill.showPersistent(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                  const DownloadQueueScreen(),
+                                id: 'incognito',
+                                message: 'Incognito mode on',
+                                icon: Icons.theater_comedy,
+                              );
+                            } else {
+                              NotificationPill.hidePersistent('incognito');
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  32.gap,
+                  MenuSection(
+                    label: 'Preferences',
+                    children: [
+                      MenuTile(
+                        icon: Icons.brightness_6_outlined,
+                        title: 'Dark theme',
+                        trailing: Switch(
+                          value: isDarkTheme,
+                          thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
+                            WidgetState.selected: Icon(Icons.dark_mode_rounded),
+                            WidgetState.any: Icon(Icons.light_mode_rounded),
+                          }),
+                          onChanged: (_) => themeProvider.toggleDarkTheme(),
+                        ),
+                      ),
+                      MenuTile(
+                        icon: Icons.settings_outlined,
+                        title: 'Settings',
+                        onTap: () => _push(context, const SettingsScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.storage_outlined,
+                        title: 'Data & Storage',
+                        onTap: () => _push(context, const AppearancePage()),
+                      ),
+                    ],
+                  ),
+                  32.gap,
+                  MenuSection(
+                    label: 'Support',
+                    children: [
+                      MenuTile(
+                        icon: Icons.redeem_outlined,
+                        title: 'Support the Developer',
+                        onTap: () => _push(context, const DonateScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.lightbulb_outlined,
+                        title: 'Suggest a Feature',
+                        onTap: () => _push(context, const HelpAndSupportScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.contact_support_outlined,
+                        title: 'Help & Support',
+                        onTap: () => _push(context, const HelpAndSupportScreen()),
+                      ),
+                      MenuTile(
+                        icon: Icons.info_outlined,
+                        title: 'About',
+                        onTap: () => _push(context, const AboutScreen()),
+                      ),
+                    ],
+                  ),
+                  if (showAuthenticatedPreview) ...[
+                    32.gap,
+                    MenuSection(
+                      label: 'Account',
+                      children: [
+                        MenuTile(
+                          icon: Icons.logout_outlined,
+                          title: 'Log out',
+                          onTap: () async {
+                            final bool confirmed = await StyledSheet.show(
+                              context,
+                              icon: Icons.logout_rounded,
+                              title: 'Log out?',
+                              message:
+                                  'You can sign back in anytime. Your subscriptions '
+                                  'and downloads stay on this device.',
+                              confirmLabel: 'Log out',
+                            );
+                            if (confirmed && context.mounted) {
+                              await authProvider.logout();
+                              if (!context.mounted) return;
+                              Navigator.pushReplacementNamed(context, '/login');
+                            }
+                          },
+                        ),
+                        MenuTile(
+                          icon: Icons.delete_forever_outlined,
+                          title: 'Delete account',
+                          foreground: cs.error,
+                          onTap: () async {
+                            final bool confirmed = await StyledSheet.show(
+                              context,
+                              icon: Icons.delete_forever_rounded,
+                              title: 'Delete account?',
+                              message:
+                                  'This permanently erases your account, subscriptions, '
+                                  "and listening history. This can't be undone.",
+                              confirmLabel: 'Delete forever',
+                              destructive: true,
+                            );
+                            if (confirmed && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Account deletion is not available yet.',
+                                  ),
                                 ),
                               );
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: Column(
-                              children: [
-                                _buildGroupTile(
-                                  "Settings",
-                                  PhosphorIcons.gear(),
-                                  true,
-                                      () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                        const SettingsScreen(),
-                                      ),
-                                    );
-                                  },
-                                  textColor,
-                                ),
-                                _buildGroupTile(
-                                  "Inbox",
-                                  PhosphorIcons.mailbox(),
-                                  true,
-                                      () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                        const InboxScreen(),
-                                      ),
-                                    );
-                                  },
-                                  textColor,
-                                ),
-                                _buildGroupTile(
-                                  "Stats",
-                                  PhosphorIcons.chartLineUp(),
-                                  false,
-                                      () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                        const StatsScreen(),
-                                      ),
-                                    );
-                                  },
-                                  textColor,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: Column(
-                              children: [
-                                _buildSwitchTile(
-                                  "Dark Mode",
-                                  PhosphorIcons.sun(),
-                                  themeProvider.pureBlackDarkMode,
-                                      (val) {
-                                    themeProvider.setPureBlackDarkMode(val);
-                                  },
-                                  textColor,
-                                ),
-                                _buildGroupTile(
-                                  "Help & Support",
-                                  PhosphorIcons.question(),
-                                  true,
-                                      () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                        const HelpAndSupportScreen(),
-                                      ),
-                                    );
-                                  },
-                                  textColor,
-                                ),
-                                _buildGroupTile(
-                                  "Donate",
-                                  PhosphorIcons.tipJar(),
-                                  true,
-                                      () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                        const DonateScreen(),
-                                      ),
-                                    );
-                                  },
-                                  textColor,
-                                ),
-                                _buildGroupTile(
-                                  "About",
-                                  PhosphorIcons.info(),
-                                  false,
-                                      () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                        const AboutScreen(),
-                                      ),
-                                    );
-                                  },
-                                  textColor,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                            }
+                          },
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 30),
-                    if (authProvider.isAuthenticated)
-                      TextButton(
-                        onPressed: () => _showLogoutSheet(authProvider),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SvgPicture.asset(
-                              'images/logout.svg',
-                              width: 18,
-                              height: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              "Log Out",
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      TextButton(
-                        onPressed: () => Navigator.pushNamed(context, '/login'),
-                        child: Text(
-                          "Log In",
-                          style: TextStyle(
-                            color: brandColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 80),
                   ],
-                ),
+                  // Guest account section — commented to preview authenticated layout.
+                  // if (!authProvider.isAuthenticated) ...[
+                  //   32.gap,
+                  //   MenuSection(
+                  //     label: 'Account',
+                  //     children: [
+                  //       MenuTile(
+                  //         icon: Icons.login_outlined,
+                  //         title: 'Log in',
+                  //         onTap: () => Navigator.pushNamed(context, '/login'),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ],
+                  64.gap,
+                  const VersionIndicator(),
+                  8.gap,
+                  DeveloperSignature(avatarUrl: user?.avatarUrl),
+                  16.gap,
+                ]),
               ),
             ),
           ],
+        ),
         ),
       ),
       bottomNavigationBar: MainNavigationBar(
         currentIndex: _currentIndex,
-        brandColor: brandColor,
-      ),
-    );
-  }
-
-  Widget _buildTopIcons(Color brandColor, {bool isScrolled = false}) {
-    final Color iconColor = isScrolled
-        ? (Provider.of<ThemeProvider>(context).pureBlackDarkMode
-        ? Colors.white
-        : Colors.black87)
-        : Colors.white;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Stack(
-          children: [
-            Icon(Icons.notifications, color: iconColor, size: 28),
-            Positioned(
-              right: 0,
-              top: -4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: brandColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  "4",
-                  style: GoogleFonts.denkOne(
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(width: 16),
-        IconButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
-            );
-          },
-          icon: Icon(Icons.settings_rounded, color: iconColor, size: 28),
-        ),
-      ],
-    );
-  }
-
-  String _formatReadingTime(int minutes) {
-    if (minutes < 60) {
-      return "${minutes}m";
-    }
-    final double hours = minutes / 60;
-    return "${hours.toStringAsFixed(1)}h";
-  }
-
-  Widget _buildImageBadge(String imagePath, String name, Color textColor) {
-    return SizedBox(
-      width: 70,
-      child: Column(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: textColor.withOpacity(0.1)),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => Icon(
-                  PhosphorIcons.medal(),
-                  color: textColor.withOpacity(0.2),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: textColor.withOpacity(0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String value, String label, Color textColor) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.denkOne(
-            textStyle: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-              color: textColor,
-            ),
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDivider(Color textColor) {
-    return Container(height: 40, width: 1, color: textColor.withOpacity(0.1));
-  }
-
-  Widget _buildSingleTile(
-      String title,
-      PhosphorIconData icon,
-      Color color,
-      Color textColor, {
-        VoidCallback? onTap,
-      }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 28, color: textColor),
-            const SizedBox(width: 15),
-            Text(
-              title,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGroupTile(
-      String title,
-      IconData icon,
-      bool showDivider,
-      VoidCallback onTap,
-      Color textColor,
-      ) {
-    return Column(
-      children: [
-        ListTile(
-          onTap: onTap,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 5,
-          ),
-          leading: Icon(icon, size: 28, color: textColor),
-          title: Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: textColor,
-            ),
-          ),
-        ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            indent: 60,
-            endIndent: 20,
-            color: textColor.withOpacity(0.1),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildSwitchTile(
-      String title,
-      PhosphorIconData icon,
-      bool value,
-      Function(bool) onChanged,
-      Color textColor,
-      ) {
-    return Column(
-      children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 5,
-          ),
-          leading: Icon(icon, size: 28, color: textColor),
-          title: Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: textColor,
-            ),
-          ),
-          trailing: Switch(
-            value: value,
-            activeColor: Provider.of<ThemeProvider>(
-              context,
-              listen: false,
-            ).brandColor,
-            onChanged: onChanged,
-          ),
-        ),
-        Divider(
-          height: 1,
-          indent: 60,
-          endIndent: 20,
-          color: textColor.withOpacity(0.1),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGoogleSignUpButton(
-      AuthProvider authProvider,
-      Color brandColor,
-      Color textColor,
-      ) {
-    return GestureDetector(
-      onTap: () => authProvider.loginWithGoogle(),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('images/google.png', width: 24, height: 24),
-            const SizedBox(width: 12),
-            const Text(
-              "Sign up with Google",
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
+        brandColor: themeProvider.brandColor,
       ),
     );
   }

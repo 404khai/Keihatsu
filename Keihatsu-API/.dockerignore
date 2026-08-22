@@ -1,0 +1,11 @@
+
+node_modules
+dist
+.git
+.gitignore
+.env
+.vscode
+Keihatsu
+Keihatsu-Admin-Dashboard
+coverage
+test

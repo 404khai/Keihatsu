@@ -10,8 +10,11 @@ import '../services/user_repository.dart';
 import '../services/local_scope.dart';
 
 class AuthProvider with ChangeNotifier {
-  static const String _webClientId =
-      '887783028868-hgp7fi78npk9otdkk6hil8ot74asaj83.apps.googleusercontent.com';
+  // Android resolves the server client ID from google-services.json. This may
+  // be overridden for platforms/builds without generated Google services.
+  static const String _configuredServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+  );
 
   final AuthApi _authApi = AuthApi(baseUrl: ApiConstants.baseUrl);
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
@@ -22,7 +25,7 @@ class AuthProvider with ChangeNotifier {
   String? _token;
   UserPreferences? _preferences;
   bool _isLoading = false;
-  bool _isInitialized = false;
+  late final Future<void> _googleSignInInitialization;
 
   User? get user => _user;
   String? get token => _token;
@@ -32,15 +35,26 @@ class AuthProvider with ChangeNotifier {
   String get localScopeUserId => _user?.id ?? guestLocalScopeUserId;
 
   AuthProvider({this.onLogout, required this.userRepository}) {
+    _googleSignInInitialization = _initializeGoogleSignIn();
     _init();
+  }
+
+  Future<void> _initializeGoogleSignIn() async {
+    final configuredServerClientId = _configuredServerClientId.trim();
+    await _googleSignIn.initialize(
+      serverClientId: configuredServerClientId.isEmpty
+          ? null
+          : configuredServerClientId,
+    );
+    debugPrint('GoogleSignIn initialized');
   }
 
   Future<void> _init() async {
     try {
-      await _googleSignIn.initialize(serverClientId: _webClientId);
-      _isInitialized = true;
-    } catch (e) {
-      debugPrint("GoogleSignIn initialization failed: $e");
+      await _googleSignInInitialization;
+    } catch (e, stackTrace) {
+      debugPrint('GoogleSignIn initialization failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
     }
     await _loadToken();
   }
@@ -51,12 +65,11 @@ class AuthProvider with ChangeNotifier {
     if (_token != null) {
       try {
         _user = await _authApi.getMe(_token!);
-        // Fetch stats separately if they aren't included in getMe or if you want fresh stats
         try {
           final stats = await _authApi.getUserStats(_token!);
           _user = _user!.copyWith(stats: stats);
         } catch (e) {
-          debugPrint("Failed to load user stats: $e");
+          debugPrint('Failed to load user stats: $e');
         }
 
         await fetchPreferences();
@@ -76,13 +89,12 @@ class AuthProvider with ChangeNotifier {
       _user = _user!.copyWith(stats: stats);
       notifyListeners();
     } catch (e) {
-      debugPrint("Failed to refresh user stats: $e");
+      debugPrint('Failed to refresh user stats: $e');
       rethrow;
     }
   }
 
   Future<void> fetchPreferences() async {
-    // 1. Try to load from local storage first (fast)
     try {
       final localPrefs = await userRepository.getPreferences();
       if (localPrefs != null) {
@@ -90,21 +102,19 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint("Error loading local preferences: $e");
+      debugPrint('Error loading local preferences: $e');
     }
 
-    // 2. Refresh from API if token exists
     if (_token != null) {
       try {
         await userRepository.refreshPreferences(_token!);
-        // Reload from local (since refreshPreferences saves to local)
         final updatedPrefs = await userRepository.getPreferences();
         if (updatedPrefs != null) {
           _preferences = updatedPrefs;
           notifyListeners();
         }
       } catch (e) {
-        debugPrint("Error fetching preferences: $e");
+        debugPrint('Error fetching preferences: $e');
       }
     }
   }
@@ -112,14 +122,12 @@ class AuthProvider with ChangeNotifier {
   Future<void> updatePreferences(Map<String, dynamic> updates) async {
     if (_preferences == null) return;
 
-    // Optimistic update
     final oldPreferences = _preferences;
 
-    // Handle source preferences merging if present
     Map<String, SourcePreference>? newSourcePreferences;
     if (updates.containsKey('source_preferences')) {
       final sourceUpdates =
-      updates['source_preferences'] as Map<String, dynamic>;
+          updates['source_preferences'] as Map<String, dynamic>;
       newSourcePreferences = Map.from(_preferences!.sourcePreferences);
       sourceUpdates.forEach((key, value) {
         if (value is Map<String, dynamic>) {
@@ -141,16 +149,14 @@ class AuthProvider with ChangeNotifier {
     );
     notifyListeners();
 
-    // Save to local storage immediately
     await userRepository.savePreferencesLocally(_preferences!);
 
     if (_token != null) {
       try {
         await userRepository.updatePreferences(_token!, updates);
       } catch (e) {
-        debugPrint("Error updating preferences: $e");
+        debugPrint('Error updating preferences: $e');
         _preferences = oldPreferences;
-        // Revert local storage
         if (oldPreferences != null) {
           await userRepository.savePreferencesLocally(oldPreferences);
         }
@@ -161,10 +167,10 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> updateSourcePreference(
-      String sourceId, {
-        bool? enabled,
-        bool? pinned,
-      }) async {
+    String sourceId, {
+    bool? enabled,
+    bool? pinned,
+  }) async {
     if (_token == null || _preferences == null) return;
 
     final currentPrefs =
@@ -188,19 +194,17 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      if (!_isInitialized) {
-        await _googleSignIn.initialize(serverClientId: _webClientId);
-        _isInitialized = true;
-      }
-
-      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
+      await _googleSignInInitialization;
+      final googleUser = await _googleSignIn.authenticate();
+      debugPrint('GoogleSignIn account selected: ${googleUser.email}');
 
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
       if (idToken == null) {
         throw Exception(
-          'Google returned a null ID Token. Check your SHA-1 fingerprint in Google Cloud Console.',
+          'Google returned a null ID Token. Add your debug SHA-1 fingerprint '
+          'to Firebase Console and re-download google-services.json.',
         );
       }
 
@@ -220,9 +224,26 @@ class AuthProvider with ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
-    } catch (e) {
+    } on GoogleSignInException catch (e) {
       _isLoading = false;
       notifyListeners();
+      debugPrint('GoogleSignIn failed (${e.code}): ${e.description}');
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        throw Exception('Google sign-in was canceled.');
+      }
+      if (e.code == GoogleSignInExceptionCode.clientConfigurationError ||
+          e.code == GoogleSignInExceptionCode.providerConfigurationError) {
+        throw Exception(
+          'Google sign-in is not configured for this Android build: '
+          '${e.description ?? e.code}.',
+        );
+      }
+      rethrow;
+    } catch (e, stackTrace) {
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Google authentication failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
       rethrow;
     }
   }

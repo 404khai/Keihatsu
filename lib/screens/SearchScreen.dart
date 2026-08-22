@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/manga.dart';
@@ -137,20 +136,25 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final offlineLibrary = Provider.of<OfflineLibraryProvider>(context);
+    final ColorScheme cs = Theme.of(context).colorScheme;
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final textColor = isDarkMode ? Colors.white : Colors.black87;
-    final Color cardColor = isDarkMode
-        ? Colors.white10
-        : Colors.white.withOpacity(0.5);
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color backgroundColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surface;
+    final Color appBarColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surfaceContainer;
+    final Color textColor = cs.onSurface;
+    final Color cardColor = cs.surfaceContainer;
 
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: appBarColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: const CustomBackButton(),
         title: TextField(
           controller: _searchController,
@@ -158,7 +162,7 @@ class _SearchScreenState extends State<SearchScreen> {
           style: TextStyle(color: textColor),
           decoration: InputDecoration(
             hintText: 'Search manga...',
-            hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+            hintStyle: TextStyle(color: cs.onSurfaceVariant),
             border: InputBorder.none,
           ),
           onSubmitted: _performSearch,
@@ -166,7 +170,7 @@ class _SearchScreenState extends State<SearchScreen> {
         actions: [
           IconButton(
             onPressed: () => _performSearch(_searchController.text),
-            icon: Icon(PhosphorIcons.magnifyingGlass(), color: textColor),
+            icon: Icon(Icons.search_rounded, color: textColor),
           ),
         ],
       ),
@@ -201,7 +205,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: const EdgeInsets.all(40),
                 child: Text(
                   'No results found',
-                  style: TextStyle(color: textColor.withOpacity(0.5)),
+                  style: TextStyle(color: cs.onSurfaceVariant),
                 ),
               ),
             ),
@@ -218,10 +222,10 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Text(
             'Recent Searches',
-            style: GoogleFonts.hennyPenny(
+            style: GoogleFonts.unbounded(
               textStyle: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 color: brandColor,
               ),
             ),
@@ -233,7 +237,7 @@ class _SearchScreenState extends State<SearchScreen> {
             title: Text(query, style: TextStyle(color: textColor)),
             trailing: Icon(
               Icons.arrow_outward_rounded,
-              color: textColor.withOpacity(0.5),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             onTap: () {
               _searchController.text = query;
@@ -246,23 +250,22 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildEmptyState(Color textColor) {
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            PhosphorIcons.magnifyingGlass(),
+            Icons.search_rounded,
             size: 80,
-            color: textColor.withOpacity(0.1),
+            color: cs.onSurfaceVariant.withValues(alpha: 0.25),
           ),
           const SizedBox(height: 20),
           Text(
             'Search across all sources',
-            style: GoogleFonts.delius(
-              textStyle: TextStyle(
-                color: textColor.withOpacity(0.4),
-                fontSize: 16,
-              ),
+            style: TextStyle(
+              color: cs.onSurfaceVariant,
+              fontSize: 16,
             ),
           ),
         ],
@@ -285,10 +288,10 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
           child: Text(
             sourceName,
-            style: GoogleFonts.hennyPenny(
+            style: GoogleFonts.unbounded(
               textStyle: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 color: brandColor,
               ),
             ),
@@ -375,8 +378,8 @@ class _SearchScreenState extends State<SearchScreen> {
                             color: brandColor,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            PhosphorIcons.bookBookmark(PhosphorIconsStyle.fill),
+                          child: const Icon(
+                            Icons.bookmark_rounded,
                             color: Colors.white,
                             size: 14,
                           ),

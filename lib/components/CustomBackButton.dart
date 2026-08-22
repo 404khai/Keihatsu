@@ -4,8 +4,15 @@ import '../theme_provider.dart';
 
 class CustomBackButton extends StatelessWidget {
   final VoidCallback? onPressed;
+  final double iconSize;
+  final double margin;
 
-  const CustomBackButton({super.key, this.onPressed});
+  const CustomBackButton({
+    super.key,
+    this.onPressed,
+    this.iconSize = 28,
+    this.margin = 8,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,15 +23,18 @@ class CustomBackButton extends StatelessWidget {
     return GestureDetector(
       onTap: onPressed ?? () => Navigator.maybePop(context),
       child: Container(
-        margin: const EdgeInsets.all(8),
+        margin: EdgeInsets.all(margin),
+        padding: EdgeInsets.all(margin * 0.25),
         decoration: BoxDecoration(
-          color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+          color: isDarkMode
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.05),
           shape: BoxShape.circle,
         ),
         child: Icon(
-          Icons.chevron_left_rounded,
+          Icons.arrow_back_rounded,
           color: brandColor,
-          size: 28,
+          size: iconSize,
         ),
       ),
     );

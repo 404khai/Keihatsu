@@ -3,8 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:isar/isar.dart';
 import 'package:provider/provider.dart';
 import '../components/MainNavigationBar.dart';
+import '../components/floating_nav_scroll_scope.dart';
+import '../components/gradient_fade_app_bar.dart';
 import '../components/LibraryDisplaySettingsSheet.dart';
 import '../components/OfflineImage.dart';
+import '../components/library/filter_tabs.dart';
 import '../models/local_models.dart';
 import '../models/manga.dart';
 import '../providers/offline_library_provider.dart';
@@ -21,29 +24,15 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen>
-    with TickerProviderStateMixin {
+    with GradientFadeAppBarMixin {
   final int _currentIndex = 1;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
-  late TabController _categoryTabController;
-
-  @override
-  void initState() {
-    super.initState();
-    final provider = Provider.of<OfflineLibraryProvider>(
-      context,
-      listen: false,
-    );
-    _categoryTabController = TabController(
-      length: provider.categories.isEmpty ? 1 : provider.categories.length + 1,
-      vsync: this,
-    );
-  }
+  String _selectedCategory = 'Default';
 
   @override
   void dispose() {
     _searchController.dispose();
-    _categoryTabController.dispose();
     super.dispose();
   }
 
@@ -54,16 +43,19 @@ class _LibraryScreenState extends State<LibraryScreen>
       listen: false,
     );
     final brandColor = themeProvider.brandColor;
-    final textColor = themeProvider.isDarkMode ? Colors.white : Colors.black87;
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final textColor = cs.onSurface;
     final categoryController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: themeProvider.effectiveBgColor,
+        backgroundColor: themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
+            ? Colors.black
+            : cs.surface,
         title: Text(
           "Add Category",
-          style: GoogleFonts.denkOne(color: textColor),
+          style: GoogleFonts.unbounded(color: textColor),
         ),
         content: TextField(
           controller: categoryController,
@@ -71,7 +63,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           style: TextStyle(color: textColor),
           decoration: InputDecoration(
             hintText: "Category name",
-            hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+            hintStyle: TextStyle(color: cs.onSurfaceVariant),
             enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: brandColor),
             ),
@@ -108,7 +100,11 @@ class _LibraryScreenState extends State<LibraryScreen>
 
   void _showDisplaySettings() {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final bgColor = themeProvider.effectiveBgColor;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final bgColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surface;
 
     showModalBottomSheet(
       context: context,
@@ -128,30 +124,30 @@ class _LibraryScreenState extends State<LibraryScreen>
     final themeProvider = Provider.of<ThemeProvider>(context);
     final offlineLibrary = Provider.of<OfflineLibraryProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final ColorScheme cs = Theme.of(context).colorScheme;
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final textColor = isDarkMode ? Colors.white : Colors.black87;
+    final bool isDarkTheme = themeProvider.isDarkTheme;
+    final Color backgroundColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surface;
+    final Color appBarColor = themeProvider.pureBlackDarkMode && isDarkTheme
+        ? Colors.black
+        : cs.surfaceContainer;
+    final Color textColor = cs.onSurface;
     final prefs = authProvider.preferences;
 
     final categories = [
       "Default",
       ...offlineLibrary.categories.map((c) => c.name),
     ];
-    if (_categoryTabController.length != categories.length) {
-      _categoryTabController.dispose();
-      _categoryTabController = TabController(
-        length: categories.length,
-        vsync: this,
-      );
-    }
 
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
+      extendBody: true,
+      backgroundColor: backgroundColor,
+      appBar: GradientFadeAppBar(
+        baseColor: appBarColor,
+        fadeAmount: appBarFade,
+        automaticallyImplyLeading: false,
         title: _isSearching
             ? TextField(
           controller: _searchController,
@@ -159,7 +155,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           style: TextStyle(color: textColor),
           decoration: InputDecoration(
             hintText: 'Search library...',
-            hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+            hintStyle: TextStyle(color: cs.onSurfaceVariant),
             border: InputBorder.none,
           ),
           onChanged: (value) => offlineLibrary.updateFilters(
@@ -168,48 +164,51 @@ class _LibraryScreenState extends State<LibraryScreen>
         )
             : Text(
           'Library',
-          style: GoogleFonts.hennyPenny(
-            textStyle: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-            ),
+          style: GoogleFonts.unbounded(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            color: textColor,
+            fontSize: 24,
           ),
+          // style: GoogleFonts.hennyPenny(
+          //   textStyle: TextStyle(
+          //     color: textColor,
+          //     fontWeight: FontWeight.bold,
+          //   ),
+          // ),
         ),
         bottom: (prefs?.tabsShowCategories ?? true) && categories.isNotEmpty
-            ? TabBar(
-          controller: _categoryTabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          indicatorColor: brandColor,
-          labelColor: brandColor,
-          unselectedLabelColor: textColor.withOpacity(0.5),
-          tabs: categories.map((cat) {
-            final categoryCount = offlineLibrary
-                .getLibraryForCategory(cat)
-                .length;
-            return Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    cat,
-                    style: const TextStyle(
-                      fontFamily: 'Delius',
-                      fontWeight: FontWeight.bold,
-                    ),
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(52),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: FilterTabs(
+                    tabs: categories.map((cat) {
+                      final categoryCount = offlineLibrary
+                          .getLibraryForCategory(cat)
+                          .length;
+                      final String label = (prefs?.tabsShowItemCount ?? true)
+                          ? '$cat ($categoryCount)'
+                          : cat;
+                      return FilterTab(
+                        value: cat,
+                        label: label,
+                        accent: brandColor,
+                        onAccent: cs.onPrimary,
+                        icon: cat == 'Default'
+                            ? Icons.library_books_outlined
+                            : Icons.folder_outlined,
+                      );
+                    }).toList(),
+                    selected: _selectedCategory,
+                    onSelected: (value) {
+                      if (value != null) {
+                        setState(() => _selectedCategory = value);
+                      }
+                    },
                   ),
-                  if (prefs?.tabsShowItemCount ?? true) ...[
-                    const SizedBox(width: 4),
-                    Text(
-                      "($categoryCount)",
-                      style: TextStyle(fontSize: 12, color: brandColor),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }).toList(),
-        )
+                ),
+              )
             : null,
         actions: [
           IconButton(
@@ -237,26 +236,25 @@ class _LibraryScreenState extends State<LibraryScreen>
           ),
         ],
       ),
-      body: offlineLibrary.isLoading
+      body: GradientFadeScrollListener(
+        onFadeChanged: updateAppBarFade,
+        child: FloatingNavScrollScope(
+          child: offlineLibrary.isLoading
           ? Center(child: CircularProgressIndicator(color: brandColor))
           : offlineLibrary.library.isEmpty
           ? _buildEmptyState(textColor)
-          : TabBarView(
-        controller: _categoryTabController,
-        children: categories.map((cat) {
-          final entries = offlineLibrary.getLibraryForCategory(cat);
-          return _buildLibraryContent(
-            entries,
-            brandColor,
-            textColor,
-            prefs,
-          );
-        }).toList(),
+          : _buildLibraryContent(
+              offlineLibrary.getLibraryForCategory(_selectedCategory),
+              brandColor,
+              textColor,
+              prefs,
+            ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddCategoryDialog,
         backgroundColor: brandColor,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: Colors.black),
       ),
       bottomNavigationBar: MainNavigationBar(
         currentIndex: _currentIndex,

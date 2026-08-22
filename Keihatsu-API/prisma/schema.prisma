@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id @default(uuid())
+  googleId        String?   @unique
+  email           String    @unique
+  password        String?   // Hashed password for email/password login
+  avatarUrl       String?
+  username        String    @unique
+  bio             String?
+  bannerUrl       String?
+  
+  // Username update tracking
+  usernameUpdatedAt DateTime?
+  usernameUpdateCount Int @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastLoginAt     DateTime  @default(now())
+  
+  isOnboarded     Boolean   @default(false)
+  isProfilePublic Boolean   @default(true)
+
+  // Preferences
+  preferences     Json?     // Stores UI preferences like display style, filtering, etc.
+
+  // Future ready fields
+  readingStats    Json?     // Storing reading stats as JSON for flexibility
+  achievementCount Int      @default(0)
+  points          Int       @default(0)
+  role            Role      @default(USER)
+
+  // Relations
+  comments        Comment[]
+  library         LibraryEntry[]
+  categories      Category[]
+  history         HistoryEntry[]
+  commentLikes    CommentLike[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model LibraryEntry {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  
+  // Manga Data (Snapshot from source)
+  mangaId           String    // External Manga ID
+  sourceId          String    // ID of the source (e.g., 'mangadex', 'manhuatop')
+  title             String
+  thumbnailUrl      String?
+  author            String?
+  language          String?   // e.g., "EN"
+  
+  // Status & Counts
+  unreadCount       Int       @default(0)
+  downloadedCount   Int       @default(0)
+  totalChapters     Int       @default(0)
+  
+  // Flags
+  isUnread          Boolean   @default(false)
+  isStarted         Boolean   @default(false)
+  isBookmarked      Boolean   @default(true) // Usually added to library means bookmarked
+  isCompleted       Boolean   @default(false)
+
+  // Timestamps for sorting
+  lastReadAt        DateTime?
+  lastUpdatedAt     DateTime?
+  dateAddedAt       DateTime  @default(now())
+  
+  // Relations
+  categories        Category[]
+
+  @@unique([userId, mangaId]) // Prevent duplicate entries for same manga
+  @@map("library_entries")
+}
+
+model Category {
+  id          String         @id @default(uuid())
+  name        String
+  userId      String
+  user        User           @relation(fields: [userId], references: [id])
+  
+  entries     LibraryEntry[]
+
+  @@unique([userId, name]) // Unique category names per user
+  @@map("categories")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  images    String[] // Array of image URLs
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  mangaId   String   // External Manga ID
+  chapterId String   // External Chapter ID
+  
+  parentId  String?  // For nested comments
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Likes
+  likes   Int      @default(0)
+  userLikes CommentLike[]
+  
+  @@index([mangaId, chapterId])
+  @@map("comments")
+}
+
+model CommentLike {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, commentId])
+  @@map("comment_likes")
+}
+
+model HistoryEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  mangaId   String
+  sourceId  String
+  chapterId String
+  
+  pageNumber Int     @default(0)
+  lastReadAt DateTime @default(now())
+  
+  isBookmarked Boolean @default(false)
+  isRead       Boolean @default(false)
+  
+  @@unique([userId, mangaId, chapterId]) // One entry per chapter per user
+  @@map("history_entries")
+}

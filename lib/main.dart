@@ -11,6 +11,7 @@ import 'theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/offline_library_provider.dart';
 import 'providers/download_provider.dart';
+import 'providers/floating_nav_provider.dart';
 
 import 'models/local_models.dart';
 import 'services/sources_api.dart';
@@ -38,6 +39,7 @@ import 'screens/ProfileScreen.dart';
 import 'screens/AppearancePage.dart';
 import 'screens/ExtensionsScreen.dart';
 import 'screens/SettingsScreen.dart';
+import 'screens/UpdatesScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -179,6 +181,7 @@ void main() async {
             return previous;
           },
         ),
+        ChangeNotifierProvider(create: (_) => FloatingNavProvider()),
         ChangeNotifierProxyProvider<AuthProvider, DownloadProvider>(
           create: (context) => DownloadProvider(
             isar: isar,
@@ -246,6 +249,7 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
         '/appearance': (context) => const AppearancePage(),
         '/home': (context) => const HomePage(),
+        '/updates': (context) => const UpdatesScreen(),
         '/extensions': (context) => const ExtensionsScreen(),
         '/settings': (context) => const SettingsScreen(),
       },
