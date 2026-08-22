@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:keihatsu/components/CustomBackButton.dart';
 import 'package:keihatsu/providers/download_provider.dart';
@@ -9,10 +8,11 @@ import 'package:intl/intl.dart';
 import '../theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/manga.dart';
-import '../models/chapter.dart';
 import '../models/local_models.dart';
 import '../services/manga_repository.dart';
 import '../providers/offline_library_provider.dart';
+import '../components/OfflineImage.dart';
+import '../components/loading_indicator.dart';
 import 'MangaReaderScreen.dart';
 
 class MangaDetailsScreen extends StatefulWidget {
@@ -59,9 +59,9 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
     _chaptersFuture = repo
         .getChapters(widget.manga.sourceId, widget.manga.id)
         .then((chapters) {
-      _cachedChapters = chapters;
-      return chapters;
-    });
+          _cachedChapters = chapters;
+          return chapters;
+        });
     _recommendedMangaFuture = repo.api
         .getMangaList(widget.manga.sourceId, 'popular')
         .then((p) => p.mangas);
@@ -93,14 +93,39 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
     );
   }
 
+  Color _screenBackground(BuildContext context) {
+    final themeProvider = context.read<ThemeProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
+    return themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
+        ? Colors.black
+        : colorScheme.surface;
+  }
+
+  Color _loaderColor(BuildContext context) {
+    final themeProvider = context.read<ThemeProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
+    return themeProvider.brandColor.computeLuminance() > 0.65
+        ? colorScheme.onSurface
+        : themeProvider.brandColor;
+  }
+
+  Widget _buildDetailLoader(BuildContext context) {
+    return Center(
+      child: KeihatsuLoadingIndicator(
+        contained: true,
+        color: _loaderColor(context),
+      ),
+    );
+  }
+
   void _showCategoryBottomSheet(
-      BuildContext context,
-      OfflineLibraryProvider offlineLibrary,
-      ) {
+    BuildContext context,
+    OfflineLibraryProvider offlineLibrary,
+  ) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final textColor = themeProvider.isDarkMode ? Colors.white : Colors.black87;
+    final bgColor = _screenBackground(context);
+    final textColor = Theme.of(context).colorScheme.onSurface;
 
     List<String> selectedCategories = ["Default"];
 
@@ -197,8 +222,8 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
   void _showFilterBottomSheet(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final textColor = themeProvider.isDarkMode ? Colors.white : Colors.black87;
+    final bgColor = _screenBackground(context);
+    final textColor = Theme.of(context).colorScheme.onSurface;
 
     showModalBottomSheet(
       context: context,
@@ -270,9 +295,8 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
   }
 
   void _showMoreBottomSheet(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final bgColor = themeProvider.effectiveBgColor;
-    final textColor = themeProvider.isDarkMode ? Colors.white : Colors.black87;
+    final bgColor = _screenBackground(context);
+    final textColor = Theme.of(context).colorScheme.onSurface;
 
     showModalBottomSheet(
       context: context,
@@ -300,9 +324,9 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                     _chaptersFuture = repo
                         .getChapters(widget.manga.sourceId, widget.manga.id)
                         .then((chapters) {
-                      _cachedChapters = chapters;
-                      return chapters;
-                    });
+                          _cachedChapters = chapters;
+                          return chapters;
+                        });
                   });
                 },
               ),
@@ -338,9 +362,8 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
   void _showDownloadBottomSheet(BuildContext context) {
     if (_cachedChapters == null) return;
 
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final bgColor = themeProvider.effectiveBgColor;
-    final textColor = themeProvider.isDarkMode ? Colors.white : Colors.black87;
+    final bgColor = _screenBackground(context);
+    final textColor = Theme.of(context).colorScheme.onSurface;
     final downloadProvider = Provider.of<DownloadProvider>(
       context,
       listen: false,
@@ -351,7 +374,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
       for (var chapter in chapters) {
         if (!chapter.downloaded &&
             !downloadProvider.queue.any(
-                  (i) => i.chapterId == chapter.chapterId,
+              (i) => i.chapterId == chapter.chapterId,
             )) {
           downloadProvider.addToQueue(
             chapter.mangaId,
@@ -461,9 +484,9 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
   }
 
   void _showDeleteDownloadsSheet(
-      BuildContext context,
-      String initialChapterId,
-      ) {
+    BuildContext context,
+    String initialChapterId,
+  ) {
     if (_cachedChapters == null) return;
 
     final downloaded = _cachedChapters!.where((c) => c.downloaded).toList();
@@ -471,8 +494,8 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
 
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final textColor = themeProvider.isDarkMode ? Colors.white : Colors.black87;
+    final bgColor = _screenBackground(context);
+    final textColor = Theme.of(context).colorScheme.onSurface;
 
     Set<String> selectedIds = {initialChapterId};
 
@@ -505,26 +528,26 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                         onPressed: selectedIds.isEmpty
                             ? null
                             : () async {
-                          final toDelete = downloaded
-                              .where(
-                                (c) => selectedIds.contains(c.chapterId),
-                          )
-                              .toList();
-                          final downloadProvider =
-                          Provider.of<DownloadProvider>(
-                            context,
-                            listen: false,
-                          );
-                          await downloadProvider.deleteChapters(toDelete);
+                                final toDelete = downloaded
+                                    .where(
+                                      (c) => selectedIds.contains(c.chapterId),
+                                    )
+                                    .toList();
+                                final downloadProvider =
+                                    Provider.of<DownloadProvider>(
+                                      context,
+                                      listen: false,
+                                    );
+                                await downloadProvider.deleteChapters(toDelete);
 
-                          // Update local cache
-                          for (var c in toDelete) {
-                            c.downloaded = false;
-                          }
+                                // Update local cache
+                                for (var c in toDelete) {
+                                  c.downloaded = false;
+                                }
 
-                          Navigator.pop(context);
-                          setState(() {}); // Refresh UI
-                        },
+                                Navigator.pop(context);
+                                setState(() {}); // Refresh UI
+                              },
                         child: Text(
                           "Delete (${selectedIds.length})",
                           style: TextStyle(
@@ -621,12 +644,10 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
     final themeProvider = Provider.of<ThemeProvider>(context);
     final offlineLibrary = Provider.of<OfflineLibraryProvider>(context);
     final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final bool isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final Color cardColor = isDarkMode
-        ? Colors.white10
-        : Colors.white.withOpacity(0.7);
-    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
+    final bgColor = _screenBackground(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final Color cardColor = colorScheme.surfaceContainer;
+    final Color textColor = colorScheme.onSurface;
     final bool isInLibrary = offlineLibrary.isInLibrary(
       widget.manga.id,
       widget.manga.sourceId,
@@ -637,11 +658,22 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
       body: FutureBuilder<LocalManga?>(
         future: _mangaDetailsFuture,
         builder: (context, mangaSnapshot) {
+          if (mangaSnapshot.connectionState == ConnectionState.waiting &&
+              !mangaSnapshot.hasData) {
+            return _buildDetailLoader(context);
+          }
+
           final manga = mangaSnapshot.data;
           final displayTitle = manga?.title ?? widget.manga.title;
-          final displayThumb = manga?.thumbnailLocalPath != null
-              ? FileImage(File(manga!.thumbnailLocalPath!)) as ImageProvider
-              : NetworkImage(widget.manga.thumbnailUrl);
+          final displayThumbUrl = manga?.thumbnailUrl?.trim().isNotEmpty == true
+              ? manga!.thumbnailUrl
+              : widget.manga.thumbnailUrl;
+          final displayDescription =
+              manga?.description ?? widget.manga.description;
+          final displayAuthor = manga?.author ?? widget.manga.author;
+          final displayStatus = manga?.status ?? widget.manga.status;
+          final displayGenres = manga?.genres ?? widget.manga.genres;
+          final appBarForeground = _showTitle ? textColor : Colors.white;
 
           return Stack(
             children: [
@@ -653,11 +685,11 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                 child: Stack(
                   children: [
                     Positioned.fill(
-                      child: Image(
-                        image: displayThumb,
+                      child: OfflineImage(
+                        imageUrl: displayThumbUrl,
+                        localFilePath: manga?.thumbnailLocalPath,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(color: bgColor),
+                        fallback: Container(color: bgColor),
                       ),
                     ),
                     Positioned.fill(
@@ -680,39 +712,34 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                 controller: _scrollController,
                 slivers: [
                   SliverAppBar(
-                    backgroundColor: _showTitle
-                        ? Colors.black
-                        : Colors.transparent,
+                    backgroundColor: _showTitle ? bgColor : Colors.transparent,
                     elevation: 0,
                     pinned: true,
                     leading: const CustomBackButton(),
                     title: _showTitle
                         ? Text(
-                      displayTitle,
-                      style: GoogleFonts.hennyPenny(
-                        textStyle: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    )
+                            displayTitle,
+                            style: GoogleFonts.hennyPenny(
+                              textStyle: TextStyle(
+                                color: appBarForeground,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
                         : null,
                     actions: [
                       IconButton(
                         onPressed: () => _showDownloadBottomSheet(context),
-                        icon: const Icon(Icons.download, color: Colors.white),
+                        icon: Icon(Icons.download, color: appBarForeground),
                       ),
                       IconButton(
                         onPressed: () => _showFilterBottomSheet(context),
-                        icon: const Icon(
-                          Icons.filter_list,
-                          color: Colors.white,
-                        ),
+                        icon: Icon(Icons.filter_list, color: appBarForeground),
                       ),
                       IconButton(
                         onPressed: () => _showMoreBottomSheet(context),
-                        icon: const Icon(Icons.more_vert, color: Colors.white),
+                        icon: Icon(Icons.more_vert, color: appBarForeground),
                       ),
                     ],
                   ),
@@ -738,11 +765,21 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image(
-                                    image: displayThumb,
+                                  child: OfflineImage(
+                                    imageUrl: displayThumbUrl,
+                                    localFilePath: manga?.thumbnailLocalPath,
                                     height: 180,
                                     width: 120,
                                     fit: BoxFit.cover,
+                                    fallback: Container(
+                                      height: 180,
+                                      width: 120,
+                                      color: cardColor,
+                                      child: Icon(
+                                        Icons.broken_image_outlined,
+                                        color: textColor.withOpacity(0.5),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -771,12 +808,12 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                     const SizedBox(height: 8),
                                     _buildInfoRow(
                                       PhosphorIcons.user(),
-                                      manga?.author ?? "Unknown",
+                                      displayAuthor ?? "Unknown",
                                     ),
                                     const SizedBox(height: 4),
                                     _buildInfoRow(
                                       PhosphorIcons.clock(),
-                                      "${manga?.status ?? "Ongoing"} • ${widget.manga.sourceId.toUpperCase()}",
+                                      "${displayStatus ?? "Ongoing"} • ${widget.manga.sourceId.toUpperCase()}",
                                     ),
                                   ],
                                 ),
@@ -790,8 +827,8 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                               _buildActionButton(
                                 isInLibrary
                                     ? PhosphorIcons.bookBookmark(
-                                  PhosphorIconsStyle.fill,
-                                )
+                                        PhosphorIconsStyle.fill,
+                                      )
                                     : PhosphorIcons.bookBookmark(),
                                 isInLibrary ? "In library" : "Add to library",
                                 brandColor,
@@ -809,17 +846,17 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                               _buildActionButton(
                                 PhosphorIcons.hourglassHigh(),
                                 "Syncing",
-                                isDarkMode ? Colors.white70 : Colors.black54,
+                                colorScheme.onSurfaceVariant,
                               ),
                               _buildActionButton(
                                 PhosphorIcons.arrowsClockwise(),
                                 "Tracking",
-                                isDarkMode ? Colors.white70 : Colors.black54,
+                                colorScheme.onSurfaceVariant,
                               ),
                               _buildActionButton(
                                 PhosphorIcons.globe(),
                                 "WebView",
-                                isDarkMode ? Colors.white70 : Colors.black54,
+                                colorScheme.onSurfaceVariant,
                               ),
                             ],
                           ),
@@ -834,29 +871,29 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (manga?.genres != null)
+                                if (displayGenres != null)
                                   SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
                                     child: Row(
-                                      children: manga!.genres!
+                                      children: displayGenres!
                                           .map(
                                             (genre) => Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: 10,
-                                          ),
-                                          child: _buildTag(
-                                            "# ${genre.toUpperCase()}",
-                                            brandColor,
-                                            textColor,
-                                          ),
-                                        ),
-                                      )
+                                              padding: const EdgeInsets.only(
+                                                right: 10,
+                                              ),
+                                              child: _buildTag(
+                                                "# ${genre.toUpperCase()}",
+                                                brandColor,
+                                                textColor,
+                                              ),
+                                            ),
+                                          )
                                           .toList(),
                                     ),
                                   ),
                                 const SizedBox(height: 15),
                                 Text(
-                                  manga?.description ??
+                                  displayDescription ??
                                       "No description available.",
                                   style: TextStyle(
                                     color: textColor.withOpacity(0.9),
@@ -867,12 +904,12 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                       ? TextOverflow.visible
                                       : TextOverflow.ellipsis,
                                 ),
-                                if ((manga?.description?.length ?? 0) >
+                                if ((displayDescription?.length ?? 0) >
                                     100) // Simple heuristic
                                   GestureDetector(
                                     onTap: () => setState(
-                                          () => _showFullDescription =
-                                      !_showFullDescription,
+                                      () => _showFullDescription =
+                                          !_showFullDescription,
                                     ),
                                     child: Container(
                                       width: double.infinity,
@@ -894,10 +931,19 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                           FutureBuilder<List<LocalChapter>>(
                             future: _chaptersFuture,
                             builder: (context, snapshot) {
-                              if (!snapshot.hasData)
-                                return const Center(
-                                  child: CircularProgressIndicator(),
+                              if (snapshot.connectionState ==
+                                      ConnectionState.waiting &&
+                                  !snapshot.hasData) {
+                                return _buildDetailLoader(context);
+                              }
+                              if (snapshot.hasError) {
+                                return Text(
+                                  'Unable to load chapters',
+                                  style: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                                 );
+                              }
                               final chapters = snapshot.data!;
                               var filteredChapters = chapters.where((c) {
                                 if (_filterDownloaded && !c.downloaded)
@@ -922,7 +968,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                   children: [
                                     Row(
                                       mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           "${filteredChapters.length} Chapters",
@@ -932,15 +978,15 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        const Icon(
+                                        Icon(
                                           Icons.chevron_right,
-                                          color: Colors.grey,
+                                          color: colorScheme.onSurfaceVariant,
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 10),
                                     ...displayedChapters.map(
-                                          (ch) => _buildChapterTile(
+                                      (ch) => _buildChapterTile(
                                         context,
                                         chapters,
                                         chapters.indexOf(ch),
@@ -952,7 +998,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                         chapters.length > 3)
                                       GestureDetector(
                                         onTap: () => setState(
-                                              () => _showAllChapters = true,
+                                          () => _showAllChapters = true,
                                         ),
                                         child: AnimatedBuilder(
                                           animation: _arrowController,
@@ -993,7 +1039,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                               children: [
                                 Row(
                                   mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       "You may also like",
@@ -1005,16 +1051,16 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                     ),
                                     Row(
                                       children: [
-                                        const Text(
+                                        Text(
                                           "More",
                                           style: TextStyle(
-                                            color: Colors.grey,
+                                            color: colorScheme.onSurfaceVariant,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                         Icon(
                                           PhosphorIcons.caretRight(),
-                                          color: Colors.grey,
+                                          color: colorScheme.onSurfaceVariant,
                                           size: 16,
                                         ),
                                       ],
@@ -1027,10 +1073,19 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                   child: FutureBuilder<List<Manga>>(
                                     future: _recommendedMangaFuture,
                                     builder: (context, snapshot) {
-                                      if (!snapshot.hasData)
-                                        return const Center(
-                                          child: CircularProgressIndicator(),
+                                      if (snapshot.connectionState ==
+                                              ConnectionState.waiting &&
+                                          !snapshot.hasData) {
+                                        return _buildDetailLoader(context);
+                                      }
+                                      if (snapshot.hasError) {
+                                        return Text(
+                                          'Unable to load recommendations',
+                                          style: TextStyle(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
                                         );
+                                      }
                                       final recommendations = snapshot.data!
                                           .where((m) => m.id != widget.manga.id)
                                           .take(6)
@@ -1040,7 +1095,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                         itemCount: recommendations.length,
                                         itemBuilder: (context, index) {
                                           final recommendation =
-                                          recommendations[index];
+                                              recommendations[index];
                                           return Padding(
                                             padding: const EdgeInsets.only(
                                               right: 15,
@@ -1061,19 +1116,32 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                                 width: 100,
                                                 child: Column(
                                                   crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     ClipRRect(
                                                       borderRadius:
-                                                      BorderRadius.circular(
-                                                        8,
-                                                      ),
-                                                      child: Image.network(
-                                                        recommendation
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                      child: OfflineImage(
+                                                        imageUrl: recommendation
                                                             .thumbnailUrl,
                                                         width: 100,
                                                         height: 140,
                                                         fit: BoxFit.cover,
+                                                        fallback: Container(
+                                                          width: 100,
+                                                          height: 140,
+                                                          color: cardColor,
+                                                          child: Icon(
+                                                            Icons
+                                                                .broken_image_outlined,
+                                                            color: textColor
+                                                                .withOpacity(
+                                                                  0.5,
+                                                                ),
+                                                          ),
+                                                        ),
                                                       ),
                                                     ),
                                                     const SizedBox(height: 8),
@@ -1081,13 +1149,13 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                                       recommendation.title,
                                                       style: TextStyle(
                                                         fontWeight:
-                                                        FontWeight.bold,
+                                                            FontWeight.bold,
                                                         fontSize: 12,
                                                         color: textColor,
                                                       ),
                                                       maxLines: 2,
                                                       overflow:
-                                                      TextOverflow.ellipsis,
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ],
                                                 ),
@@ -1122,11 +1190,11 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.8),
+                    color: colorScheme.inverseSurface.withOpacity(0.92),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: colorScheme.shadow.withOpacity(0.2),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
                       ),
@@ -1138,7 +1206,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                         onTap: () => _showDownloadBottomSheet(context),
                         child: _buildBottomIconButton(
                           Icons.download,
-                          Colors.white,
+                          colorScheme.onInverseSurface,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -1156,42 +1224,43 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                             if (hasChapters) {
                               targetChapter = _getContinueChapter(chapters!);
                               hasHistory = chapters.any(
-                                    (c) => c.lastReadAt != null,
+                                (c) => c.lastReadAt != null,
                               );
                             }
 
                             return GestureDetector(
                               onTap: (hasChapters && targetChapter != null)
                                   ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        MangaReaderScreen(
-                                          manga: widget.manga,
-                                          chapters: chapters!,
-                                          initialChapterIndex: chapters
-                                              .indexOf(targetChapter!),
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              MangaReaderScreen(
+                                                manga: widget.manga,
+                                                chapters: chapters!,
+                                                initialChapterIndex: chapters
+                                                    .indexOf(targetChapter!),
+                                              ),
                                         ),
-                                  ),
-                                ).then((_) => setState(() {}));
-                              }
+                                      ).then((_) => setState(() {}));
+                                    }
                                   : null,
                               child: Container(
                                 height: 50,
                                 decoration: BoxDecoration(
                                   color: hasChapters
-                                      ? Colors.grey.shade400
-                                      : Colors.grey.shade800,
+                                      ? colorScheme.surfaceContainerHighest
+                                      : colorScheme.surfaceContainerHighest
+                                            .withOpacity(0.55),
                                   borderRadius: BorderRadius.circular(15),
                                 ),
                                 child: Center(
                                   child: Text(
                                     hasHistory ? "Continue" : "Read now",
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
-                                      color: Colors.black,
+                                      color: colorScheme.onSurface,
                                     ),
                                   ),
                                 ),
@@ -1213,16 +1282,20 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: colorScheme.onInverseSurface.withOpacity(
+                              0.1,
+                            ),
                             borderRadius: BorderRadius.circular(15),
                           ),
                           child: Icon(
                             isInLibrary
                                 ? PhosphorIcons.bookBookmark(
-                              PhosphorIconsStyle.fill,
-                            )
+                                    PhosphorIconsStyle.fill,
+                                  )
                                 : PhosphorIcons.bookBookmark(),
-                            color: isInLibrary ? brandColor : Colors.white,
+                            color: isInLibrary
+                                ? brandColor
+                                : colorScheme.onInverseSurface,
                           ),
                         ),
                       ),
@@ -1242,7 +1315,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
       width: 50,
       height: 50,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.onInverseSurface.withOpacity(0.1),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Icon(icon, color: color),
@@ -1262,11 +1335,11 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
   }
 
   Widget _buildActionButton(
-      PhosphorIconData icon,
-      String label,
-      Color color, {
-        VoidCallback? onTap,
-      }) {
+    PhosphorIconData icon,
+    String label,
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -1298,28 +1371,27 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
   }
 
   Widget _buildChapterTile(
-      BuildContext context,
-      List<LocalChapter> chapters,
-      int index,
-      Color brandColor,
-      Color textColor,
-      ) {
+    BuildContext context,
+    List<LocalChapter> chapters,
+    int index,
+    Color brandColor,
+    Color textColor,
+  ) {
     final chapter = chapters[index];
     final repo = Provider.of<MangaRepository>(context, listen: false);
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final offlineLibrary = Provider.of<OfflineLibraryProvider>(context);
     final downloadProvider = Provider.of<DownloadProvider>(context);
     final dateStr = DateFormat(
       'MM/dd/yy',
     ).format(DateTime.fromMillisecondsSinceEpoch(chapter.dateUpload));
     final isDownloading = downloadProvider.queue.any(
-          (i) => i.chapterId == chapter.chapterId && i.status == 1,
+      (i) => i.chapterId == chapter.chapterId && i.status == 1,
     );
 
     // Check if in queue (status 0: Queued, 4: Paused)
     final isQueued = downloadProvider.queue.any(
-          (i) =>
-      i.chapterId == chapter.chapterId && (i.status == 0 || i.status == 4),
+      (i) =>
+          i.chapterId == chapter.chapterId && (i.status == 0 || i.status == 4),
     );
 
     final isRead = chapter.isRead;
@@ -1383,7 +1455,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
             Icon(
               PhosphorIcons.circle(PhosphorIconsStyle.fill),
               size: 10,
-              color: isRead ? Colors.grey : brandColor,
+              color: isRead ? textColor.withOpacity(0.5) : brandColor,
             ),
             if (isBookmarked) ...[
               const SizedBox(width: 8),
@@ -1403,39 +1475,39 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
         trailing: IconButton(
           icon: isDownloading
               ? SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: brandColor,
-            ),
-          )
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: brandColor,
+                  ),
+                )
               : Icon(
-            chapter.downloaded
-                ? Icons.check_circle
-                : isQueued
-                ? PhosphorIcons.clock()
-                : Icons.download,
-            color: chapter.downloaded
-                ? Colors.green
-                : isQueued
-                ? Colors.orange
-                : Colors.grey,
-          ),
+                  chapter.downloaded
+                      ? Icons.check_circle
+                      : isQueued
+                      ? PhosphorIcons.clock()
+                      : Icons.download,
+                  color: chapter.downloaded
+                      ? Colors.green
+                      : isQueued
+                      ? Colors.orange
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           onPressed: (isDownloading || isQueued)
               ? null
               : chapter.downloaded
               ? () => _showDeleteDownloadsSheet(context, chapter.chapterId)
               : () => downloadProvider.addToQueue(
-            chapter.mangaId,
-            chapter.sourceId,
-            chapter.chapterId,
-            widget.manga.title,
-            chapter.name,
-            chapter.chapterNumber,
-            widget.manga.sourceId,
-            widget.manga.thumbnailUrl,
-          ),
+                  chapter.mangaId,
+                  chapter.sourceId,
+                  chapter.chapterId,
+                  widget.manga.title,
+                  chapter.name,
+                  chapter.chapterNumber,
+                  widget.manga.sourceId,
+                  widget.manga.thumbnailUrl,
+                ),
         ),
       ),
     );

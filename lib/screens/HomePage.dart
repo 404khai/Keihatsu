@@ -10,11 +10,11 @@ import '../components/keihatsu_refresh_indicator.dart';
 import '../components/home/home_updates_section.dart';
 import '../components/home/latest_updates_carousel.dart';
 import '../components/home/notifications_bottom_sheet.dart';
-import '../data/mock_home_updates.dart';
 import '../models/manga.dart';
 import '../providers/auth_provider.dart';
 import '../theme_provider.dart';
 import '../providers/offline_library_provider.dart';
+import '../services/sources_repository.dart';
 import '../screens/UpdatesScreen.dart';
 import 'MangaDetailsScreen.dart';
 
@@ -27,23 +27,58 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
   final int _currentIndex = 0;
-  // final SourcesApi _sourcesApi = SourcesApi();
+  late Future<List<Manga>> _latestMangaFuture;
 
-  // late Future<List<Manga>> _popularMangaFuture;
+  @override
+  void initState() {
+    super.initState();
+    _latestMangaFuture = _fetchLatestManga();
+  }
 
-  // final String _defaultSourceId = 'manhuatop';
+  Future<List<Manga>> _fetchLatestManga() async {
+    final mangaRepo = Provider.of<OfflineLibraryProvider>(
+      context,
+      listen: false,
+    ).mangaRepo;
+    final sourcesRepository = Provider.of<SourcesRepository>(
+      context,
+      listen: false,
+    );
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   _loadData();
-  // }
+    try {
+      // The API exposes every registered extension. The local source records
+      // are the source of truth for the user's enabled extensions.
+      final sources = (await sourcesRepository.getSources())
+          .where((source) => source.enabled)
+          .toList();
+      final pages = await Future.wait(
+        sources.map((source) async {
+          try {
+            return (await mangaRepo.api.getMangaList(
+              source.sourceId,
+              'latest',
+            )).mangas;
+          } catch (error) {
+            debugPrint('HomePage: failed to load ${source.sourceId}: $error');
+            return <Manga>[];
+          }
+        }),
+      );
 
-  // void _loadData() {
-  //   _popularMangaFuture = _sourcesApi
-  //       .getMangaList(_defaultSourceId, 'popular')
-  //       .then((page) => page.mangas);
-  // }
+      final mangas = <Manga>[];
+      final seen = <String>{};
+      for (final page in pages) {
+        for (final manga in page) {
+          final key = '${manga.sourceId}:${manga.id}';
+          if (seen.add(key)) mangas.add(manga);
+        }
+      }
+      return mangas;
+    } catch (error) {
+      debugPrint('HomePage: failed to load latest manga: $error');
+      return <Manga>[];
+    }
+  }
 
   Future<List<Manga>> _fetchHistory(BuildContext context) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -63,20 +98,22 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
     return localMangas
         .map(
           (m) => Manga(
-        id: m.mangaId,
-        sourceId: m.sourceId,
-        title: m.title,
-        url: "",
-        thumbnailUrl: m.thumbnailUrl ?? "",
-        description: m.description ?? "",
-        status: m.status ?? "Unknown",
-      ),
-    )
+            id: m.mangaId,
+            sourceId: m.sourceId,
+            title: m.title,
+            url: "",
+            thumbnailUrl: m.thumbnailUrl ?? "",
+            description: m.description ?? "",
+            status: m.status ?? "Unknown",
+          ),
+        )
         .toList();
   }
 
   Future<void> _refreshData() async {
-    setState(() {});
+    setState(() {
+      _latestMangaFuture = _fetchLatestManga();
+    });
   }
 
   @override
@@ -136,11 +173,7 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
                 bgColor: backgroundColor,
               );
             },
-            icon: Icon(
-              Icons.circle_notifications,
-              color: textColor,
-              size: 40,
-            ),
+            icon: Icon(Icons.circle_notifications, color: textColor, size: 40),
           ),
         ],
       ),
@@ -148,98 +181,118 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
         onFadeChanged: updateAppBarFade,
         child: FloatingNavScrollScope(
           child: KeihatsuRefreshIndicator(
-          onRefresh: _refreshData,
-          child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Continue Reading Section
-              FutureBuilder<List<Manga>>(
-                future: _fetchHistory(context),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Column(
-                    children: [
-                      _buildSectionHeader(
-                        "Continue Reading",
-                        textColor,
-                        onSeeMore: () {
-                          // Navigate to history screen (index 2 in MainNavigationBar)
-                          Navigator.pushReplacement(
-                            context,
-                            PageRouteBuilder(
-                              pageBuilder: (_, __, ___) => const Scaffold(
-                                body: Center(child: Text("History")),
-                              ), // Temporary, or just switch tab if MainNavigationBar supports it
-                            ),
-                          );
-                          // Actually, MainNavigationBar controls the body. HomePage is just one tab.
-                          // Switching tabs requires callback to parent or using a global state for tab index.
-                          // For now, let's just push HistoryScreen if available or do nothing/print.
-                          // The user said "LIKE history screen".
-                          // Let's just navigate to HistoryScreen directly for "See More"
-                          Navigator.pushNamed(context, '/history');
-                        },
-                      ),
-                      _buildMangaList(
-                        snapshot.data!,
-                        brandColor,
-                        textColor,
-                        cardColor,
-                        offlineLibrary,
-                        height: 200,
-                        compact: true,
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  );
-                },
-              ),
-
-              // Latest Updates — M3E carousel
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                child: Text(
-                  'You might like',
-                  style: GoogleFonts.unbounded(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.5,
-                    color: textColor,
-                    fontSize: 20,
+            onRefresh: _refreshData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Continue Reading Section
+                  FutureBuilder<List<Manga>>(
+                    future: _fetchHistory(context),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        children: [
+                          _buildSectionHeader(
+                            "Continue Reading",
+                            textColor,
+                            onSeeMore: () {
+                              // Navigate to history screen (index 2 in MainNavigationBar)
+                              Navigator.pushReplacement(
+                                context,
+                                PageRouteBuilder(
+                                  pageBuilder: (_, __, ___) => const Scaffold(
+                                    body: Center(child: Text("History")),
+                                  ), // Temporary, or just switch tab if MainNavigationBar supports it
+                                ),
+                              );
+                              // Actually, MainNavigationBar controls the body. HomePage is just one tab.
+                              // Switching tabs requires callback to parent or using a global state for tab index.
+                              // For now, let's just push HistoryScreen if available or do nothing/print.
+                              // The user said "LIKE history screen".
+                              // Let's just navigate to HistoryScreen directly for "See More"
+                              Navigator.pushNamed(context, '/history');
+                            },
+                          ),
+                          _buildMangaList(
+                            snapshot.data!,
+                            brandColor,
+                            textColor,
+                            cardColor,
+                            offlineLibrary,
+                            height: 200,
+                            compact: true,
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      );
+                    },
                   ),
-                ),
-              ),
-              LatestUpdatesCarousel(
-                brandColor: brandColor,
-                textColor: textColor,
-                onShowAll: () {
-                  Navigator.pushReplacementNamed(context, '/library');
-                },
-              ),
 
-              // Grouped updates feed
-              HomeUpdatesSection(
-                brandColor: brandColor,
-                textColor: textColor,
-                groups: mockHomeUpdates,
-                onSeeMore: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const UpdatesScreen(),
-                    ),
-                  );
-                },
-              ),
+                  FutureBuilder<List<Manga>>(
+                    future: _latestMangaFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(
+                          height: LatestUpdatesCarousel.carouselHeight,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
 
-              const SizedBox(height: 100), // Space for navigation bar
-            ],
+                      final mangas = snapshot.data ?? const <Manga>[];
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                            child: Text(
+                              'Latest updates',
+                              style: GoogleFonts.unbounded(
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.5,
+                                color: textColor,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
+                          LatestUpdatesCarousel(
+                            mangas: mangas.take(10).toList(),
+                            brandColor: brandColor,
+                            textColor: textColor,
+                            onShowAll: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const UpdatesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          HomeUpdatesSection(
+                            brandColor: brandColor,
+                            textColor: textColor,
+                            mangas: mangas,
+                            onSeeMore: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const UpdatesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 100), // Space for navigation bar
+                ],
+              ),
+            ),
           ),
-        ),
-        ),
         ),
       ),
       bottomNavigationBar: MainNavigationBar(
@@ -250,14 +303,14 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
   }
 
   Widget _buildMangaList(
-      List<Manga> mangas,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      OfflineLibraryProvider offlineLibrary, {
-        required double height,
-        bool compact = false,
-      }) {
+    List<Manga> mangas,
+    Color brandColor,
+    Color textColor,
+    Color cardColor,
+    OfflineLibraryProvider offlineLibrary, {
+    required double height,
+    bool compact = false,
+  }) {
     return SizedBox(
       height: height,
       child: ListView.builder(
@@ -281,10 +334,10 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
   }
 
   Widget _buildSectionHeader(
-      String title,
-      Color textColor, {
-        VoidCallback? onSeeMore,
-      }) {
+    String title,
+    Color textColor, {
+    VoidCallback? onSeeMore,
+  }) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
@@ -328,14 +381,14 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
   }
 
   Widget _buildMangaCard(
-      BuildContext context,
-      Manga manga,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      OfflineLibraryProvider offlineLibrary, {
-        bool compact = false,
-      }) {
+    BuildContext context,
+    Manga manga,
+    Color brandColor,
+    Color textColor,
+    Color cardColor,
+    OfflineLibraryProvider offlineLibrary, {
+    bool compact = false,
+  }) {
     final isInLibrary = offlineLibrary.isInLibrary(manga.id, manga.sourceId);
 
     return GestureDetector(

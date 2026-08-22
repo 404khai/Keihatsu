@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class Manga {
   final String id;
   final String url;
@@ -28,18 +26,26 @@ class Manga {
   });
 
   factory Manga.fromJson(Map<String, dynamic> json) {
+    String stringValue(String key) => (json[key] as String?)?.trim() ?? '';
+
     return Manga(
-      id: json['id'],
-      url: json['url'],
-      title: json['title'],
-      thumbnailUrl: json['thumbnailUrl'],
-      description: json['description'],
-      author: json['author'],
-      artist: json['artist'],
-      status: json['status'],
-      genres: json['genres'] != null ? List<String>.from(json['genres']) : null,
-      sourceId: json['sourceId'],
-      lang: json['lang'],
+      id: stringValue('id'),
+      url: stringValue('url'),
+      title: stringValue('title'),
+      thumbnailUrl: stringValue('thumbnailUrl'),
+      description: json['description'] as String?,
+      author: json['author'] as String?,
+      artist: json['artist'] as String?,
+      status: json['status'] as String?,
+      genres: json['genres'] is List
+          ? (json['genres'] as List)
+                .whereType<String>()
+                .map((genre) => genre.trim())
+                .where((genre) => genre.isNotEmpty)
+                .toList()
+          : null,
+      sourceId: stringValue('sourceId'),
+      lang: json['lang'] as String?,
     );
   }
 

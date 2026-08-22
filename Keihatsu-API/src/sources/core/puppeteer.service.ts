@@ -5,7 +5,9 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 @Injectable()
 export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
-  private browser: Browser;
+  private browser?: Browser;
+  private launchPromise?: Promise<void>;
+  private fetchQueue: Promise<unknown> = Promise.resolve();
 
   async onModuleInit() {
     puppeteer.use(StealthPlugin());
@@ -13,23 +15,35 @@ export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    if (this.browser) {
-      await this.browser.close();
+    if (this.browser?.connected) {
+      await this.browser.close().catch(() => undefined);
     }
+    this.browser = undefined;
   }
 
   private async launchBrowser() {
-    this.browser = await puppeteer.launch({
-      headless: true, // Use "new" if supported by installed version, otherwise boolean
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--window-size=1920,1080',
-      ],
-    });
+    if (this.browser?.connected) return;
+    if (this.launchPromise) return this.launchPromise;
+
+    this.launchPromise = (async () => {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--window-size=1920,1080',
+        ],
+      });
+    })();
+
+    try {
+      await this.launchPromise;
+    } finally {
+      this.launchPromise = undefined;
+    }
   }
 
   async fetchPageContent(
@@ -37,13 +51,35 @@ export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
     waitForSelector?: string,
     waitForTimeout: number = 0,
   ): Promise<string> {
-    if (!this.browser) {
-      await this.launchBrowser();
-    }
+    // A details screen can request metadata, chapters, and recommendations
+    // simultaneously. Queueing the browser work prevents Chromium from being
+    // torn down while another request is creating a page.
+    const request = this.fetchQueue.then(() =>
+      this.fetchPageContentInternal(url, waitForSelector, waitForTimeout),
+    );
+    this.fetchQueue = request.catch(() => undefined);
+    return request;
+  }
+
+  private async fetchPageContentInternal(
+    url: string,
+    waitForSelector?: string,
+    waitForTimeout: number = 0,
+  ): Promise<string> {
+    await this.launchBrowser();
 
     let page: Page | null = null;
     try {
-      page = await this.browser.newPage();
+      try {
+        page = await this.browser!.newPage();
+      } catch (error) {
+        // Chromium can exit independently (OOM, container restart, etc.).
+        // Reconnect once before surfacing the error to the source.
+        if (!this.isConnectionClosedError(error)) throw error;
+        this.browser = undefined;
+        await this.launchBrowser();
+        page = await this.browser!.newPage();
+      }
 
       // Randomize Viewport
       await page.setViewport({
@@ -83,7 +119,7 @@ export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
       // Handle selector waiting
       if (waitForSelector) {
         try {
-          await page.waitForSelector(waitForSelector, { timeout: 15000 });
+          await page.waitForSelector(waitForSelector, { timeout: 10000 });
         } catch (e) {
           console.warn(
             `Timeout waiting for selector ${waitForSelector} on ${url}. Content might be incomplete.`,
@@ -107,12 +143,22 @@ export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
       throw error;
     } finally {
       if (page) {
-        await page.close();
+        await page.close().catch(() => undefined);
       }
     }
   }
 
+  private isConnectionClosedError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /connection closed|target closed|browser has disconnected/i.test(
+      message,
+    );
+  }
+
   async close() {
-    if (this.browser) await this.browser.close();
+    if (this.browser?.connected) {
+      await this.browser.close().catch(() => undefined);
+    }
+    this.browser = undefined;
   }
 }

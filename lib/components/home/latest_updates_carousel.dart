@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:keihatsu/data/mock_latest_updates_carousel.dart';
+import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/models/manga.dart';
 import 'package:keihatsu/screens/MangaDetailsScreen.dart';
 
@@ -9,13 +9,13 @@ import 'package:keihatsu/screens/MangaDetailsScreen.dart';
 /// Uses [CarouselView.weighted] with `[1, 7, 1]` flex weights, matching
 /// Flutter's Material 3 hero carousel pattern.
 class LatestUpdatesCarousel extends StatefulWidget {
-  LatestUpdatesCarousel({
+  const LatestUpdatesCarousel({
     super.key,
-    List<Manga>? mangas,
+    required this.mangas,
     required this.brandColor,
     required this.textColor,
     required this.onShowAll,
-  }) : mangas = mangas ?? mockLatestUpdatesCarousel;
+  });
 
   final List<Manga> mangas;
   final Color brandColor;
@@ -46,9 +46,7 @@ class _LatestUpdatesCarouselState extends State<LatestUpdatesCarousel> {
         child: Center(
           child: Text(
             'No updates yet',
-            style: TextStyle(
-              color: widget.textColor.withValues(alpha: 0.6),
-            ),
+            style: TextStyle(color: widget.textColor.withValues(alpha: 0.6)),
           ),
         ),
       );
@@ -93,10 +91,7 @@ class _LatestUpdatesCarouselState extends State<LatestUpdatesCarousel> {
 }
 
 class _HeroCarouselCard extends StatelessWidget {
-  const _HeroCarouselCard({
-    required this.manga,
-    required this.borderRadius,
-  });
+  const _HeroCarouselCard({required this.manga, required this.borderRadius});
 
   final Manga manga;
   final double borderRadius;
@@ -108,10 +103,10 @@ class _HeroCarouselCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image(
-            image: _thumbnailImage(manga.thumbnailUrl),
+          OfflineImage(
+            imageUrl: manga.thumbnailUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => ColoredBox(
+            fallback: ColoredBox(
               color: Colors.grey.shade800,
               child: const Icon(Icons.broken_image, color: Colors.white54),
             ),
@@ -144,10 +139,7 @@ class _HeroCarouselCard extends StatelessWidget {
                     color: Colors.white,
                     height: 1.2,
                     shadows: const [
-                      Shadow(
-                        color: Colors.black54,
-                        blurRadius: 6,
-                      ),
+                      Shadow(color: Colors.black54, blurRadius: 6),
                     ],
                   ),
                 ),
@@ -158,12 +150,4 @@ class _HeroCarouselCard extends StatelessWidget {
       ),
     );
   }
-}
-
-ImageProvider<Object> _thumbnailImage(String thumbnailUrl) {
-  if (thumbnailUrl.startsWith('http://') ||
-      thumbnailUrl.startsWith('https://')) {
-    return NetworkImage(thumbnailUrl);
-  }
-  return AssetImage(thumbnailUrl);
 }

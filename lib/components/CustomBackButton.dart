@@ -18,7 +18,7 @@ class CustomBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final brandColor = themeProvider.brandColor;
-    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
+    final isDarkMode = themeProvider.isDarkTheme;
 
     return GestureDetector(
       onTap: onPressed ?? () => Navigator.maybePop(context),

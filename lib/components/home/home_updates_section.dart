@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:keihatsu/data/mock_home_updates.dart';
+import 'package:keihatsu/components/OfflineImage.dart';
+import 'package:keihatsu/models/manga.dart';
+import 'package:keihatsu/screens/MangaDetailsScreen.dart';
 import 'package:material_shapes/material_shapes.dart';
 
 /// Grouped Updates list — Today / Tomorrow rows with M3E shaped thumbnails.
@@ -10,13 +12,13 @@ class HomeUpdatesSection extends StatelessWidget {
     required this.brandColor,
     required this.textColor,
     required this.onSeeMore,
-    required this.groups,
+    required this.mangas,
   });
 
   final Color brandColor;
   final Color textColor;
   final VoidCallback onSeeMore;
-  final List<HomeUpdateGroup> groups;
+  final List<Manga> mangas;
 
   @override
   Widget build(BuildContext context) {
@@ -46,8 +48,10 @@ class HomeUpdatesSection extends StatelessWidget {
                 style: TextButton.styleFrom(
                   foregroundColor: cs.onPrimary,
                   backgroundColor: brandColor,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(
@@ -66,11 +70,16 @@ class HomeUpdatesSection extends StatelessWidget {
             ],
           ),
         ),
-        for (final group in groups) ...[
+        if (mangas.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+            child: Text('No updates available', style: TextStyle(color: muted)),
+          )
+        else ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
             child: Text(
-              group.label,
+              'Latest from your sources',
               style: TextStyle(
                 color: muted,
                 fontSize: 14,
@@ -78,9 +87,9 @@ class HomeUpdatesSection extends StatelessWidget {
               ),
             ),
           ),
-          for (final entry in group.entries)
+          for (final manga in mangas.take(10))
             _UpdateRow(
-              entry: entry,
+              manga: manga,
               textColor: textColor,
               mutedColor: muted,
               iconBackground: cs.surfaceContainerHighest,
@@ -94,14 +103,14 @@ class HomeUpdatesSection extends StatelessWidget {
 
 class _UpdateRow extends StatelessWidget {
   const _UpdateRow({
-    required this.entry,
+    required this.manga,
     required this.textColor,
     required this.mutedColor,
     required this.iconBackground,
     required this.iconColor,
   });
 
-  final HomeUpdateEntry entry;
+  final Manga manga;
   final Color textColor;
   final Color mutedColor;
   final Color iconBackground;
@@ -109,114 +118,65 @@ class _UpdateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        children: [
-          ClipPath(
-            clipper: ShapeBorderClipper(
-              shape: MaterialShapeBorder(shape: entry.shape),
-            ),
-            child: Image.asset(
-              entry.thumbnailAsset,
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => MangaDetailsScreen(manga: manga)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          children: [
+            ClipPath(
+              clipper: ShapeBorderClipper(
+                shape: MaterialShapeBorder(shape: MaterialShapes.cookie4Sided),
+              ),
+              child: OfflineImage(
+                imageUrl: manga.thumbnailUrl,
                 width: 56,
                 height: 56,
-                color: Colors.grey.shade800,
-                child: const Icon(Icons.image_not_supported_outlined,
-                    color: Colors.white54, size: 20),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                fit: BoxFit.cover,
+                fallback: Container(
+                  width: 56,
+                  height: 56,
+                  color: iconBackground,
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    color: iconColor,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  entry.chapters,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: mutedColor,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          _TrailingAction(
-            scheduled: entry.scheduled,
-            background: iconBackground,
-            color: iconColor,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrailingAction extends StatelessWidget {
-  const _TrailingAction({
-    required this.scheduled,
-    required this.background,
-    required this.color,
-  });
-
-  final bool scheduled;
-  final Color background;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (scheduled)
-            Icon(Icons.calendar_month_outlined, color: color, size: 22)
-          else
-            Container(
-              width: 36,
-              height: 36,
-              // decoration: BoxDecoration(
-              //   shape: BoxShape.circle,
-              //   border: Border.all(color: color.withValues(alpha: 0.35)),
-              // ),
-              child: Icon(Icons.download_for_offline_outlined, color: color, size: 23),
-            ),
-          if (scheduled)
-            Positioned(
-              right: 4,
-              bottom: 4,
-              child: Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: background,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.schedule_rounded, color: color, size: 10),
               ),
             ),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    manga.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    manga.status ?? manga.sourceId,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: mutedColor, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(Icons.chevron_right_rounded, color: iconColor),
+          ],
+        ),
       ),
     );
   }

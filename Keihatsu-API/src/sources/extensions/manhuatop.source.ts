@@ -98,7 +98,8 @@ export class ManhuaTopSource extends HttpSource {
   }
 
   async getMangaDetails(mangaId: string): Promise<Manga> {
-    const url = `${this.baseUrl}/manhua/${mangaId}/`; // Note: URL structure check
+    const normalizedId = this.normalizeMangaId(mangaId);
+    const url = `${this.baseUrl}/manhua/${encodeURIComponent(normalizedId)}/`;
     const html = await this.puppeteerService.fetchPageContent(
       url,
       '.post-title',
@@ -112,16 +113,22 @@ export class ManhuaTopSource extends HttpSource {
       config: {} as any,
     };
 
-    return this.mangaDetailsParse(response, mangaId);
+    const manga = this.mangaDetailsParse(response, normalizedId);
+    if (!manga.title || !manga.thumbnailUrl) {
+      throw new Error(`ManhuaTop returned incomplete details for ${normalizedId}`);
+    }
+    return manga;
   }
 
   async getChapterList(mangaId: string): Promise<Chapter[]> {
     // 1. Try fetching from the main manga page first
-    const url = `${this.baseUrl}/manhua/${mangaId}/`;
+    const normalizedId = this.normalizeMangaId(mangaId);
+    const url = `${this.baseUrl}/manhua/${encodeURIComponent(normalizedId)}/`;
+    let html: string | undefined;
 
     try {
       // We set a shorter timeout for the selector because if it's not there, it's likely hidden behind AJAX
-      const html = await this.puppeteerService.fetchPageContent(
+      html = await this.puppeteerService.fetchPageContent(
         url,
         '.wp-manga-chapter',
       );
@@ -148,10 +155,13 @@ export class ManhuaTopSource extends HttpSource {
 
     // 2. Fallback: Try Madara AJAX endpoint
     // Madara themes often load chapters via POST /wp-admin/admin-ajax.php
-    return this.fetchChaptersViaAjax(mangaId);
+    return this.fetchChaptersViaAjax(normalizedId, html);
   }
 
-  private async fetchChaptersViaAjax(mangaId: string): Promise<Chapter[]> {
+  private async fetchChaptersViaAjax(
+    mangaId: string,
+    mainPageHtml?: string,
+  ): Promise<Chapter[]> {
     try {
       const ajaxUrl = `${this.baseUrl}/wp-admin/admin-ajax.php`;
 
@@ -175,10 +185,12 @@ export class ManhuaTopSource extends HttpSource {
       // To do this, we need the internal WP ID.
       // Let's parse the main page HTML (which we might have cached or just fetched) to find <input type="hidden" name="manga-id" value="123">
 
-      const mainPageHtml = await this.puppeteerService.fetchPageContent(
-        `${this.baseUrl}/manhua/${mangaId}/`,
-      );
-      const $ = cheerio.load(mainPageHtml);
+      const html =
+        mainPageHtml ??
+        (await this.puppeteerService.fetchPageContent(
+          `${this.baseUrl}/manhua/${encodeURIComponent(mangaId)}/`,
+        ));
+      const $ = cheerio.load(html);
 
       // Common selector for Madara internal ID
       let internalId =
@@ -187,7 +199,7 @@ export class ManhuaTopSource extends HttpSource {
 
       // Sometimes it's in a script tag "var manga_id = 123;"
       if (!internalId) {
-        const match = mainPageHtml.match(/manga_id\s*=\s*(\d+)/);
+        const match = html.match(/manga_id\s*=\s*(\d+)/);
         if (match) internalId = match[1];
       }
 
@@ -211,7 +223,7 @@ export class ManhuaTopSource extends HttpSource {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
           'X-Requested-With': 'XMLHttpRequest',
-          Referer: `${this.baseUrl}/manhua/${mangaId}/`,
+          Referer: `${this.baseUrl}/manhua/${encodeURIComponent(mangaId)}/`,
         },
       });
 
@@ -270,7 +282,9 @@ export class ManhuaTopSource extends HttpSource {
 
     $('.page-item-detail').each((_, element) => {
       try {
-        const url = $(element).find('.post-title a').attr('href') || '';
+        const url = this.makeAbsoluteUrl(
+          $(element).find('.post-title a').attr('href') || '',
+        );
         const id = this.urlToId(url);
 
         if (!id) return;
@@ -279,10 +293,11 @@ export class ManhuaTopSource extends HttpSource {
           id,
           url,
           title: $(element).find('.post-title a').text().trim(),
-          thumbnailUrl:
+          thumbnailUrl: this.makeAbsoluteUrl(
             $(element).find('img').attr('data-src') ||
-            $(element).find('img').attr('src') ||
-            '',
+              $(element).find('img').attr('src') ||
+              '',
+          ),
           sourceId: this.id,
         });
       } catch (e) {
@@ -332,7 +347,9 @@ export class ManhuaTopSource extends HttpSource {
 
     $('.c-tabs-item__content').each((_, element) => {
       try {
-        const url = $(element).find('.post-title a').attr('href') || '';
+        const url = this.makeAbsoluteUrl(
+          $(element).find('.post-title a').attr('href') || '',
+        );
         const id = this.urlToId(url);
 
         if (!id) return;
@@ -341,10 +358,11 @@ export class ManhuaTopSource extends HttpSource {
           id,
           url,
           title: $(element).find('.post-title a').text().trim(),
-          thumbnailUrl:
+          thumbnailUrl: this.makeAbsoluteUrl(
             $(element).find('img').attr('data-src') ||
-            $(element).find('img').attr('src') ||
-            '',
+              $(element).find('img').attr('src') ||
+              '',
+          ),
           sourceId: this.id,
         });
       } catch (e) {
@@ -360,23 +378,31 @@ export class ManhuaTopSource extends HttpSource {
 
   mangaDetailsRequest(mangaId: string): AxiosRequestConfig {
     return {
-      url: `${this.baseUrl}/manga/${mangaId}/`,
+      url: `${this.baseUrl}/manhua/${encodeURIComponent(this.normalizeMangaId(mangaId))}/`,
       method: 'GET',
     };
   }
 
   mangaDetailsParse(response: AxiosResponse, mangaId: string): Manga {
     const $ = cheerio.load(response.data);
+    const descriptionParagraphs = $('.summary__content p')
+      .map((_, element) => $(element).text().trim())
+      .get()
+      .filter((text) => text && !/^read manhwa\b/i.test(text));
 
     return {
       id: mangaId,
-      url: `${this.baseUrl}/manga/${mangaId}/`,
+      url: `${this.baseUrl}/manhua/${encodeURIComponent(mangaId)}/`,
       title: $('.post-title h1').first().text().trim(),
       thumbnailUrl:
-        $('.summary_image img').attr('data-src') ||
-        $('.summary_image img').attr('src') ||
-        '',
-      description: $('.summary__content').text().trim(),
+        this.makeAbsoluteUrl(
+          $('.summary_image img').attr('data-src') ||
+            $('.summary_image img').attr('src') ||
+            '',
+        ),
+      description:
+        descriptionParagraphs.join('\n\n') ||
+        $('.summary__content').text().trim(),
       author: $('.author-content').text().trim(),
       artist: $('.artist-content').text().trim(),
       status: $('.post-status .summary-content').text().trim(),
@@ -389,7 +415,7 @@ export class ManhuaTopSource extends HttpSource {
 
   chapterListRequest(mangaId: string): AxiosRequestConfig {
     return {
-      url: `${this.baseUrl}/manga/${mangaId}/`,
+      url: `${this.baseUrl}/manhua/${encodeURIComponent(this.normalizeMangaId(mangaId))}/`,
       method: 'GET',
     };
   }
@@ -399,7 +425,7 @@ export class ManhuaTopSource extends HttpSource {
     const chapters: Chapter[] = [];
 
     $('li.wp-manga-chapter').each((_, element) => {
-      const url = $(element).find('a').attr('href') || '';
+      const url = this.makeAbsoluteUrl($(element).find('a').attr('href') || '');
       const id = this.chapterUrlToId(url);
       const dateStr = $(element).find('.chapter-release-date i').text().trim();
 
@@ -466,7 +492,7 @@ export class ManhuaTopSource extends HttpSource {
 
             pages.push({
               index,
-              imageUrl: url.trim(),
+                imageUrl: this.makeAbsoluteUrl(url.trim()),
               url: '',
             });
           }
@@ -494,6 +520,31 @@ export class ManhuaTopSource extends HttpSource {
     const cleanUrl = url.replace(/\/$/, '');
     const parts = cleanUrl.split('/').filter(Boolean);
     return parts[parts.length - 1] || '';
+  }
+
+  private normalizeMangaId(rawId: string): string {
+    const raw = rawId.trim();
+    try {
+      const parsed = new URL(raw, this.baseUrl);
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      const manhuaIndex = segments.indexOf('manhua');
+      return (manhuaIndex >= 0
+        ? segments[manhuaIndex + 1]
+        : segments[segments.length - 1] || raw
+      ).trim();
+    } catch {
+      return raw.replace(/^\/+|\/+$/g, '').replace(/^manhua\//, '');
+    }
+  }
+
+  private makeAbsoluteUrl(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.startsWith('data:')) return '';
+    try {
+      return new URL(trimmed, this.baseUrl).toString();
+    } catch {
+      return '';
+    }
   }
 
   private chapterUrlToId(url: string): string {
