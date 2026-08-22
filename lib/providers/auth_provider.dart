@@ -10,8 +10,11 @@ import '../services/user_repository.dart';
 import '../services/local_scope.dart';
 
 class AuthProvider with ChangeNotifier {
-  static const String _webClientId =
-      '887783028868-hgp7fi78npk9otdkk6hil8ot74asaj83.apps.googleusercontent.com';
+  // Android resolves the server client ID from google-services.json. This may
+  // be overridden for platforms/builds without generated Google services.
+  static const String _configuredServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+  );
 
   final AuthApi _authApi = AuthApi(baseUrl: ApiConstants.baseUrl);
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
@@ -22,7 +25,7 @@ class AuthProvider with ChangeNotifier {
   String? _token;
   UserPreferences? _preferences;
   bool _isLoading = false;
-  bool _isInitialized = false;
+  late final Future<void> _googleSignInInitialization;
 
   User? get user => _user;
   String? get token => _token;
@@ -32,15 +35,26 @@ class AuthProvider with ChangeNotifier {
   String get localScopeUserId => _user?.id ?? guestLocalScopeUserId;
 
   AuthProvider({this.onLogout, required this.userRepository}) {
+    _googleSignInInitialization = _initializeGoogleSignIn();
     _init();
+  }
+
+  Future<void> _initializeGoogleSignIn() async {
+    final configuredServerClientId = _configuredServerClientId.trim();
+    await _googleSignIn.initialize(
+      serverClientId: configuredServerClientId.isEmpty
+          ? null
+          : configuredServerClientId,
+    );
+    debugPrint('GoogleSignIn initialized');
   }
 
   Future<void> _init() async {
     try {
-      await _googleSignIn.initialize(serverClientId: _webClientId);
-      _isInitialized = true;
-    } catch (e) {
+      await _googleSignInInitialization;
+    } catch (e, stackTrace) {
       debugPrint('GoogleSignIn initialization failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
     }
     await _loadToken();
   }
@@ -180,24 +194,9 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      if (!_isInitialized) {
-        await _googleSignIn.initialize(serverClientId: _webClientId);
-        _isInitialized = true;
-      }
-
-      GoogleSignInAccount? googleUser;
-
-      try {
-        googleUser = await _googleSignIn.attemptLightweightAuthentication();
-      } on GoogleSignInException catch (e) {
-        if (e.code == GoogleSignInExceptionCode.canceled) {
-          _isLoading = false;
-          notifyListeners();
-          return;
-        }
-      } catch (_) {}
-
-      googleUser ??= await _googleSignIn.authenticate();
+      await _googleSignInInitialization;
+      final googleUser = await _googleSignIn.authenticate();
+      debugPrint('GoogleSignIn account selected: ${googleUser.email}');
 
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
@@ -228,13 +227,23 @@ class AuthProvider with ChangeNotifier {
     } on GoogleSignInException catch (e) {
       _isLoading = false;
       notifyListeners();
+      debugPrint('GoogleSignIn failed (${e.code}): ${e.description}');
       if (e.code == GoogleSignInExceptionCode.canceled) {
-        return;
+        throw Exception('Google sign-in was canceled.');
+      }
+      if (e.code == GoogleSignInExceptionCode.clientConfigurationError ||
+          e.code == GoogleSignInExceptionCode.providerConfigurationError) {
+        throw Exception(
+          'Google sign-in is not configured for this Android build: '
+          '${e.description ?? e.code}.',
+        );
       }
       rethrow;
-    } catch (e) {
+    } catch (e, stackTrace) {
       _isLoading = false;
       notifyListeners();
+      debugPrint('Google authentication failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
       rethrow;
     }
   }
