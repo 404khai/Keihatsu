@@ -21,29 +21,15 @@ class DownloadQueueScreen extends StatefulWidget {
   State<DownloadQueueScreen> createState() => _DownloadQueueScreenState();
 }
 
-class _DownloadQueueScreenState extends State<DownloadQueueScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _fakeDownload = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 5),
-  )..addListener(() => setState(() {}))
-    ..repeat();
-
+class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
   List<DownloadQueueItem>? _mockItems;
 
-  @override
-  void dispose() {
-    _fakeDownload.dispose();
-    super.dispose();
-  }
-
   List<DownloadQueueItem> _resolveItems(List<DownloadQueueItem> source) {
-    if (source.isNotEmpty) {
-      return source
-          .where((d) => d.status == 0 || d.status == 1 || d.status == 4)
-          .toList();
-    }
+    return source
+        .where((d) => d.status == 0 || d.status == 1 || d.status == 4)
+        .toList();
 
+    /*
     _mockItems ??= mockDownloadQueue.map((download) {
       if (download.status != 1) return download;
 
@@ -70,6 +56,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
     }
 
     return List<DownloadQueueItem>.from(_mockItems!);
+    */
   }
 
   void _reorderMangas(
@@ -97,13 +84,12 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
 
       final List<DownloadQueueItem> rebuilt = [];
       for (final mangaId in mangaIds) {
-        rebuilt.addAll(
-          sourceItems.where((item) => item.mangaId == mangaId),
-        );
+        rebuilt.addAll(sourceItems.where((item) => item.mangaId == mangaId));
       }
 
-      final List<DownloadQueueItem> allSorted = (_mockItems ?? [])
-          .sorted((a, b) => a.priority.compareTo(b.priority));
+      final List<DownloadQueueItem> allSorted = (_mockItems ?? []).sorted(
+        (a, b) => a.priority.compareTo(b.priority),
+      );
       final List<DownloadQueueItem> finalList = [];
       var rebuiltCursor = 0;
 
@@ -144,8 +130,9 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
       final DownloadQueueItem moved = mangaChapters.removeAt(oldIndex);
       mangaChapters.insert(newIndex, moved);
 
-      final List<DownloadQueueItem> allSorted = (_mockItems ?? [])
-          .sorted((a, b) => a.priority.compareTo(b.priority));
+      final List<DownloadQueueItem> allSorted = (_mockItems ?? []).sorted(
+        (a, b) => a.priority.compareTo(b.priority),
+      );
       final List<DownloadQueueItem> rebuilt = [];
       var chapterCursor = 0;
 
@@ -208,7 +195,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
     return Consumer<DownloadProvider>(
       builder: (context, provider, child) {
         final List<DownloadQueueItem> items = _resolveItems(provider.queue);
-        final bool usingMock = provider.queue.isEmpty;
+        const bool usingMock = false;
 
         final groupedByExtension = groupBy(
           items,
@@ -244,16 +231,36 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
                     color: textColor,
                   ),
                   onPressed: provider.toggleGlobalPause,
-                  tooltip:
-                      provider.isGlobalPaused ? 'Resume All' : 'Pause All',
+                  tooltip: provider.isGlobalPaused ? 'Resume All' : 'Pause All',
                 ),
             ],
           ),
           body: items.isEmpty
               ? Center(
-                  child: Text(
-                    'No active downloads',
-                    style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.download_for_offline_outlined,
+                        size: 64,
+                        color: cs.primary,
+                      ),
+                      16.gap,
+                      Text(
+                        'No active downloads',
+                        style: tt.titleMedium?.copyWith(
+                          color: cs.onSurface,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      6.gap,
+                      Text(
+                        'Queued chapters will appear here.',
+                        style: tt.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : ListView(
@@ -273,18 +280,6 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
                         usingMock,
                       ),
                     ],
-                    if (usingMock) ...[
-                      24.gap,
-                      Center(
-                        child: Text(
-                          'Preview data — start a download to see your queue',
-                          textAlign: TextAlign.center,
-                          style: tt.labelMedium?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
         );
@@ -301,8 +296,10 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
     final String sourceId = items.first.sourceId;
     final String? image = extensionImageFor(sourceId);
 
-    final Map<String, List<DownloadQueueItem>> groupedByManga =
-        groupBy(items, (DownloadQueueItem i) => i.mangaId);
+    final Map<String, List<DownloadQueueItem>> groupedByManga = groupBy(
+      items,
+      (DownloadQueueItem i) => i.mangaId,
+    );
     final List<String> sortedMangaIds = groupedByManga.keys.toList()
       ..sort((a, b) {
         final int priorityA = groupedByManga[a]!
@@ -328,30 +325,30 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen>
     final int chapterCount = items.length;
 
     return DownloadSection(
-      label: extensionName,
+      label: _capitalizeExtensionName(extensionName),
       image: image,
       meta: '$chapterCount chapter${chapterCount == 1 ? '' : 's'}',
       child: DownloadExtensionMangaList(
         mangaGroups: mangaGroups,
-        onReorderManga: (oldIndex, newIndex) => _reorderMangas(
-          sourceId,
-          oldIndex,
-          newIndex,
-          provider,
-          usingMock,
-        ),
+        onReorderManga: (oldIndex, newIndex) =>
+            _reorderMangas(sourceId, oldIndex, newIndex, provider, usingMock),
         onReorderChapters: (mangaId, oldIndex, newIndex) =>
             _reorderChaptersOfManga(
-          sourceId,
-          mangaId,
-          oldIndex,
-          newIndex,
-          provider,
-          usingMock,
-        ),
+              sourceId,
+              mangaId,
+              oldIndex,
+              newIndex,
+              provider,
+              usingMock,
+            ),
         onToggleChapterPause: (chapter) =>
             _toggleChapterPause(chapter, provider, usingMock),
       ),
     );
+  }
+
+  String _capitalizeExtensionName(String name) {
+    if (name.isEmpty) return name;
+    return '${name[0].toUpperCase()}${name.substring(1)}';
   }
 }

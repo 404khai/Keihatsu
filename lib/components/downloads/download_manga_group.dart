@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:keihatsu/common/shape_values.dart';
 import 'package:keihatsu/components/downloads/download_tile.dart';
@@ -36,7 +38,7 @@ class DownloadExtensionMangaList extends StatelessWidget {
   final List<DownloadMangaGroupData> mangaGroups;
   final void Function(int oldIndex, int newIndex) onReorderManga;
   final void Function(String mangaId, int oldIndex, int newIndex)
-      onReorderChapters;
+  onReorderChapters;
   final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
   final BorderRadius? borderRadius;
 
@@ -101,11 +103,8 @@ class DownloadExtensionMangaList extends StatelessWidget {
                   borderRadius: _radiusFor(index),
                   onToggleChapterPause: onToggleChapterPause,
                   onReorderChapters: group.chapters.length > 1
-                      ? (oldIndex, newIndex) => onReorderChapters(
-                            group.mangaId,
-                            oldIndex,
-                            newIndex,
-                          )
+                      ? (oldIndex, newIndex) =>
+                            onReorderChapters(group.mangaId, oldIndex, newIndex)
                       : null,
                 ),
               ),
@@ -145,8 +144,9 @@ class DownloadMangaGroup extends StatefulWidget {
 
 class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
   late bool _expanded = widget.initiallyExpanded;
-  late List<DownloadQueueItem> _chapters =
-      List<DownloadQueueItem>.from(widget.chapters);
+  late List<DownloadQueueItem> _chapters = List<DownloadQueueItem>.from(
+    widget.chapters,
+  );
 
   @override
   void didUpdateWidget(covariant DownloadMangaGroup oldWidget) {
@@ -201,7 +201,8 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
       color: cs.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius:
-            widget.borderRadius ?? BorderRadius.circular(MenuSection.innerRadius),
+            widget.borderRadius ??
+            BorderRadius.circular(MenuSection.innerRadius),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -233,7 +234,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                           widget.mangaTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                          style: tt.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         4.gap,
                         Text(
@@ -369,10 +372,7 @@ class _NestedChapterRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (enableDrag)
-                ReorderableDragStartListener(
-                  index: index,
-                  child: dragHandle,
-                )
+                ReorderableDragStartListener(index: index, child: dragHandle)
               else
                 dragHandle,
               8.gap,
@@ -391,10 +391,7 @@ class _NestedChapterRow extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              _StatusIndicator(
-                item: chapter,
-                onTogglePause: onTogglePause,
-              ),
+              _StatusIndicator(item: chapter, onTogglePause: onTogglePause),
             ],
           ),
         ),
@@ -410,10 +407,7 @@ class _NestedChapterRow extends StatelessWidget {
 }
 
 class _StatusIndicator extends StatelessWidget {
-  const _StatusIndicator({
-    required this.item,
-    this.onTogglePause,
-  });
+  const _StatusIndicator({required this.item, this.onTogglePause});
 
   final DownloadQueueItem item;
   final VoidCallback? onTogglePause;
@@ -426,46 +420,42 @@ class _StatusIndicator extends StatelessWidget {
 
     final Widget indicator = switch (item.status) {
       1 => SizedBox(
-          width: 44,
-          height: 44,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularWavyProgressIndicator(
-                value: item.progress.clamp(0.0, 1.0),
-              ),
-              Icon(Icons.stop_rounded, size: 20, color: cs.primary),
-            ],
-          ),
+        width: 44,
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularWavyProgressIndicator(value: item.progress.clamp(0.0, 1.0)),
+            Icon(Icons.stop_rounded, size: 20, color: cs.primary),
+          ],
         ),
+      ),
       4 => SizedBox(
-          width: 44,
-          height: 44,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularWavyProgressIndicator(
-                value: item.progress.clamp(0.0, 1.0),
-              ),
-              Icon(Icons.play_arrow_rounded, size: 24, color: cs.primary),
-            ],
-          ),
+        width: 44,
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularWavyProgressIndicator(value: item.progress.clamp(0.0, 1.0)),
+            Icon(Icons.play_arrow_rounded, size: 24, color: cs.primary),
+          ],
         ),
+      ),
       0 => SizedBox(
-          width: 44,
-          height: 44,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const CircularWavyProgressIndicator(value: 0),
-              Icon(
-                Icons.hourglass_top_rounded,
-                size: 18,
-                color: cs.onSurfaceVariant,
-              ),
-            ],
-          ),
+        width: 44,
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const CircularWavyProgressIndicator(value: 0),
+            Icon(
+              Icons.hourglass_top_rounded,
+              size: 18,
+              color: cs.onSurfaceVariant,
+            ),
+          ],
         ),
+      ),
       3 => Icon(Icons.error_outline, color: cs.error, size: 28),
       _ => const SizedBox(width: 44, height: 44),
     };
@@ -496,6 +486,33 @@ class _CoverImage extends StatelessWidget {
       return ColoredBox(
         color: cs.surfaceContainerHighest,
         child: Icon(Icons.image_outlined, color: cs.onSurfaceVariant),
+      );
+    }
+
+    if (path!.startsWith('http')) {
+      return Image.network(
+        path!,
+        fit: BoxFit.cover,
+        headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/133 Safari/537.36',
+          'Referer': Uri.tryParse(path!)?.origin ?? '',
+        },
+        errorBuilder: (context, error, stack) => ColoredBox(
+          color: cs.surfaceContainerHighest,
+          child: Icon(Icons.broken_image, color: cs.onSurfaceVariant),
+        ),
+      );
+    }
+
+    if (path!.startsWith('/') || path!.startsWith('file:')) {
+      return Image.file(
+        File(path!.startsWith('file:') ? Uri.parse(path!).toFilePath() : path!),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => ColoredBox(
+          color: cs.surfaceContainerHighest,
+          child: Icon(Icons.broken_image, color: cs.onSurfaceVariant),
+        ),
       );
     }
 

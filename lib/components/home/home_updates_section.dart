@@ -116,6 +116,19 @@ class _UpdateRow extends StatelessWidget {
   final Color iconBackground;
   final Color iconColor;
 
+  static const Map<String, String> _extensionIcons = {
+    'atsumaru': 'images/extensions/atsumaru.png',
+    'batcave': 'images/extensions/batcave.png',
+    'mangafire': 'images/extensions/mangafire.png',
+    'manhuatop': 'images/extensions/manhuatop.jpeg',
+    'weebcentral': 'images/extensions/weebcentral.png',
+  };
+
+  String _extensionName(String sourceId) {
+    if (sourceId.isEmpty) return 'Source';
+    return '${sourceId[0].toUpperCase()}${sourceId.substring(1)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -164,11 +177,30 @@ class _UpdateRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    manga.status ?? manga.sourceId,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: mutedColor, fontSize: 13),
+                  Row(
+                    children: [
+                      if (_extensionIcons[manga.sourceId.toLowerCase()] !=
+                          null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.asset(
+                            _extensionIcons[manga.sourceId.toLowerCase()]!,
+                            width: 18,
+                            height: 18,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Flexible(
+                        child: Text(
+                          _extensionName(manga.sourceId),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: mutedColor, fontSize: 13),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

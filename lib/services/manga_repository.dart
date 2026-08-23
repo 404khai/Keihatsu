@@ -27,11 +27,11 @@ class MangaRepository {
   String get _currentUserId => getCurrentUserId();
 
   String _chapterScopedKey(
-      String chapterId,
-      String mangaId,
-      String sourceId,
-      String ownerUserId,
-      ) {
+    String chapterId,
+    String mangaId,
+    String sourceId,
+    String ownerUserId,
+  ) {
     return '$ownerUserId::$sourceId::$mangaId::$chapterId';
   }
 
@@ -91,7 +91,7 @@ class MangaRepository {
         ..name =
             "Chapter" // Placeholder, should be updated when chapter details are fetched
         ..chapterNumber =
-        0 // Placeholder
+            0 // Placeholder
         ..dateUpload = now.millisecondsSinceEpoch
         ..lastReadAt = now
         ..lastPageRead = pageIndex
@@ -235,9 +235,9 @@ class MangaRepository {
   }
 
   Future<List<LocalChapter>> getChapters(
-      String sourceId,
-      String mangaId,
-      ) async {
+    String sourceId,
+    String mangaId,
+  ) async {
     final connectivity = await Connectivity().checkConnectivity();
     if (!connectivity.contains(ConnectivityResult.none)) {
       try {
@@ -288,13 +288,13 @@ class MangaRepository {
   }
 
   Future<void> downloadChapter(
-      String token,
-      String sourceId,
-      String mangaId,
-      String chapterId, {
-        Function(double)? onProgress,
-        bool Function()? isCancelled,
-      }) async {
+    String token,
+    String sourceId,
+    String mangaId,
+    String chapterId, {
+    Function(double)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
     // 0. Request permission first
     final hasPermission = await fileService.requestStoragePermission();
     if (!hasPermission) {
@@ -316,6 +316,7 @@ class MangaRepository {
     });
 
     // 2. Download images
+    final downloadedPagePaths = <String>[];
     for (var i = 0; i < pages.length; i++) {
       if (isCancelled?.call() == true) {
         throw Exception('Download cancelled');
@@ -332,6 +333,7 @@ class MangaRepository {
       );
 
       if (localPath != null) {
+        downloadedPagePaths.add(localPath);
         final lp = await isar
             .collection<LocalPage>()
             .filter()
@@ -343,10 +345,21 @@ class MangaRepository {
           lp.imageLocalPath = localPath;
           await isar.writeTxn(() => isar.collection<LocalPage>().put(lp));
         }
+      } else {
+        throw Exception('Failed to download page ${page.index + 1}');
       }
 
       onProgress?.call((i + 1) / pages.length);
     }
+
+    // Keep the individual page files available to the offline reader and also
+    // write the portable archive users can find in the public downloads folder.
+    await fileService.createCbz(
+      sourceId: sourceId,
+      mangaId: mangaId,
+      chapterId: chapterId,
+      pagePaths: downloadedPagePaths,
+    );
 
     // 3. Mark as downloaded
     final chapter = await isar
@@ -379,7 +392,7 @@ class MangaRepository {
       if (libraryEntry != null) {
         libraryEntry.downloadedCount += 1;
         await isar.writeTxn(
-              () => isar.collection<LocalLibraryEntry>().put(libraryEntry),
+          () => isar.collection<LocalLibraryEntry>().put(libraryEntry),
         );
       }
     }
@@ -408,10 +421,10 @@ class MangaRepository {
   }
 
   Future<void> toggleChapterBookmark(
-      LocalChapter chapter,
-      bool value, {
-        String? token,
-      }) async {
+    LocalChapter chapter,
+    bool value, {
+    String? token,
+  }) async {
     chapter.scopedChapterKey = _chapterScopedKey(
       chapter.chapterId,
       chapter.mangaId,
@@ -459,10 +472,10 @@ class MangaRepository {
   }
 
   Future<void> toggleChapterRead(
-      LocalChapter chapter,
-      bool value, {
-        String? token,
-      }) async {
+    LocalChapter chapter,
+    bool value, {
+    String? token,
+  }) async {
     chapter.scopedChapterKey = _chapterScopedKey(
       chapter.chapterId,
       chapter.mangaId,
@@ -510,10 +523,10 @@ class MangaRepository {
   }
 
   Future<void> deleteDownloadedChapter(
-      String sourceId,
-      String mangaId,
-      String chapterId,
-      ) async {
+    String sourceId,
+    String mangaId,
+    String chapterId,
+  ) async {
     // 1. Delete files
     await fileService.deleteChapter(sourceId, mangaId, chapterId);
 
@@ -551,7 +564,7 @@ class MangaRepository {
         if (libraryEntry.downloadedCount > 0) {
           libraryEntry.downloadedCount -= 1;
           await isar.writeTxn(
-                () => isar.collection<LocalLibraryEntry>().put(libraryEntry),
+            () => isar.collection<LocalLibraryEntry>().put(libraryEntry),
           );
         }
       }
