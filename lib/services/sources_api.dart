@@ -12,6 +12,18 @@ class SourcesApi {
 
   SourcesApi({this.baseUrl = ApiConstants.baseUrl});
 
+  String getDownloadImageUrl({
+    required String sourceId,
+    required String imageUrl,
+    required String referer,
+  }) {
+    if (sourceId.toLowerCase() != 'manhuatop') return imageUrl;
+
+    return Uri.parse('$baseUrl/sources/proxy/image')
+        .replace(queryParameters: {'url': imageUrl, 'referer': referer})
+        .toString();
+  }
+
   Duration _timeoutForSource(String sourceId) {
     return sourceId.toLowerCase() == 'batcave'
         ? _heavySourceTimeout

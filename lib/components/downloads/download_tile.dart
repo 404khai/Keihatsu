@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
 import 'package:keihatsu/components/menu/menu_section.dart';
@@ -68,7 +70,7 @@ class DownloadTile extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        item.extensionName.toUpperCase(),
+                        _capitalizeExtensionName(item.extensionName),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: tt.labelSmall?.copyWith(
@@ -82,14 +84,18 @@ class DownloadTile extends StatelessWidget {
                         item.mangaTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                        style: tt.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       2.gap,
                       Text(
                         item.chapterName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        style: tt.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                       4.gap,
                       Text(
@@ -115,6 +121,11 @@ class DownloadTile extends StatelessWidget {
   String _sizeEstimate(DownloadQueueItem item) {
     final double mb = 40 + (item.chapterNumber * 8);
     return sizeLabelMb(mb);
+  }
+
+  String _capitalizeExtensionName(String name) {
+    if (name.isEmpty) return name;
+    return '${name[0].toUpperCase()}${name.substring(1)}';
   }
 
   Widget _trailing(BuildContext context, ColorScheme cs) {
@@ -208,6 +219,11 @@ class _CoverImage extends StatelessWidget {
       return Image.network(
         path!,
         fit: BoxFit.cover,
+        headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/133 Safari/537.36',
+          'Referer': Uri.tryParse(path!)?.origin ?? '',
+        },
         errorBuilder: (context, error, stack) => ColoredBox(
           color: cs.surfaceContainerHighest,
           child: Icon(Icons.broken_image, color: cs.onSurfaceVariant),
@@ -215,14 +231,16 @@ class _CoverImage extends StatelessWidget {
       );
     }
 
-    return Image.asset(
-      path!,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stack) => ColoredBox(
-        color: cs.surfaceContainerHighest,
-        child: Icon(Icons.broken_image, color: cs.onSurfaceVariant),
-      ),
-    );
+    final image = path!.startsWith('/') || path!.startsWith('file:')
+        ? Image.file(
+            File(
+              path!.startsWith('file:') ? Uri.parse(path!).toFilePath() : path!,
+            ),
+            fit: BoxFit.cover,
+          )
+        : Image.asset(path!, fit: BoxFit.cover);
+
+    return image;
   }
 }
 
@@ -242,10 +260,10 @@ class _DeleteButtonState extends State<_DeleteButton> {
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final double target = _pressed ? 1.0 : 0.0;
-    final ShapeBorder circle =
-        MaterialShapeBorder(shape: MaterialShapes.circle);
-    final ShapeBorder sunny =
-        MaterialShapeBorder(shape: MaterialShapes.sunny);
+    final ShapeBorder circle = MaterialShapeBorder(
+      shape: MaterialShapes.circle,
+    );
+    final ShapeBorder sunny = MaterialShapeBorder(shape: MaterialShapes.sunny);
 
     return Tooltip(
       message: 'Remove download',
@@ -340,9 +358,10 @@ class _RemovalCollapseState extends State<_RemovalCollapse>
   @override
   Widget build(BuildContext context) {
     return SizeTransition(
-      sizeFactor: Tween<double>(begin: 1, end: 0).animate(
-        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-      ),
+      sizeFactor: Tween<double>(
+        begin: 1,
+        end: 0,
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
       axisAlignment: -1,
       child: FadeTransition(
         opacity: Tween<double>(begin: 1, end: 0).animate(_controller),

@@ -35,6 +35,7 @@ dependencies:
   connectivity_plus: ^6.1.1
   path: ^1.9.0
   dio: ^5.7.0
+  archive: ^4.0.9
   permission_handler: ^11.3.1
   gap: ^3.0.1
   package_info_plus: ^8.3.0
@@ -43,6 +44,8 @@ dependencies:
   motor: ^1.1.0
   material_wavy_progress_indicator:
     path: packages/material_wavy_progress_indicator
+  usenavii:
+    path: ../navii/packages/flutter
 
 dev_dependencies:
   flutter_launcher_icons: "^0.14.3"

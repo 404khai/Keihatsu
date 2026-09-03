@@ -114,6 +114,9 @@ class SourcesRepository {
             ..baseUrl = remote.baseUrl
             ..iconUrl = remote.iconUrl
             ..versionId = remote.versionId
+            // Keep the bundled default consistent even when the first source
+            // load comes from the API instead of the local seed list.
+            ..enabled = existing?.enabled ?? remote.id == 'manhuatop'
             ..lastUpdatedAt = DateTime.now();
 
           await isar.localSources.put(local);
