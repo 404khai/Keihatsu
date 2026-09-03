@@ -875,7 +875,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                   SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
                                     child: Row(
-                                      children: displayGenres!
+                                      children: displayGenres
                                           .map(
                                             (genre) => Padding(
                                               padding: const EdgeInsets.only(
@@ -1222,7 +1222,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                             bool hasHistory = false;
 
                             if (hasChapters) {
-                              targetChapter = _getContinueChapter(chapters!);
+                              targetChapter = _getContinueChapter(chapters);
                               hasHistory = chapters.any(
                                 (c) => c.lastReadAt != null,
                               );
@@ -1237,7 +1237,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                           builder: (context) =>
                                               MangaReaderScreen(
                                                 manga: widget.manga,
-                                                chapters: chapters!,
+                                                chapters: chapters,
                                                 initialChapterIndex: chapters
                                                     .indexOf(targetChapter!),
                                               ),

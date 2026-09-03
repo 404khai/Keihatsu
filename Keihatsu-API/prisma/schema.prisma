@@ -15,6 +15,10 @@ model User {
   email           String    @unique
   password        String?   // Hashed password for email/password login
   avatarUrl       String?
+  avatarHue       Float?
+  avatarShape     Float?
+  avatarExpression String   @default("happy")
+  avatarAnimated  Boolean   @default(false)
   username        String    @unique
   bio             String?
   bannerUrl       String?

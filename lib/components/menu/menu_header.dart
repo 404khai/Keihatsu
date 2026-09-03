@@ -3,9 +3,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
 import 'package:keihatsu/components/profile/shaped_action_button.dart';
+import 'package:keihatsu/components/user_blobatar.dart';
 import 'package:material_shapes/material_shapes.dart';
 
 const Duration _kBadgeMorphDuration = Duration(milliseconds: 600);
@@ -29,7 +29,11 @@ class MenuHeader extends StatefulWidget {
   const MenuHeader({
     super.key,
     required this.displayName,
-    this.avatarUrl,
+    required this.avatarSeed,
+    this.avatarHue,
+    this.avatarShape,
+    this.avatarExpression = 'happy',
+    this.avatarAnimated = false,
     required this.stats,
     this.onEditTap,
     this.belowName,
@@ -44,7 +48,11 @@ class MenuHeader extends StatefulWidget {
   });
 
   final String displayName;
-  final String? avatarUrl;
+  final String avatarSeed;
+  final double? avatarHue;
+  final double? avatarShape;
+  final String avatarExpression;
+  final bool avatarAnimated;
   final List<MenuHeaderStat> stats;
   final VoidCallback? onEditTap;
   final List<Widget>? belowName;
@@ -128,7 +136,12 @@ class _MenuHeaderState extends State<MenuHeader> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 70, bottom: 4, left: 16, right: 16),
+            padding: const EdgeInsets.only(
+              top: 70,
+              bottom: 4,
+              left: 16,
+              right: 16,
+            ),
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
@@ -141,13 +154,13 @@ class _MenuHeaderState extends State<MenuHeader> {
                     ),
                     child: AspectRatio(
                       aspectRatio: 1,
-                      child: OfflineImage(
-                        imageUrl: widget.avatarUrl,
-                        fit: BoxFit.cover,
-                        fallback: Image.asset(
-                          'images/jake.jpeg',
-                          fit: BoxFit.cover,
-                        ),
+                      child: UserBlobatar(
+                        seed: widget.avatarSeed,
+                        label: widget.displayName,
+                        hue: widget.avatarHue,
+                        shape: widget.avatarShape,
+                        expression: widget.avatarExpression,
+                        animated: widget.avatarAnimated,
                       ),
                     ),
                   ),
@@ -202,14 +215,12 @@ class _MenuHeaderState extends State<MenuHeader> {
                   ),
                   child: Icon(widget.badgeIcon, size: 16, color: cs.onTertiary),
                 ),
-              ] else if (widget.onEditTap != null && !widget.showProfileActions) ...[
+              ] else if (widget.onEditTap != null &&
+                  !widget.showProfileActions) ...[
                 8.gap,
                 IconButton(
                   onPressed: widget.onEditTap,
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    color: cs.onSurfaceVariant,
-                  ),
+                  icon: Icon(Icons.edit_outlined, color: cs.onSurfaceVariant),
                   tooltip: 'Edit profile',
                 ),
               ],
@@ -232,8 +243,11 @@ class _MenuHeaderState extends State<MenuHeader> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (widget.memberSince != null) ...[
-                  Icon(Icons.calendar_month_outlined,
-                      size: 14, color: cs.onSurfaceVariant),
+                  Icon(
+                    Icons.calendar_month_outlined,
+                    size: 14,
+                    color: cs.onSurfaceVariant,
+                  ),
                   4.gap,
                   Text(
                     'Member since ${widget.memberSince}',
@@ -270,8 +284,11 @@ class _MenuHeaderState extends State<MenuHeader> {
                         borderRadius: BorderRadius.circular(22),
                       ),
                     ),
-                    icon: Icon(Icons.ios_share_rounded,
-                        size: 18, color: cs.onSurface),
+                    icon: Icon(
+                      Icons.ios_share_rounded,
+                      size: 18,
+                      color: cs.onSurface,
+                    ),
                     label: Text(
                       'Share Profile',
                       style: tt.labelLarge?.copyWith(
@@ -290,8 +307,11 @@ class _MenuHeaderState extends State<MenuHeader> {
                   padding: EdgeInsets.zero,
                   child: SizedBox(
                     width: 44,
-                    child: Icon(Icons.edit_outlined,
-                        size: 20, color: cs.onSurface),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                      color: cs.onSurface,
+                    ),
                   ),
                 ),
               ],
@@ -320,11 +340,7 @@ class _DuotoneFireIcon extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Icon(
-            Icons.local_fire_department,
-            color: _background,
-            size: size,
-          ),
+          Icon(Icons.local_fire_department, color: _background, size: size),
           Icon(
             Icons.local_fire_department,
             color: _foreground,
@@ -406,12 +422,11 @@ class _MorphingStatBadgeState extends State<_MorphingStatBadge>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          final double progress =
-              Curves.easeOutCubic.transform(_controller.value);
-          final double morphRotation = progress *
-              _kBadgeMorphRotationDegrees *
-              math.pi /
-              180;
+          final double progress = Curves.easeOutCubic.transform(
+            _controller.value,
+          );
+          final double morphRotation =
+              progress * _kBadgeMorphRotationDegrees * math.pi / 180;
 
           return SizedBox(
             width: _badgeSize,
@@ -441,8 +456,10 @@ class _MorphingStatBadgeState extends State<_MorphingStatBadge>
                           return FadeTransition(
                             opacity: animation,
                             child: ScaleTransition(
-                              scale: Tween<double>(begin: 0.92, end: 1)
-                                  .animate(animation),
+                              scale: Tween<double>(
+                                begin: 0.92,
+                                end: 1,
+                              ).animate(animation),
                               child: child,
                             ),
                           );
@@ -467,7 +484,9 @@ class _MorphingStatBadgeState extends State<_MorphingStatBadge>
                           widget.stat.label,
                           key: ValueKey(widget.stat.label),
                           textAlign: TextAlign.center,
-                          style: tt.labelSmall?.copyWith(color: widget.foreground),
+                          style: tt.labelSmall?.copyWith(
+                            color: widget.foreground,
+                          ),
                         ),
                       ),
                     ],
@@ -500,8 +519,8 @@ class _MorphBadgeShapePainter extends CustomPainter {
     final Path path = morph.toPath(progress: progress);
     final Rect bounds = path.getBounds();
 
-    final double scale = size.shortestSide * 0.94 /
-        math.max(bounds.width, bounds.height);
+    final double scale =
+        size.shortestSide * 0.94 / math.max(bounds.width, bounds.height);
 
     canvas.save();
     canvas.translate(size.width / 2, size.height / 2);

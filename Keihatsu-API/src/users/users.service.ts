@@ -99,7 +99,6 @@ export class UsersService {
     googleId: string;
     email: string;
     displayName: string;
-    avatarUrl?: string;
   }): Promise<User> {
     const baseUsername = data.email.split('@')[0];
     let username = baseUsername;
@@ -115,7 +114,6 @@ export class UsersService {
         googleId: data.googleId,
         email: data.email,
         username,
-        avatarUrl: data.avatarUrl,
         isOnboarded: false,
       },
     });
@@ -175,6 +173,10 @@ export class UsersService {
         id: true,
         username: true,
         avatarUrl: true,
+        avatarHue: true,
+        avatarShape: true,
+        avatarExpression: true,
+        avatarAnimated: true,
         bannerUrl: true,
         bio: true,
         createdAt: true,
@@ -263,6 +265,40 @@ export class UsersService {
     // 2. Handle Bio
     if (updateDto.bio !== undefined) {
       updateData.bio = updateDto.bio;
+    }
+
+    if (updateDto.avatarHue !== undefined) {
+      if (updateDto.avatarHue === 'auto') {
+        updateData.avatarHue = null;
+      } else {
+        const hue = Number(updateDto.avatarHue);
+        if (!Number.isFinite(hue) || hue < 0 || hue >= 360) {
+          throw new BadRequestException('Avatar hue must be between 0 and 359.');
+        }
+        updateData.avatarHue = hue;
+      }
+    }
+
+    if (updateDto.avatarShape !== undefined) {
+      if (updateDto.avatarShape === 'auto') {
+        updateData.avatarShape = null;
+      } else {
+        const shape = Number(updateDto.avatarShape);
+        if (!Number.isFinite(shape) || shape < 0 || shape >= 1) {
+          throw new BadRequestException(
+            'Avatar shape must be between 0 and 0.999.',
+          );
+        }
+        updateData.avatarShape = shape;
+      }
+    }
+
+    if (updateDto.avatarExpression !== undefined) {
+      updateData.avatarExpression = updateDto.avatarExpression;
+    }
+
+    if (updateDto.avatarAnimated !== undefined) {
+      updateData.avatarAnimated = updateDto.avatarAnimated === 'true';
     }
 
     if (files.avatar && files.avatar.length > 0) {

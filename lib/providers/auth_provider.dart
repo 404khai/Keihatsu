@@ -269,8 +269,11 @@ class AuthProvider with ChangeNotifier {
   Future<void> updateProfile({
     String? username,
     String? bio,
-    File? avatar,
     File? banner,
+    double? avatarHue,
+    double? avatarShape,
+    required String avatarExpression,
+    required bool avatarAnimated,
   }) async {
     if (_token == null) return;
 
@@ -282,8 +285,11 @@ class AuthProvider with ChangeNotifier {
         token: _token!,
         username: username,
         bio: bio,
-        avatar: avatar,
         banner: banner,
+        avatarHue: avatarHue,
+        avatarShape: avatarShape,
+        avatarExpression: avatarExpression,
+        avatarAnimated: avatarAnimated,
       );
       _user = updatedUser;
       _isLoading = false;

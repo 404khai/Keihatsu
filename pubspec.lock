@@ -49,6 +49,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.0"
+  blobatar:
+    dependency: "direct main"
+    description:
+      path: "/Users/admin/Developer/blobatar/packages/flutter"
+      relative: false
+    source: path
+    version: "0.1.0"
   boolean_selector:
     dependency: transitive
     description:
@@ -1236,6 +1243,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  unorm_dart:
+    dependency: transitive
+    description:
+      name: unorm_dart
+      sha256: "0c69186b03ca6addab0774bcc0f4f17b88d4ce78d9d4d8f0619e30a99ead58e7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.2"
   uuid:
     dependency: transitive
     description:

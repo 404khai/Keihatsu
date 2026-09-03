@@ -96,8 +96,11 @@ class AuthApi {
     required String token,
     String? username,
     String? bio,
-    File? avatar,
     File? banner,
+    double? avatarHue,
+    double? avatarShape,
+    required String avatarExpression,
+    required bool avatarAnimated,
   }) async {
     try {
       var request = http.MultipartRequest(
@@ -108,16 +111,10 @@ class AuthApi {
 
       if (username != null) request.fields['username'] = username;
       if (bio != null) request.fields['bio'] = bio;
-
-      if (avatar != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'jake',
-            avatar.path,
-            contentType: MediaType('image', avatar.path.split('.').last),
-          ),
-        );
-      }
+      request.fields['avatarHue'] = avatarHue?.toString() ?? 'auto';
+      request.fields['avatarShape'] = avatarShape?.toString() ?? 'auto';
+      request.fields['avatarExpression'] = avatarExpression;
+      request.fields['avatarAnimated'] = avatarAnimated.toString();
 
       if (banner != null) {
         request.files.add(
