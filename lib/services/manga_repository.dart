@@ -442,6 +442,10 @@ class MangaRepository {
     return fileService.readChapterCbzPages(sourceId, mangaId, chapterId);
   }
 
+  Future<void> cleanupArchivedChapterDirectories() {
+    return fileService.cleanupArchivedChapterDirectories();
+  }
+
   Future<void> toggleChapterBookmark(
     LocalChapter chapter,
     bool value, {

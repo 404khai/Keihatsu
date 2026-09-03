@@ -98,6 +98,31 @@ class FileService {
     return total;
   }
 
+  Future<void> cleanupArchivedChapterDirectories() async {
+    final downloadsDirectory = await getDownloadsDirectory();
+
+    await for (final sourceEntity in downloadsDirectory.list()) {
+      if (sourceEntity is! Directory) continue;
+
+      await for (final mangaEntity in sourceEntity.list()) {
+        if (mangaEntity is! Directory) continue;
+
+        final entries = await mangaEntity.list().toList();
+        final archivedChapterNames = entries
+            .whereType<File>()
+            .where((file) => p.extension(file.path).toLowerCase() == '.cbz')
+            .map((file) => p.basenameWithoutExtension(file.path))
+            .toSet();
+
+        for (final entry in entries.whereType<Directory>()) {
+          if (archivedChapterNames.contains(p.basename(entry.path))) {
+            await entry.delete(recursive: true);
+          }
+        }
+      }
+    }
+  }
+
   Future<String> createCbz({
     required String sourceId,
     required String mangaId,

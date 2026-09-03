@@ -27,6 +27,12 @@ class DownloadProvider with ChangeNotifier {
   }
 
   void _init() async {
+    try {
+      await mangaRepo.cleanupArchivedChapterDirectories();
+    } catch (e) {
+      print('Failed to clean legacy chapter image directories: $e');
+    }
+
     // Load queue from DB
     _queue = await isar.downloadQueueItems.where().sortByPriority().findAll();
 
