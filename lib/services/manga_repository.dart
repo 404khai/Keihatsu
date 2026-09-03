@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:isar/isar.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -317,65 +318,61 @@ class MangaRepository {
       }
     });
 
-    // 2. Download images
+    // 2. Download images into a temporary chapter directory. The directory is
+    // removed after the portable CBZ is created (or if the download fails).
     final downloadedPagePaths = <String>[];
-    for (var i = 0; i < pages.length; i++) {
+    try {
+      for (var i = 0; i < pages.length; i++) {
+        if (isCancelled?.call() == true) {
+          throw Exception('Download cancelled');
+        }
+
+        final page = pages[i];
+        final downloadUrl = api.getDownloadImageUrl(
+          sourceId: sourceId,
+          imageUrl: page.imageUrl,
+          referer: page.url,
+        );
+        final localPath = await fileService.downloadFile(
+          downloadUrl,
+          fileService.getChapterPageSubPath(
+            sourceId: sourceId,
+            mangaId: mangaId,
+            chapterId: chapterId,
+            index: page.index,
+          ),
+          referer: page.url,
+        );
+
+        if (localPath != null) {
+          downloadedPagePaths.add(localPath);
+        } else {
+          throw Exception('Failed to download page ${page.index + 1}');
+        }
+
+        onProgress?.call((i + 1) / pages.length);
+      }
+
       if (isCancelled?.call() == true) {
         throw Exception('Download cancelled');
       }
 
-      final page = pages[i];
-      final downloadUrl = api.getDownloadImageUrl(
+      final cbzPath = await fileService.createCbz(
         sourceId: sourceId,
-        imageUrl: page.imageUrl,
-        referer: page.url,
+        mangaId: mangaId,
+        chapterId: chapterId,
+        pagePaths: downloadedPagePaths,
       );
-      final localPath = await fileService.downloadFile(
-        downloadUrl,
-        fileService.getChapterPageSubPath(
-          sourceId: sourceId,
-          mangaId: mangaId,
-          chapterId: chapterId,
-          index: page.index,
-        ),
-        referer: page.url,
-      );
-
-      if (localPath != null) {
-        downloadedPagePaths.add(localPath);
-        final lp = await isar
-            .collection<LocalPage>()
-            .filter()
-            .chapterIdEqualTo(chapterId)
-            .indexEqualTo(page.index)
-            .ownerUserIdEqualTo(_currentUserId)
-            .findFirst();
-        if (lp != null) {
-          lp.imageLocalPath = localPath;
-          await isar.writeTxn(() => isar.collection<LocalPage>().put(lp));
-        }
-      } else {
-        throw Exception('Failed to download page ${page.index + 1}');
+      final cbzFile = File(cbzPath);
+      if (!await cbzFile.exists() || await cbzFile.length() == 0) {
+        throw Exception('The CBZ archive was not saved');
       }
-
-      onProgress?.call((i + 1) / pages.length);
-    }
-
-    if (isCancelled?.call() == true) {
-      throw Exception('Download cancelled');
-    }
-
-    // Keep the individual page files available to the offline reader and also
-    // write the portable archive users can find in the public downloads folder.
-    final cbzPath = await fileService.createCbz(
-      sourceId: sourceId,
-      mangaId: mangaId,
-      chapterId: chapterId,
-      pagePaths: downloadedPagePaths,
-    );
-    final cbzFile = File(cbzPath);
-    if (!await cbzFile.exists() || await cbzFile.length() == 0) {
-      throw Exception('The CBZ archive was not saved');
+    } finally {
+      await fileService.deleteChapterPageDirectory(
+        sourceId,
+        mangaId,
+        chapterId,
+      );
     }
 
     // 3. Mark as downloaded
@@ -435,6 +432,14 @@ class MangaRepository {
         .ownerUserIdEqualTo(_currentUserId)
         .sortByIndex()
         .findAll();
+  }
+
+  Future<List<Uint8List>> getChapterArchivePages(
+    String sourceId,
+    String mangaId,
+    String chapterId,
+  ) {
+    return fileService.readChapterCbzPages(sourceId, mangaId, chapterId);
   }
 
   Future<void> toggleChapterBookmark(

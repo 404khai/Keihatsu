@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -260,6 +261,48 @@ class FileService {
     return p.join(baseDir.path, subPath);
   }
 
+  Future<String> getChapterCbzPath(
+    String sourceId,
+    String mangaId,
+    String chapterId,
+  ) async {
+    final subPath = getChapterCbzSubPath(
+      sourceId: sourceId,
+      mangaId: mangaId,
+      chapterId: chapterId,
+    );
+    final baseDir = await _getBaseDirectory('downloads/');
+    return p.join(baseDir.path, subPath);
+  }
+
+  Future<List<Uint8List>> readChapterCbzPages(
+    String sourceId,
+    String mangaId,
+    String chapterId,
+  ) async {
+    final archivePath = await getChapterCbzPath(sourceId, mangaId, chapterId);
+    final archiveFile = File(archivePath);
+    if (!await archiveFile.exists()) return const [];
+
+    final archive = ZipDecoder().decodeBytes(
+      await archiveFile.readAsBytes(),
+      verify: true,
+    );
+    final imageFiles = archive.files.where((file) {
+      if (!file.isFile) return false;
+      final extension = p.extension(file.name).toLowerCase();
+      return const {
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.webp',
+        '.gif',
+      }.contains(extension);
+    }).toList()..sort((a, b) => a.name.compareTo(b.name));
+
+    return imageFiles.map((file) => file.content).toList(growable: false);
+  }
+
   String chapterDownloadSubPath({
     required String sourceId,
     required String mangaId,
@@ -314,7 +357,7 @@ class FileService {
     return safeLeaf.isEmpty ? 'chapter' : safeLeaf;
   }
 
-  Future<void> deleteChapter(
+  Future<void> deleteChapterPageDirectory(
     String sourceId,
     String mangaId,
     String chapterId,
@@ -326,10 +369,23 @@ class FileService {
     );
     final baseDir = await _getBaseDirectory(chapterSubPath);
     final chapterDir = Directory(p.join(baseDir.path, chapterSubPath));
-
     if (await chapterDir.exists()) {
       await chapterDir.delete(recursive: true);
     }
+  }
+
+  Future<void> deleteChapter(
+    String sourceId,
+    String mangaId,
+    String chapterId,
+  ) async {
+    final chapterSubPath = chapterDownloadSubPath(
+      sourceId: sourceId,
+      mangaId: mangaId,
+      chapterId: chapterId,
+    );
+    await deleteChapterPageDirectory(sourceId, mangaId, chapterId);
+    final baseDir = await _getBaseDirectory(chapterSubPath);
 
     final baseDirForArchive = await _getBaseDirectory('downloads/');
     final cbzPath = p.join(
