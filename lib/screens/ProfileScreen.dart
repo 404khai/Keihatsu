@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:keihatsu/components/floating_nav_scroll_scope.dart';
 import 'package:keihatsu/components/keihatsu_refresh_indicator.dart';
 import 'package:keihatsu/components/MainNavigationBar.dart';
+import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/bottom_padding.dart';
 import 'package:keihatsu/components/menu/developer_signature.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
@@ -14,9 +15,10 @@ import 'package:keihatsu/components/menu/version_indicator.dart';
 import 'package:keihatsu/components/notification_pill.dart';
 import 'package:keihatsu/components/user_blobatar.dart';
 import 'package:keihatsu/providers/auth_provider.dart';
+import 'package:keihatsu/providers/download_provider.dart';
 import 'package:keihatsu/screens/AboutScreen.dart';
-import 'package:keihatsu/screens/AppearancePage.dart';
 import 'package:keihatsu/screens/DonateScreen.dart';
+import 'package:keihatsu/screens/DataStorageScreen.dart';
 import 'package:keihatsu/screens/DownloadQueueScreen.dart';
 import 'package:keihatsu/screens/EditProfileScreen.dart';
 import 'package:keihatsu/screens/HelpAndSupportScreen.dart';
@@ -91,16 +93,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final activeDownloadCount = context.select<DownloadProvider, int>(
+      (provider) => provider.activeDownloadCount,
+    );
     final user = authProvider.user;
     final ColorScheme cs = Theme.of(context).colorScheme;
     final bool isDarkTheme = themeProvider.isDarkTheme;
     final Color headerColor = cs.surfaceContainer;
 
     final bool isAuthenticated = authProvider.isAuthenticated && user != null;
-    final String displayName = user?.username ?? 'Mystery Reader';
-    final String avatarSeed = user?.id ?? 'keihatsu-guest';
-    final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 0;
-    final int libraryCount = user?.stats?.libraryCount ?? 0;
+    final String displayName = isAuthenticated
+        ? (user.username ?? 'Reader')
+        : 'Mystery Reader';
+    // User IDs are UUIDs created by the API, making them stable random seeds.
+    final String? avatarSeed = isAuthenticated ? user.id : null;
+    final String? avatarUrl = isAuthenticated ? user.avatarUrl : null;
+
+    final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 120;
+    final int libraryCount = user?.stats?.libraryCount ?? 10;
 
     return Scaffold(
       extendBody: true,
@@ -132,15 +142,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               radius: 16,
                               backgroundColor: Colors.transparent,
                               child: ClipOval(
-                                child: UserBlobatar(
-                                  seed: avatarSeed,
-                                  label: displayName,
-                                  size: 32,
-                                  hue: user?.avatarHue,
-                                  shape: user?.avatarShape,
-                                  expression: user?.avatarExpression ?? 'happy',
-                                  animated: user?.avatarAnimated ?? false,
-                                ),
+                                child: avatarSeed != null
+                                    ? UserBlobatar(
+                                        seed: avatarSeed,
+                                        label: displayName,
+                                        size: 32,
+                                        hue: user?.avatarHue,
+                                        shape: user?.avatarShape,
+                                        expression:
+                                            user?.avatarExpression ?? 'happy',
+                                        animated: user?.avatarAnimated ?? false,
+                                      )
+                                    : OfflineImage(
+                                        imageUrl: avatarUrl,
+                                        width: 32,
+                                        height: 32,
+                                        fit: BoxFit.cover,
+                                        fallback: Image.asset(
+                                          'images/jake.jpeg',
+                                          width: 32,
+                                          height: 32,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -171,6 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: MenuHeader(
                           displayName: displayName,
                           avatarSeed: avatarSeed,
+                          avatarUrl: avatarUrl,
                           avatarHue: user?.avatarHue,
                           avatarShape: user?.avatarShape,
                           avatarExpression: user?.avatarExpression ?? 'happy',
@@ -199,22 +224,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                           bio: user?.bio,
                           memberSince: user?.createdAt?.year.toString(),
-                          showProfileActions: false,
-                          onShareTap: !isAuthenticated
-                              ? null
-                              : () {
-                                  Clipboard.setData(
-                                    ClipboardData(
-                                      text:
-                                          'https://keihatsu.app/u/$avatarSeed',
-                                    ),
-                                  );
-                                  NotificationPill.show(
-                                    context,
-                                    message: 'Profile link copied',
-                                    icon: Icons.insert_link_rounded,
-                                  );
-                                },
+                          badgeIcon: isAuthenticated
+                              ? Icons.hardware_rounded
+                              : null,
+                          showProfileActions: isAuthenticated,
+                          onShareTap: () {
+                            Clipboard.setData(
+                              ClipboardData(
+                                text:
+                                    'https://keihatsu.app/u/${user?.username ?? user?.id ?? 'reader'}',
+                              ),
+                            );
+                            NotificationPill.show(
+                              context,
+                              message: 'Profile link copied',
+                              icon: Icons.insert_link_rounded,
+                            );
+                          },
                           onEditTap: isAuthenticated
                               ? () => _push(context, const EditProfileScreen())
                               : null,
@@ -264,6 +290,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         MenuTile(
                           icon: Icons.cloud_download_outlined,
                           title: 'Download Queue',
+                          trailing: activeDownloadCount > 0
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: cs.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(3),
+                                          child: Text(
+                                            activeDownloadCount.toString(),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall
+                                                ?.copyWith(
+                                                  color: cs.onPrimary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    8.gap,
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ],
+                                )
+                              : null,
                           onTap: () =>
                               _push(context, const DownloadQueueScreen()),
                         ),
@@ -348,7 +411,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         MenuTile(
                           icon: Icons.storage_outlined,
                           title: 'Data & Storage',
-                          onTap: () => _push(context, const AppearancePage()),
+                          onTap: () =>
+                              _push(context, const DataStorageScreen()),
                         ),
                       ],
                     ),
@@ -454,7 +518,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     64.gap,
                     const VersionIndicator(),
                     8.gap,
-                    const DeveloperSignature(),
+                    DeveloperSignature(avatarUrl: user?.avatarUrl),
                     16.gap,
                   ]),
                 ),

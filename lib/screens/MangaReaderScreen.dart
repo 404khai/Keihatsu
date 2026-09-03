@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async'; // Added
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
@@ -209,6 +210,17 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
 
     if (useLocal) {
       return localPages;
+    }
+
+    try {
+      final archivePages = await repo.getChapterArchivePages(
+        widget.manga.sourceId,
+        widget.manga.id,
+        chapterId,
+      );
+      if (archivePages.isNotEmpty) return archivePages;
+    } catch (e) {
+      print('Error reading downloaded CBZ: $e');
     }
 
     final remotePages = await repo.api.getPages(widget.manga.sourceId, chapterId);
@@ -431,7 +443,9 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                 final page = imageItem.page;
                 ImageProvider imageProvider;
 
-                if (page is LocalPage && page.imageLocalPath != null) {
+                if (page is Uint8List) {
+                  imageProvider = MemoryImage(page);
+                } else if (page is LocalPage && page.imageLocalPath != null) {
                   imageProvider = FileImage(File(page.imageLocalPath!));
                 } else {
                   final url = page is LocalPage

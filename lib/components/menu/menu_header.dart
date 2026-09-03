@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
 import 'package:keihatsu/components/profile/shaped_action_button.dart';
 import 'package:keihatsu/components/user_blobatar.dart';
@@ -29,7 +30,8 @@ class MenuHeader extends StatefulWidget {
   const MenuHeader({
     super.key,
     required this.displayName,
-    required this.avatarSeed,
+    this.avatarSeed,
+    this.avatarUrl,
     this.avatarHue,
     this.avatarShape,
     this.avatarExpression = 'happy',
@@ -48,7 +50,8 @@ class MenuHeader extends StatefulWidget {
   });
 
   final String displayName;
-  final String avatarSeed;
+  final String? avatarSeed;
+  final String? avatarUrl;
   final double? avatarHue;
   final double? avatarShape;
   final String avatarExpression;
@@ -154,14 +157,26 @@ class _MenuHeaderState extends State<MenuHeader> {
                     ),
                     child: AspectRatio(
                       aspectRatio: 1,
-                      child: UserBlobatar(
-                        seed: widget.avatarSeed,
-                        label: widget.displayName,
-                        hue: widget.avatarHue,
-                        shape: widget.avatarShape,
-                        expression: widget.avatarExpression,
-                        animated: widget.avatarAnimated,
-                      ),
+                      child:
+                          widget.avatarSeed != null &&
+                              widget.avatarSeed!.isNotEmpty
+                          ? UserBlobatar(
+                              seed: widget.avatarSeed!,
+                              label: widget.displayName,
+                              size: 188,
+                              hue: widget.avatarHue,
+                              shape: widget.avatarShape,
+                              expression: widget.avatarExpression,
+                              animated: widget.avatarAnimated,
+                            )
+                          : OfflineImage(
+                              imageUrl: widget.avatarUrl,
+                              fit: BoxFit.cover,
+                              fallback: Image.asset(
+                                'images/jake.jpeg',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                     ),
                   ),
                 ),

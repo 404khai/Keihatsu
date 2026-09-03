@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'expandable_floating_main_nav.dart';
-import 'scaffold_floating_main_nav.dart';
+import 'floating_nav.dart';
+
+// import 'expandable_floating_main_nav.dart';
+// import 'reference_main_nav.dart';
+// import 'scaffold_floating_main_nav.dart';
 
 /// Bottom navigation for main tabs.
 ///
@@ -23,12 +26,19 @@ class MainNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldFloatingMainNav(
-      currentIndex: currentIndex,
-      brandColor: brandColor,
-    );
+    return FloatingNav(currentIndex: currentIndex, brandColor: brandColor);
 
     // return ExpandableFloatingMainNav(
+    //   currentIndex: currentIndex,
+    //   brandColor: brandColor,
+    // );
+
+    // return ReferenceMainNav(
+    //   currentIndex: currentIndex,
+    //   brandColor: brandColor,
+    // );
+
+    // return ScaffoldFloatingMainNav(
     //   currentIndex: currentIndex,
     //   brandColor: brandColor,
     // );
@@ -36,22 +46,22 @@ class MainNavigationBar extends StatelessWidget {
 }
 
 // --- Legacy bottom navigation (Phosphor icons + labels) ---
-//
+
 // import 'package:phosphor_flutter/phosphor_flutter.dart';
-//
+
 // class MainNavigationBar extends StatelessWidget {
 //   final int currentIndex;
 //   final Color brandColor;
-//
+
 //   const MainNavigationBar({
 //     super.key,
 //     required this.currentIndex,
 //     required this.brandColor,
 //   });
-//
+
 //   void _onTap(BuildContext context, int index) {
 //     if (index == currentIndex) return;
-//
+
 //     final routes = {
 //       0: '/home',
 //       1: '/library',
@@ -59,13 +69,13 @@ class MainNavigationBar extends StatelessWidget {
 //       3: '/extensions',
 //       4: '/profile',
 //     };
-//
+
 //     final targetRoute = routes[index];
 //     if (targetRoute != null) {
 //       Navigator.pushReplacementNamed(context, targetRoute);
 //     }
 //   }
-//
+
 //   @override
 //   Widget build(BuildContext context) {
 //     return BottomNavigationBar(

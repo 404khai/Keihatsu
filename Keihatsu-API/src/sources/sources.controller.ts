@@ -12,6 +12,7 @@ import {
 import axios from 'axios';
 import type { Request, Response } from 'express';
 import { SourcesService } from './sources.service';
+import { PuppeteerService } from './core/puppeteer.service';
 import { UsersService } from '../users/users.service';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { MangasPageDTO, MangaDTO, ChapterDTO, PageDTO } from './dto/manga.dto';
@@ -21,6 +22,7 @@ export class SourcesController {
   constructor(
     private readonly sourcesService: SourcesService,
     private readonly usersService: UsersService,
+    private readonly puppeteerService: PuppeteerService,
   ) {}
 
   @Get('proxy/image')
@@ -40,8 +42,47 @@ export class SourcesController {
       throw new BadRequestException('Invalid image url');
     }
 
-    if (!parsedUrl.hostname.endsWith('batcave.biz')) {
-      throw new BadRequestException('Only BatCave assets can be proxied');
+    const isBatCave =
+      parsedUrl.hostname === 'batcave.biz' ||
+      parsedUrl.hostname.endsWith('.batcave.biz');
+    const isManhuaTop =
+      parsedUrl.hostname === 'manhuatop.org' ||
+      parsedUrl.hostname.endsWith('.manhuatop.org');
+
+    if (parsedUrl.protocol !== 'https:' || (!isBatCave && !isManhuaTop)) {
+      throw new BadRequestException(
+        'Only BatCave and ManhuaTop assets can be proxied',
+      );
+    }
+
+    if (isManhuaTop) {
+      const safeReferer =
+        referer &&
+        (() => {
+          try {
+            const parsedReferer = new URL(referer);
+            return (
+              parsedReferer.protocol === 'https:' &&
+              (parsedReferer.hostname === 'manhuatop.org' ||
+                parsedReferer.hostname.endsWith('.manhuatop.org'))
+            );
+          } catch {
+            return false;
+          }
+        })()
+          ? referer
+          : 'https://manhuatop.org/';
+
+      try {
+        const image = await this.puppeteerService.fetchBinary(url, safeReferer);
+        res.setHeader('Content-Type', image.contentType);
+        res.setHeader('Content-Length', image.data.length.toString());
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end(image.data);
+        return;
+      } catch {
+        throw new BadGatewayException('Failed to proxy ManhuaTop image');
+      }
     }
 
     const safeReferer =

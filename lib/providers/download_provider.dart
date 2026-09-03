@@ -27,6 +27,12 @@ class DownloadProvider with ChangeNotifier {
   }
 
   void _init() async {
+    try {
+      await mangaRepo.cleanupArchivedChapterDirectories();
+    } catch (e) {
+      print('Failed to clean legacy chapter image directories: $e');
+    }
+
     // Load queue from DB
     _queue = await isar.downloadQueueItems.where().sortByPriority().findAll();
 
@@ -80,6 +86,8 @@ class DownloadProvider with ChangeNotifier {
   }
 
   List<DownloadQueueItem> get queue => _queue;
+  int get activeDownloadCount =>
+      _queue.where((item) => item.status == 0 || item.status == 1).length;
   bool get isGlobalPaused => _isGlobalPaused;
   bool get isOnline => _isOnline;
 
@@ -134,19 +142,28 @@ class DownloadProvider with ChangeNotifier {
   }
 
   Future<void> removeFromQueue(String chapterId) async {
-    _cancellationTokens[chapterId] = true; // Cancel if running
+    final item = _queue.firstWhereOrNull((i) => i.chapterId == chapterId);
+    if (item == null) return;
+
+    final isActive = _activeDownloads.containsValue(chapterId);
+    _cancellationTokens[chapterId] = true;
 
     await isar.writeTxn(() async {
-      await isar.downloadQueueItems
-          .filter()
-          .chapterIdEqualTo(chapterId)
-          .deleteFirst();
+      await isar.downloadQueueItems.delete(item.id);
     });
 
     _queue.removeWhere((item) => item.chapterId == chapterId);
-    _activeDownloads.removeWhere((key, value) => value == chapterId);
-
     notifyListeners();
+
+    if (!isActive) {
+      await mangaRepo.deleteDownloadedChapter(
+        item.sourceId,
+        item.mangaId,
+        item.chapterId,
+      );
+      _cancellationTokens.remove(chapterId);
+    }
+
     _processQueue();
   }
 
@@ -177,6 +194,8 @@ class DownloadProvider with ChangeNotifier {
     if (item == null) return;
 
     item.status = 0; // Queued
+    item.progress = 0;
+    item.error = null;
     await isar.writeTxn(() async {
       await isar.downloadQueueItems.put(item);
     });
@@ -440,9 +459,12 @@ class DownloadProvider with ChangeNotifier {
 
     if (items.isEmpty) return;
 
-    // Cancel any active downloads
+    final activeChapterIds = _activeDownloads.values.toSet();
+
+    // Active downloads stop after their current page request. Other queued
+    // chapters can be cleaned up immediately.
     for (var item in items) {
-      if (item.status == 1) {
+      if (activeChapterIds.contains(item.chapterId)) {
         _cancellationTokens[item.chapterId] = true;
       }
     }
@@ -456,13 +478,19 @@ class DownloadProvider with ChangeNotifier {
 
     // Update local state
     _queue.removeWhere((i) => i.sourceId == sourceId && i.mangaId == mangaId);
-
-    // Clean up active downloads map if needed
-    _activeDownloads.removeWhere((key, value) {
-      return items.any((i) => i.chapterId == value);
-    });
-
     notifyListeners();
+
+    for (final item in items) {
+      if (!activeChapterIds.contains(item.chapterId)) {
+        await mangaRepo.deleteDownloadedChapter(
+          item.sourceId,
+          item.mangaId,
+          item.chapterId,
+        );
+        _cancellationTokens.remove(item.chapterId);
+      }
+    }
+
     _processQueue();
   }
 
@@ -550,6 +578,14 @@ class DownloadProvider with ChangeNotifier {
         isCancelled: () => _cancellationTokens[item.chapterId] ?? false,
       );
 
+      if (_cancellationTokens[item.chapterId] == true) {
+        throw Exception('Download cancelled');
+      }
+
+      if (item.progress < 1) {
+        throw Exception('Download finished without completing every page');
+      }
+
       // Success
       await isar.writeTxn(() async {
         // Remove from queue on success as requested
@@ -560,10 +596,21 @@ class DownloadProvider with ChangeNotifier {
       print("Download failed: $e");
 
       if (_cancellationTokens[item.chapterId] == true) {
+        final wasRemoved = !_queue.any(
+          (queuedItem) => queuedItem.id == item.id,
+        );
+        if (wasRemoved) {
+          await mangaRepo.deleteDownloadedChapter(
+            item.sourceId,
+            item.mangaId,
+            item.chapterId,
+          );
+        }
+
         // Was cancelled/paused manually
         // If paused, status is already 4. If cancelled, it's removed.
         // If we just cancelled for network/priority, set back to queued?
-        if (item.status == 1) {
+        if (!wasRemoved && item.status == 1) {
           // Still marked downloading
           item.status = 0; // Back to queued
           await isar.writeTxn(() => isar.downloadQueueItems.put(item));

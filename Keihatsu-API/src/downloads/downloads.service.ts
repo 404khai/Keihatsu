@@ -60,6 +60,7 @@ export class DownloadsService {
 
     // Process in chunks to avoid overwhelming the server or local network
     const chunkSize = 5;
+    const failedPages: number[] = [];
     for (let i = 0; i < pages.length; i += chunkSize) {
       const chunk = pages.slice(i, i + chunkSize);
       await Promise.all(
@@ -74,13 +75,24 @@ export class DownloadsService {
           const filePath = path.join(downloadDir, filename);
 
           try {
-            await this.downloadFile(targetUrl, filePath);
+            await this.downloadFile(
+              targetUrl,
+              filePath,
+              page.url || `${source.baseUrl.replace(/\/$/, '')}/`,
+            );
           } catch (error) {
+            failedPages.push(actualIndex + 1);
             this.logger.error(
               `Failed to download page ${actualIndex + 1}: ${error.message}`,
             );
           }
         }),
+      );
+    }
+
+    if (failedPages.length > 0) {
+      throw new Error(
+        `Download incomplete: ${failedPages.length}/${pages.length} pages failed`,
       );
     }
 
@@ -97,7 +109,7 @@ export class DownloadsService {
     return str.replace(/[<>:"/\\|?*]/g, '').trim();
   }
 
-  private async downloadFile(url: string, outputPath: string) {
+  private async downloadFile(url: string, outputPath: string, referer: string) {
     const response = await axios({
       url,
       method: 'GET',
@@ -105,7 +117,8 @@ export class DownloadsService {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        // 'Referer': url // Some CDNs check referer, but usually base url is better. Leaving empty for now unless needed.
+        Referer: referer,
+        Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
       },
     });
 

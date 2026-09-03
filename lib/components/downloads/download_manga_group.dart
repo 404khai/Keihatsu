@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:keihatsu/common/shape_values.dart';
 import 'package:keihatsu/components/downloads/download_tile.dart';
@@ -6,6 +8,8 @@ import 'package:keihatsu/components/menu/menu_section.dart';
 import 'package:keihatsu/models/local_models.dart';
 import 'package:material_shapes/material_shapes.dart';
 import 'package:material_wavy_progress_indicator/material_wavy_progress_indicator.dart';
+
+enum _MangaDownloadAction { cancelAll }
 
 class DownloadMangaGroupData {
   const DownloadMangaGroupData({
@@ -30,14 +34,18 @@ class DownloadExtensionMangaList extends StatelessWidget {
     required this.onReorderManga,
     required this.onReorderChapters,
     this.onToggleChapterPause,
+    this.onCancelChapter,
+    this.onCancelManga,
     this.borderRadius,
   });
 
   final List<DownloadMangaGroupData> mangaGroups;
   final void Function(int oldIndex, int newIndex) onReorderManga;
   final void Function(String mangaId, int oldIndex, int newIndex)
-      onReorderChapters;
+  onReorderChapters;
   final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
+  final void Function(DownloadQueueItem chapter)? onCancelChapter;
+  final void Function(String mangaId, String mangaTitle)? onCancelManga;
   final BorderRadius? borderRadius;
 
   BorderRadius _radiusFor(int index) {
@@ -92,22 +100,33 @@ class DownloadExtensionMangaList extends StatelessWidget {
                   thickness: MenuSection.tileGap,
                   color: cs.surface,
                 ),
-              ReorderableDragStartListener(
-                index: index,
-                child: DownloadMangaGroup(
-                  mangaTitle: group.mangaTitle,
-                  mangaThumbnail: group.mangaThumbnail,
-                  chapters: group.chapters,
-                  borderRadius: _radiusFor(index),
-                  onToggleChapterPause: onToggleChapterPause,
-                  onReorderChapters: group.chapters.length > 1
-                      ? (oldIndex, newIndex) => onReorderChapters(
-                            group.mangaId,
-                            oldIndex,
-                            newIndex,
-                          )
-                      : null,
-                ),
+              DownloadMangaGroup(
+                mangaTitle: group.mangaTitle,
+                mangaThumbnail: group.mangaThumbnail,
+                chapters: group.chapters,
+                borderRadius: _radiusFor(index),
+                mangaDragHandle: mangaGroups.length > 1
+                    ? ReorderableDragStartListener(
+                        index: index,
+                        child: const Tooltip(
+                          message: 'Drag to reorder manga',
+                          child: SizedBox(
+                            width: 40,
+                            height: 52,
+                            child: Icon(Icons.drag_handle_rounded, size: 24),
+                          ),
+                        ),
+                      )
+                    : null,
+                onToggleChapterPause: onToggleChapterPause,
+                onCancelChapter: onCancelChapter,
+                onCancelManga: onCancelManga == null
+                    ? null
+                    : () => onCancelManga!(group.mangaId, group.mangaTitle),
+                onReorderChapters: group.chapters.length > 1
+                    ? (oldIndex, newIndex) =>
+                          onReorderChapters(group.mangaId, oldIndex, newIndex)
+                    : null,
               ),
             ],
           );
@@ -129,6 +148,9 @@ class DownloadMangaGroup extends StatefulWidget {
     this.initiallyExpanded = false,
     this.onReorderChapters,
     this.onToggleChapterPause,
+    this.onCancelChapter,
+    this.onCancelManga,
+    this.mangaDragHandle,
   });
 
   final String mangaTitle;
@@ -138,6 +160,9 @@ class DownloadMangaGroup extends StatefulWidget {
   final bool initiallyExpanded;
   final void Function(int oldIndex, int newIndex)? onReorderChapters;
   final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
+  final void Function(DownloadQueueItem chapter)? onCancelChapter;
+  final VoidCallback? onCancelManga;
+  final Widget? mangaDragHandle;
 
   @override
   State<DownloadMangaGroup> createState() => _DownloadMangaGroupState();
@@ -145,8 +170,9 @@ class DownloadMangaGroup extends StatefulWidget {
 
 class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
   late bool _expanded = widget.initiallyExpanded;
-  late List<DownloadQueueItem> _chapters =
-      List<DownloadQueueItem>.from(widget.chapters);
+  late List<DownloadQueueItem> _chapters = List<DownloadQueueItem>.from(
+    widget.chapters,
+  );
 
   @override
   void didUpdateWidget(covariant DownloadMangaGroup oldWidget) {
@@ -168,6 +194,7 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
     final int downloading = _chapters.where((c) => c.status == 1).length;
     final int queued = _chapters.where((c) => c.status == 0).length;
     final int paused = _chapters.where((c) => c.status == 4).length;
+    final int failed = _chapters.where((c) => c.status == 3).length;
 
     if (downloading > 0 && queued > 0) {
       return '$downloading downloading · $queued queued';
@@ -177,6 +204,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
     }
     if (queued > 0) return '$queued chapter${queued == 1 ? '' : 's'} queued';
     if (paused > 0) return 'Paused';
+    if (failed > 0) {
+      return '$failed chapter${failed == 1 ? '' : 's'} failed';
+    }
     return '${_chapters.length} chapter${_chapters.length == 1 ? '' : 's'}';
   }
 
@@ -201,7 +231,8 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
       color: cs.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius:
-            widget.borderRadius ?? BorderRadius.circular(MenuSection.innerRadius),
+            widget.borderRadius ??
+            BorderRadius.circular(MenuSection.innerRadius),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -214,6 +245,10 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
               padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
               child: Row(
                 children: [
+                  if (widget.mangaDragHandle != null) ...[
+                    widget.mangaDragHandle!,
+                    4.gap,
+                  ],
                   ClipPath(
                     clipper: ShapeBorderClipper(
                       shape: MaterialShapeBorder(shape: ShapeValues.cover),
@@ -233,7 +268,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                           widget.mangaTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                          style: tt.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         4.gap,
                         Text(
@@ -272,6 +309,33 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                           ? null
                           : () => widget.onToggleChapterPause!(primary),
                     ),
+                  if (!_hasMultipleChapters && widget.onCancelChapter != null)
+                    IconButton(
+                      onPressed: () => widget.onCancelChapter!(primary),
+                      tooltip: 'Cancel chapter download',
+                      icon: Icon(Icons.close_rounded, color: cs.error),
+                    ),
+                  if (_hasMultipleChapters && widget.onCancelManga != null)
+                    PopupMenuButton<_MangaDownloadAction>(
+                      tooltip: 'Manga download actions',
+                      icon: const Icon(Icons.more_vert_rounded),
+                      onSelected: (_) => widget.onCancelManga!(),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: _MangaDownloadAction.cancelAll,
+                          child: Row(
+                            children: [
+                              Icon(Icons.cancel_outlined, color: cs.error),
+                              12.gap,
+                              Text(
+                                'Cancel all chapters',
+                                style: TextStyle(color: cs.error),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -302,6 +366,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                     onTogglePause: widget.onToggleChapterPause == null
                         ? null
                         : () => widget.onToggleChapterPause!(_chapters[index]),
+                    onCancel: widget.onCancelChapter == null
+                        ? null
+                        : () => widget.onCancelChapter!(_chapters[index]),
                   );
                 },
               )
@@ -321,6 +388,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                   onTogglePause: widget.onToggleChapterPause == null
                       ? null
                       : () => widget.onToggleChapterPause!(_chapters[i]),
+                  onCancel: widget.onCancelChapter == null
+                      ? null
+                      : () => widget.onCancelChapter!(_chapters[i]),
                 ),
               ],
             8.gap,
@@ -339,6 +409,7 @@ class _NestedChapterRow extends StatelessWidget {
     required this.isLast,
     this.enableDrag = true,
     this.onTogglePause,
+    this.onCancel,
   });
 
   final DownloadQueueItem chapter;
@@ -346,6 +417,7 @@ class _NestedChapterRow extends StatelessWidget {
   final bool isLast;
   final bool enableDrag;
   final VoidCallback? onTogglePause;
+  final VoidCallback? onCancel;
 
   static const double _horizontalPadding = 12;
 
@@ -354,10 +426,16 @@ class _NestedChapterRow extends StatelessWidget {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final TextTheme tt = Theme.of(context).textTheme;
 
-    final Widget dragHandle = Icon(
-      Icons.drag_indicator_rounded,
-      color: cs.onSurfaceVariant,
-      size: 18,
+    final Widget dragHandle = SizedBox(
+      width: 44,
+      height: 48,
+      child: Center(
+        child: Icon(
+          Icons.drag_indicator_rounded,
+          color: cs.onSurfaceVariant,
+          size: 26,
+        ),
+      ),
     );
 
     return Column(
@@ -369,32 +447,38 @@ class _NestedChapterRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (enableDrag)
-                ReorderableDragStartListener(
-                  index: index,
-                  child: dragHandle,
-                )
+                ReorderableDragStartListener(index: index, child: dragHandle)
               else
                 dragHandle,
               8.gap,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(chapter.chapterName, style: tt.bodyMedium),
-                  Text(
-                    sizeLabelMb(40 + chapter.chapterNumber * 8),
-                    style: tt.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      height: 1.2,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      chapter.chapterName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: tt.bodyMedium,
                     ),
-                  ),
-                ],
+                    Text(
+                      sizeLabelMb(40 + chapter.chapterNumber * 8),
+                      style: tt.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
-              _StatusIndicator(
-                item: chapter,
-                onTogglePause: onTogglePause,
-              ),
+              _StatusIndicator(item: chapter, onTogglePause: onTogglePause),
+              if (onCancel != null)
+                IconButton(
+                  onPressed: onCancel,
+                  tooltip: 'Cancel chapter download',
+                  icon: Icon(Icons.close_rounded, color: cs.error),
+                ),
             ],
           ),
         ),
@@ -410,10 +494,7 @@ class _NestedChapterRow extends StatelessWidget {
 }
 
 class _StatusIndicator extends StatelessWidget {
-  const _StatusIndicator({
-    required this.item,
-    this.onTogglePause,
-  });
+  const _StatusIndicator({required this.item, this.onTogglePause});
 
   final DownloadQueueItem item;
   final VoidCallback? onTogglePause;
@@ -422,51 +503,53 @@ class _StatusIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final bool canToggle =
-        onTogglePause != null && (item.status == 1 || item.status == 4);
+        onTogglePause != null &&
+        (item.status == 1 || item.status == 3 || item.status == 4);
 
     final Widget indicator = switch (item.status) {
       1 => SizedBox(
-          width: 44,
-          height: 44,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularWavyProgressIndicator(
-                value: item.progress.clamp(0.0, 1.0),
-              ),
-              Icon(Icons.stop_rounded, size: 20, color: cs.primary),
-            ],
-          ),
+        width: 44,
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularWavyProgressIndicator(value: item.progress.clamp(0.0, 1.0)),
+            Icon(Icons.stop_rounded, size: 20, color: cs.primary),
+          ],
         ),
+      ),
       4 => SizedBox(
-          width: 44,
-          height: 44,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularWavyProgressIndicator(
-                value: item.progress.clamp(0.0, 1.0),
-              ),
-              Icon(Icons.play_arrow_rounded, size: 24, color: cs.primary),
-            ],
-          ),
+        width: 44,
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularWavyProgressIndicator(value: item.progress.clamp(0.0, 1.0)),
+            Icon(Icons.play_arrow_rounded, size: 24, color: cs.primary),
+          ],
         ),
+      ),
       0 => SizedBox(
-          width: 44,
-          height: 44,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const CircularWavyProgressIndicator(value: 0),
-              Icon(
-                Icons.hourglass_top_rounded,
-                size: 18,
-                color: cs.onSurfaceVariant,
-              ),
-            ],
-          ),
+        width: 44,
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const CircularWavyProgressIndicator(value: 0),
+            Icon(
+              Icons.hourglass_top_rounded,
+              size: 18,
+              color: cs.onSurfaceVariant,
+            ),
+          ],
         ),
-      3 => Icon(Icons.error_outline, color: cs.error, size: 28),
+      ),
+      3 => Tooltip(
+        message: item.error == null
+            ? 'Retry download'
+            : '${item.error}\nTap to retry',
+        child: Icon(Icons.refresh_rounded, color: cs.error, size: 28),
+      ),
       _ => const SizedBox(width: 44, height: 44),
     };
 
@@ -496,6 +579,33 @@ class _CoverImage extends StatelessWidget {
       return ColoredBox(
         color: cs.surfaceContainerHighest,
         child: Icon(Icons.image_outlined, color: cs.onSurfaceVariant),
+      );
+    }
+
+    if (path!.startsWith('http')) {
+      return Image.network(
+        path!,
+        fit: BoxFit.cover,
+        headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/133 Safari/537.36',
+          'Referer': Uri.tryParse(path!)?.origin ?? '',
+        },
+        errorBuilder: (context, error, stack) => ColoredBox(
+          color: cs.surfaceContainerHighest,
+          child: Icon(Icons.broken_image, color: cs.onSurfaceVariant),
+        ),
+      );
+    }
+
+    if (path!.startsWith('/') || path!.startsWith('file:')) {
+      return Image.file(
+        File(path!.startsWith('file:') ? Uri.parse(path!).toFilePath() : path!),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => ColoredBox(
+          color: cs.surfaceContainerHighest,
+          child: Icon(Icons.broken_image, color: cs.onSurfaceVariant),
+        ),
       );
     }
 

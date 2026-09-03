@@ -262,7 +262,11 @@ export class ManhuaTopSource extends HttpSource {
       config: {} as any,
     };
 
-    return this.pageListParse(response);
+    return this.pageListParse(response).map((page) => ({
+      ...page,
+      // Image hosts commonly require the reader URL as the HTTP referer.
+      url,
+    }));
   }
 
   popularMangaRequest(page: number): AxiosRequestConfig {

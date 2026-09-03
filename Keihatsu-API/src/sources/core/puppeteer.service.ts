@@ -61,6 +61,71 @@ export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
     return request;
   }
 
+  async fetchBinary(
+    url: string,
+    referer: string,
+  ): Promise<{ data: Buffer; contentType: string }> {
+    const request = this.fetchQueue.then(() =>
+      this.fetchBinaryInternal(url, referer),
+    );
+    this.fetchQueue = request.catch(() => undefined);
+    return request;
+  }
+
+  private async fetchBinaryInternal(
+    url: string,
+    referer: string,
+  ): Promise<{ data: Buffer; contentType: string }> {
+    await this.launchBrowser();
+
+    let page: Page | null = null;
+    try {
+      try {
+        page = await this.browser!.newPage();
+      } catch (error) {
+        if (!this.isConnectionClosedError(error)) throw error;
+        this.browser = undefined;
+        await this.launchBrowser();
+        page = await this.browser!.newPage();
+      }
+
+      await page.setViewport({ width: 1920, height: 1080 });
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+      );
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'en-US,en;q=0.9',
+      });
+
+      // Establish the anti-bot session and retain the reader as the image
+      // request referer by navigating with the same browser page.
+      await page.goto(referer, { waitUntil: 'networkidle2', timeout: 60000 });
+      const response = await page.goto(url, {
+        waitUntil: 'networkidle2',
+        timeout: 60000,
+      });
+      if (!response) {
+        throw new Error(`No response received for ${url}`);
+      }
+
+      const contentType = response.headers()['content-type'] ?? '';
+      if (response.status() >= 400 || !contentType.startsWith('image/')) {
+        throw new Error(
+          `Image request returned ${response.status()} (${contentType || 'unknown content type'})`,
+        );
+      }
+
+      return {
+        data: Buffer.from(await response.content()),
+        contentType,
+      };
+    } finally {
+      if (page) {
+        await page.close().catch(() => undefined);
+      }
+    }
+  }
+
   private async fetchPageContentInternal(
     url: string,
     waitForSelector?: string,
