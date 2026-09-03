@@ -9,6 +9,8 @@ import 'package:keihatsu/models/local_models.dart';
 import 'package:material_shapes/material_shapes.dart';
 import 'package:material_wavy_progress_indicator/material_wavy_progress_indicator.dart';
 
+enum _MangaDownloadAction { cancelAll }
+
 class DownloadMangaGroupData {
   const DownloadMangaGroupData({
     required this.mangaId,
@@ -32,6 +34,8 @@ class DownloadExtensionMangaList extends StatelessWidget {
     required this.onReorderManga,
     required this.onReorderChapters,
     this.onToggleChapterPause,
+    this.onCancelChapter,
+    this.onCancelManga,
     this.borderRadius,
   });
 
@@ -40,6 +44,8 @@ class DownloadExtensionMangaList extends StatelessWidget {
   final void Function(String mangaId, int oldIndex, int newIndex)
   onReorderChapters;
   final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
+  final void Function(DownloadQueueItem chapter)? onCancelChapter;
+  final void Function(String mangaId, String mangaTitle)? onCancelManga;
   final BorderRadius? borderRadius;
 
   BorderRadius _radiusFor(int index) {
@@ -94,19 +100,33 @@ class DownloadExtensionMangaList extends StatelessWidget {
                   thickness: MenuSection.tileGap,
                   color: cs.surface,
                 ),
-              ReorderableDragStartListener(
-                index: index,
-                child: DownloadMangaGroup(
-                  mangaTitle: group.mangaTitle,
-                  mangaThumbnail: group.mangaThumbnail,
-                  chapters: group.chapters,
-                  borderRadius: _radiusFor(index),
-                  onToggleChapterPause: onToggleChapterPause,
-                  onReorderChapters: group.chapters.length > 1
-                      ? (oldIndex, newIndex) =>
-                            onReorderChapters(group.mangaId, oldIndex, newIndex)
-                      : null,
-                ),
+              DownloadMangaGroup(
+                mangaTitle: group.mangaTitle,
+                mangaThumbnail: group.mangaThumbnail,
+                chapters: group.chapters,
+                borderRadius: _radiusFor(index),
+                mangaDragHandle: mangaGroups.length > 1
+                    ? ReorderableDragStartListener(
+                        index: index,
+                        child: const Tooltip(
+                          message: 'Drag to reorder manga',
+                          child: SizedBox(
+                            width: 40,
+                            height: 52,
+                            child: Icon(Icons.drag_handle_rounded, size: 24),
+                          ),
+                        ),
+                      )
+                    : null,
+                onToggleChapterPause: onToggleChapterPause,
+                onCancelChapter: onCancelChapter,
+                onCancelManga: onCancelManga == null
+                    ? null
+                    : () => onCancelManga!(group.mangaId, group.mangaTitle),
+                onReorderChapters: group.chapters.length > 1
+                    ? (oldIndex, newIndex) =>
+                          onReorderChapters(group.mangaId, oldIndex, newIndex)
+                    : null,
               ),
             ],
           );
@@ -128,6 +148,9 @@ class DownloadMangaGroup extends StatefulWidget {
     this.initiallyExpanded = false,
     this.onReorderChapters,
     this.onToggleChapterPause,
+    this.onCancelChapter,
+    this.onCancelManga,
+    this.mangaDragHandle,
   });
 
   final String mangaTitle;
@@ -137,6 +160,9 @@ class DownloadMangaGroup extends StatefulWidget {
   final bool initiallyExpanded;
   final void Function(int oldIndex, int newIndex)? onReorderChapters;
   final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
+  final void Function(DownloadQueueItem chapter)? onCancelChapter;
+  final VoidCallback? onCancelManga;
+  final Widget? mangaDragHandle;
 
   @override
   State<DownloadMangaGroup> createState() => _DownloadMangaGroupState();
@@ -215,6 +241,10 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
               padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
               child: Row(
                 children: [
+                  if (widget.mangaDragHandle != null) ...[
+                    widget.mangaDragHandle!,
+                    4.gap,
+                  ],
                   ClipPath(
                     clipper: ShapeBorderClipper(
                       shape: MaterialShapeBorder(shape: ShapeValues.cover),
@@ -275,6 +305,33 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                           ? null
                           : () => widget.onToggleChapterPause!(primary),
                     ),
+                  if (!_hasMultipleChapters && widget.onCancelChapter != null)
+                    IconButton(
+                      onPressed: () => widget.onCancelChapter!(primary),
+                      tooltip: 'Cancel chapter download',
+                      icon: Icon(Icons.close_rounded, color: cs.error),
+                    ),
+                  if (_hasMultipleChapters && widget.onCancelManga != null)
+                    PopupMenuButton<_MangaDownloadAction>(
+                      tooltip: 'Manga download actions',
+                      icon: const Icon(Icons.more_vert_rounded),
+                      onSelected: (_) => widget.onCancelManga!(),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: _MangaDownloadAction.cancelAll,
+                          child: Row(
+                            children: [
+                              Icon(Icons.cancel_outlined, color: cs.error),
+                              12.gap,
+                              Text(
+                                'Cancel all chapters',
+                                style: TextStyle(color: cs.error),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -305,6 +362,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                     onTogglePause: widget.onToggleChapterPause == null
                         ? null
                         : () => widget.onToggleChapterPause!(_chapters[index]),
+                    onCancel: widget.onCancelChapter == null
+                        ? null
+                        : () => widget.onCancelChapter!(_chapters[index]),
                   );
                 },
               )
@@ -324,6 +384,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                   onTogglePause: widget.onToggleChapterPause == null
                       ? null
                       : () => widget.onToggleChapterPause!(_chapters[i]),
+                  onCancel: widget.onCancelChapter == null
+                      ? null
+                      : () => widget.onCancelChapter!(_chapters[i]),
                 ),
               ],
             8.gap,
@@ -342,6 +405,7 @@ class _NestedChapterRow extends StatelessWidget {
     required this.isLast,
     this.enableDrag = true,
     this.onTogglePause,
+    this.onCancel,
   });
 
   final DownloadQueueItem chapter;
@@ -349,6 +413,7 @@ class _NestedChapterRow extends StatelessWidget {
   final bool isLast;
   final bool enableDrag;
   final VoidCallback? onTogglePause;
+  final VoidCallback? onCancel;
 
   static const double _horizontalPadding = 12;
 
@@ -357,10 +422,16 @@ class _NestedChapterRow extends StatelessWidget {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final TextTheme tt = Theme.of(context).textTheme;
 
-    final Widget dragHandle = Icon(
-      Icons.drag_indicator_rounded,
-      color: cs.onSurfaceVariant,
-      size: 18,
+    final Widget dragHandle = SizedBox(
+      width: 44,
+      height: 48,
+      child: Center(
+        child: Icon(
+          Icons.drag_indicator_rounded,
+          color: cs.onSurfaceVariant,
+          size: 26,
+        ),
+      ),
     );
 
     return Column(
@@ -376,22 +447,34 @@ class _NestedChapterRow extends StatelessWidget {
               else
                 dragHandle,
               8.gap,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(chapter.chapterName, style: tt.bodyMedium),
-                  Text(
-                    sizeLabelMb(40 + chapter.chapterNumber * 8),
-                    style: tt.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      height: 1.2,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      chapter.chapterName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: tt.bodyMedium,
                     ),
-                  ),
-                ],
+                    Text(
+                      sizeLabelMb(40 + chapter.chapterNumber * 8),
+                      style: tt.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
               _StatusIndicator(item: chapter, onTogglePause: onTogglePause),
+              if (onCancel != null)
+                IconButton(
+                  onPressed: onCancel,
+                  tooltip: 'Cancel chapter download',
+                  icon: Icon(Icons.close_rounded, color: cs.error),
+                ),
             ],
           ),
         ),

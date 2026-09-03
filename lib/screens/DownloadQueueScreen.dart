@@ -178,6 +178,66 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
     }
   }
 
+  Future<bool> _confirmCancellation({
+    required String title,
+    required String message,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            icon: Icon(
+              Icons.cancel_outlined,
+              color: Theme.of(dialogContext).colorScheme.error,
+            ),
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Keep downloading'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+                ),
+                child: const Text('Cancel download'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _cancelChapter(
+    DownloadQueueItem chapter,
+    DownloadProvider provider,
+  ) async {
+    final confirmed = await _confirmCancellation(
+      title: 'Cancel ${chapter.chapterName}?',
+      message: 'Downloaded pages for this chapter will be removed.',
+    );
+    if (!confirmed || !mounted) return;
+
+    await provider.removeFromQueue(chapter.chapterId);
+  }
+
+  Future<void> _cancelManga(
+    String sourceId,
+    String mangaId,
+    String mangaTitle,
+    DownloadProvider provider,
+  ) async {
+    final confirmed = await _confirmCancellation(
+      title: 'Cancel all downloads?',
+      message: 'All queued chapters for $mangaTitle will be removed.',
+    );
+    if (!confirmed || !mounted) return;
+
+    await provider.cancelMangaDownloads(sourceId, mangaId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -343,6 +403,9 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
             ),
         onToggleChapterPause: (chapter) =>
             _toggleChapterPause(chapter, provider, usingMock),
+        onCancelChapter: (chapter) => _cancelChapter(chapter, provider),
+        onCancelManga: (mangaId, mangaTitle) =>
+            _cancelManga(sourceId, mangaId, mangaTitle, provider),
       ),
     );
   }

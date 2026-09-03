@@ -352,6 +352,10 @@ class MangaRepository {
       onProgress?.call((i + 1) / pages.length);
     }
 
+    if (isCancelled?.call() == true) {
+      throw Exception('Download cancelled');
+    }
+
     // Keep the individual page files available to the offline reader and also
     // write the portable archive users can find in the public downloads folder.
     await fileService.createCbz(
@@ -527,6 +531,16 @@ class MangaRepository {
     String mangaId,
     String chapterId,
   ) async {
+    final chapter = await isar
+        .collection<LocalChapter>()
+        .filter()
+        .sourceIdEqualTo(sourceId)
+        .mangaIdEqualTo(mangaId)
+        .chapterIdEqualTo(chapterId)
+        .ownerUserIdEqualTo(_currentUserId)
+        .findFirst();
+    final wasDownloaded = chapter?.downloaded ?? false;
+
     // 1. Delete files
     await fileService.deleteChapter(sourceId, mangaId, chapterId);
 
@@ -536,18 +550,11 @@ class MangaRepository {
           .collection<LocalPage>()
           .filter()
           .chapterIdEqualTo(chapterId)
+          .ownerUserIdEqualTo(_currentUserId)
           .deleteAll();
     });
 
     // 3. Update Isar
-    final chapter = await isar
-        .collection<LocalChapter>()
-        .filter()
-        .sourceIdEqualTo(sourceId)
-        .mangaIdEqualTo(mangaId)
-        .chapterIdEqualTo(chapterId)
-        .findFirst();
-
     if (chapter != null) {
       chapter.downloaded = false;
       await isar.writeTxn(() => isar.collection<LocalChapter>().put(chapter));
@@ -558,9 +565,10 @@ class MangaRepository {
           .filter()
           .mangaIdEqualTo(mangaId)
           .sourceIdEqualTo(sourceId)
+          .ownerUserIdEqualTo(_currentUserId)
           .findFirst();
 
-      if (libraryEntry != null) {
+      if (libraryEntry != null && wasDownloaded) {
         if (libraryEntry.downloadedCount > 0) {
           libraryEntry.downloadedCount -= 1;
           await isar.writeTxn(
