@@ -80,6 +80,8 @@ class DownloadProvider with ChangeNotifier {
   }
 
   List<DownloadQueueItem> get queue => _queue;
+  int get activeDownloadCount =>
+      _queue.where((item) => item.status == 0 || item.status == 1).length;
   bool get isGlobalPaused => _isGlobalPaused;
   bool get isOnline => _isOnline;
 
@@ -186,6 +188,8 @@ class DownloadProvider with ChangeNotifier {
     if (item == null) return;
 
     item.status = 0; // Queued
+    item.progress = 0;
+    item.error = null;
     await isar.writeTxn(() async {
       await isar.downloadQueueItems.put(item);
     });
@@ -570,6 +574,10 @@ class DownloadProvider with ChangeNotifier {
 
       if (_cancellationTokens[item.chapterId] == true) {
         throw Exception('Download cancelled');
+      }
+
+      if (item.progress < 1) {
+        throw Exception('Download finished without completing every page');
       }
 
       // Success

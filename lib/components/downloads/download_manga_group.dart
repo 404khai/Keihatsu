@@ -194,6 +194,7 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
     final int downloading = _chapters.where((c) => c.status == 1).length;
     final int queued = _chapters.where((c) => c.status == 0).length;
     final int paused = _chapters.where((c) => c.status == 4).length;
+    final int failed = _chapters.where((c) => c.status == 3).length;
 
     if (downloading > 0 && queued > 0) {
       return '$downloading downloading · $queued queued';
@@ -203,6 +204,9 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
     }
     if (queued > 0) return '$queued chapter${queued == 1 ? '' : 's'} queued';
     if (paused > 0) return 'Paused';
+    if (failed > 0) {
+      return '$failed chapter${failed == 1 ? '' : 's'} failed';
+    }
     return '${_chapters.length} chapter${_chapters.length == 1 ? '' : 's'}';
   }
 
@@ -499,7 +503,8 @@ class _StatusIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final bool canToggle =
-        onTogglePause != null && (item.status == 1 || item.status == 4);
+        onTogglePause != null &&
+        (item.status == 1 || item.status == 3 || item.status == 4);
 
     final Widget indicator = switch (item.status) {
       1 => SizedBox(
@@ -539,7 +544,12 @@ class _StatusIndicator extends StatelessWidget {
           ],
         ),
       ),
-      3 => Icon(Icons.error_outline, color: cs.error, size: 28),
+      3 => Tooltip(
+        message: item.error == null
+            ? 'Retry download'
+            : '${item.error}\nTap to retry',
+        child: Icon(Icons.refresh_rounded, color: cs.error, size: 28),
+      ),
       _ => const SizedBox(width: 44, height: 44),
     };
 

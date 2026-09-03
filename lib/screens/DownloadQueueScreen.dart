@@ -26,7 +26,10 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
 
   List<DownloadQueueItem> _resolveItems(List<DownloadQueueItem> source) {
     return source
-        .where((d) => d.status == 0 || d.status == 1 || d.status == 4)
+        .where(
+          (d) =>
+              d.status == 0 || d.status == 1 || d.status == 3 || d.status == 4,
+        )
         .toList();
 
     /*
@@ -173,7 +176,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
 
     if (chapter.status == 1) {
       provider.pauseDownload(chapter.chapterId);
-    } else if (chapter.status == 4) {
+    } else if (chapter.status == 3 || chapter.status == 4) {
       provider.resumeDownload(chapter.chapterId);
     }
   }
@@ -301,7 +304,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.download_for_offline_outlined,
+                        Icons.cloud_download_outlined,
                         size: 64,
                         color: cs.primary,
                       ),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:isar/isar.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/local_models.dart';
@@ -323,12 +325,19 @@ class MangaRepository {
       }
 
       final page = pages[i];
-      // Sanitize mangaId to prevent extra path segments
-      final safeMangaId = mangaId.replaceAll('/', '_');
-
+      final downloadUrl = api.getDownloadImageUrl(
+        sourceId: sourceId,
+        imageUrl: page.imageUrl,
+        referer: page.url,
+      );
       final localPath = await fileService.downloadFile(
-        page.imageUrl,
-        'downloads/$sourceId/$safeMangaId/$chapterId/page${page.index.toString().padLeft(3, '0')}.jpg',
+        downloadUrl,
+        fileService.getChapterPageSubPath(
+          sourceId: sourceId,
+          mangaId: mangaId,
+          chapterId: chapterId,
+          index: page.index,
+        ),
         referer: page.url,
       );
 
@@ -358,12 +367,16 @@ class MangaRepository {
 
     // Keep the individual page files available to the offline reader and also
     // write the portable archive users can find in the public downloads folder.
-    await fileService.createCbz(
+    final cbzPath = await fileService.createCbz(
       sourceId: sourceId,
       mangaId: mangaId,
       chapterId: chapterId,
       pagePaths: downloadedPagePaths,
     );
+    final cbzFile = File(cbzPath);
+    if (!await cbzFile.exists() || await cbzFile.length() == 0) {
+      throw Exception('The CBZ archive was not saved');
+    }
 
     // 3. Mark as downloaded
     final chapter = await isar

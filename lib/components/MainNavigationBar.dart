@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'scaffold_floating_main_nav.dart';
+import 'floating_nav.dart';
 
 // import 'expandable_floating_main_nav.dart';
-// import 'floating_nav.dart';
 // import 'reference_main_nav.dart';
+// import 'scaffold_floating_main_nav.dart';
 
 /// Bottom navigation for main tabs.
 ///
@@ -26,22 +26,19 @@ class MainNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldFloatingMainNav(
-      currentIndex: currentIndex,
-      brandColor: brandColor,
-    );
+    return FloatingNav(currentIndex: currentIndex, brandColor: brandColor);
 
     // return ExpandableFloatingMainNav(
     //   currentIndex: currentIndex,
     //   brandColor: brandColor,
     // );
 
-    // return FloatingNav(
+    // return ReferenceMainNav(
     //   currentIndex: currentIndex,
     //   brandColor: brandColor,
     // );
 
-    // return ReferenceMainNav(
+    // return ScaffoldFloatingMainNav(
     //   currentIndex: currentIndex,
     //   brandColor: brandColor,
     // );

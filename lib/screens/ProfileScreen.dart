@@ -14,6 +14,7 @@ import 'package:keihatsu/components/menu/styled_sheet.dart';
 import 'package:keihatsu/components/menu/version_indicator.dart';
 import 'package:keihatsu/components/notification_pill.dart';
 import 'package:keihatsu/providers/auth_provider.dart';
+import 'package:keihatsu/providers/download_provider.dart';
 import 'package:keihatsu/screens/AboutScreen.dart';
 import 'package:keihatsu/screens/DonateScreen.dart';
 import 'package:keihatsu/screens/DataStorageScreen.dart';
@@ -92,6 +93,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final activeDownloadCount = context.select<DownloadProvider, int>(
+      (provider) => provider.activeDownloadCount,
+    );
     final user = authProvider.user;
     final ColorScheme cs = Theme.of(context).colorScheme;
     final bool isDarkTheme = themeProvider.isDarkTheme;
@@ -278,6 +282,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         MenuTile(
                           icon: Icons.cloud_download_outlined,
                           title: 'Download Queue',
+                          trailing: activeDownloadCount > 0
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: cs.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(3),
+                                          child: Text(
+                                            activeDownloadCount.toString(),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall
+                                                ?.copyWith(
+                                                  color: cs.onPrimary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    8.gap,
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ],
+                                )
+                              : null,
                           onTap: () =>
                               _push(context, const DownloadQueueScreen()),
                         ),

@@ -124,14 +124,33 @@ class FileService {
 
     final encoded = ZipEncoder().encode(archive);
 
-    final safeSourceId = _safeComponent(sourceId);
-    final safeMangaId = _safeComponent(mangaId);
-    final safeChapterId = _safeComponent(chapterId);
-    final subPath = 'downloads/$safeSourceId/$safeMangaId/$safeChapterId.cbz';
+    final subPath = getChapterCbzSubPath(
+      sourceId: sourceId,
+      mangaId: mangaId,
+      chapterId: chapterId,
+    );
     final baseDir = await _getBaseDirectory('downloads/');
     final output = File(p.join(baseDir.path, subPath));
+    final partialOutput = File('${output.path}.part');
     await output.parent.create(recursive: true);
-    await output.writeAsBytes(encoded, flush: true);
+
+    if (await partialOutput.exists()) {
+      await partialOutput.delete();
+    }
+    await partialOutput.writeAsBytes(encoded, flush: true);
+
+    if (!await partialOutput.exists() || await partialOutput.length() == 0) {
+      throw Exception('Failed to write the CBZ archive');
+    }
+
+    if (await output.exists()) {
+      await output.delete();
+    }
+    await partialOutput.rename(output.path);
+
+    if (!await output.exists() || await output.length() == 0) {
+      throw Exception('CBZ archive was not saved');
+    }
     return output.path;
   }
 
@@ -175,15 +194,20 @@ class FileService {
         await file.parent.create(recursive: true);
       }
 
+      final effectiveReferer = referer == null || referer.trim().isEmpty
+          ? _buildReferer(url)
+          : referer;
       await _dio.download(
         url,
         fullPath,
+        deleteOnError: true,
         options: Options(
           headers: {
             'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-            'Referer': referer ?? _buildReferer(url),
-            'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+                'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36',
+            'Referer': effectiveReferer,
+            'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
           },
         ),
       );
@@ -226,18 +250,68 @@ class FileService {
     String chapterId,
     int index,
   ) async {
-    // Sanitize mangaId to prevent nested directories from slashes (e.g., "manhua/ordeal")
-    final safeMangaId = mangaId.replaceAll('/', '_');
-
-    // This must match the logic in downloadFile for retrieval
-    final subPath =
-        'downloads/$sourceId/$safeMangaId/$chapterId/page${index.toString().padLeft(3, '0')}.jpg';
+    final subPath = getChapterPageSubPath(
+      sourceId: sourceId,
+      mangaId: mangaId,
+      chapterId: chapterId,
+      index: index,
+    );
     final baseDir = await _getBaseDirectory(subPath);
     return p.join(baseDir.path, subPath);
   }
 
+  String chapterDownloadSubPath({
+    required String sourceId,
+    required String mangaId,
+    required String chapterId,
+  }) {
+    return p.join(
+      'downloads',
+      _safeComponent(sourceId),
+      _safeComponent(mangaId),
+      _chapterPathComponent(chapterId),
+    );
+  }
+
+  String getChapterPageSubPath({
+    required String sourceId,
+    required String mangaId,
+    required String chapterId,
+    required int index,
+  }) {
+    return p.join(
+      chapterDownloadSubPath(
+        sourceId: sourceId,
+        mangaId: mangaId,
+        chapterId: chapterId,
+      ),
+      'page${index.toString().padLeft(3, '0')}.jpg',
+    );
+  }
+
+  String getChapterCbzSubPath({
+    required String sourceId,
+    required String mangaId,
+    required String chapterId,
+  }) {
+    return '${chapterDownloadSubPath(sourceId: sourceId, mangaId: mangaId, chapterId: chapterId)}.cbz';
+  }
+
   String _safeComponent(String value) {
     return value.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').trim();
+  }
+
+  String _chapterPathComponent(String chapterId) {
+    final normalized = chapterId.replaceAll('\\', '/');
+    final withoutQuery = normalized.split(RegExp(r'[?#]')).first;
+    final segments = withoutQuery
+        .split('/')
+        .map((segment) => segment.trim())
+        .where((segment) => segment.isNotEmpty)
+        .toList();
+    final leaf = segments.isEmpty ? chapterId : segments.last;
+    final safeLeaf = _safeComponent(leaf);
+    return safeLeaf.isEmpty ? 'chapter' : safeLeaf;
   }
 
   Future<void> deleteChapter(
@@ -245,11 +319,11 @@ class FileService {
     String mangaId,
     String chapterId,
   ) async {
-    // Sanitize mangaId to match creation logic
-    final safeMangaId = mangaId.replaceAll('/', '_');
-
-    final chapterSubPath =
-        'downloads/$sourceId/$safeMangaId/${_safeComponent(chapterId)}';
+    final chapterSubPath = chapterDownloadSubPath(
+      sourceId: sourceId,
+      mangaId: mangaId,
+      chapterId: chapterId,
+    );
     final baseDir = await _getBaseDirectory(chapterSubPath);
     final chapterDir = Directory(p.join(baseDir.path, chapterSubPath));
 
@@ -260,10 +334,11 @@ class FileService {
     final baseDirForArchive = await _getBaseDirectory('downloads/');
     final cbzPath = p.join(
       baseDirForArchive.path,
-      'downloads',
-      sourceId,
-      safeMangaId,
-      '${_safeComponent(chapterId)}.cbz',
+      getChapterCbzSubPath(
+        sourceId: sourceId,
+        mangaId: mangaId,
+        chapterId: chapterId,
+      ),
     );
     final cbzFile = File(cbzPath);
     if (await cbzFile.exists()) {
@@ -271,7 +346,7 @@ class FileService {
     }
 
     // Check if manga folder is empty and delete if so
-    final mangaSubPath = 'downloads/$sourceId/$safeMangaId';
+    final mangaSubPath = p.dirname(chapterSubPath);
     final mangaDir = Directory(p.join(baseDir.path, mangaSubPath));
     if (await mangaDir.exists()) {
       final entities = await mangaDir.list().toList();
