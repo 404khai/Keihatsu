@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import '../models/user.dart';
+import 'user_blobatar.dart';
 import '../screens/PublicProfileScreen.dart';
 import '../services/auth_api.dart';
 import '../theme_provider.dart';
@@ -34,9 +35,8 @@ class _UserProfileSheetState extends State<UserProfileSheet> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final brandColor = themeProvider.brandColor;
     final bgColor = themeProvider.effectiveBgColor;
-    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
+    final isDarkMode = themeProvider.isDarkTheme;
     final textColor = isDarkMode ? Colors.white : Colors.black87;
     final cardColor = isDarkMode
         ? Colors.white.withOpacity(0.05)
@@ -55,7 +55,6 @@ class _UserProfileSheetState extends State<UserProfileSheet> {
           final bio = profile?.bio?.trim().isNotEmpty == true
               ? profile!.bio!.trim()
               : 'No bio available';
-          final avatarUrl = profile?.avatarUrl ?? widget.userImage;
           final bannerUrl = profile?.bannerUrl;
 
           return SingleChildScrollView(
@@ -101,7 +100,7 @@ class _UserProfileSheetState extends State<UserProfileSheet> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
-                          child: _buildAvatar(avatarUrl, 90),
+                          child: _buildAvatar(profile, displayName, 90),
                         ),
                       ),
                     ),
@@ -175,31 +174,31 @@ class _UserProfileSheetState extends State<UserProfileSheet> {
                           style: TextStyle(color: textColor.withOpacity(0.6)),
                         )
                       else if (profile != null)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildStatItem(
-                                '${profile.stats?.commentsCount ?? 0}',
-                                'Comments',
-                                textColor,
-                              ),
-                              _buildStatItem(
-                                '${profile.stats?.mangasReadToday ?? 0}',
-                                'Read today',
-                                textColor,
-                              ),
-                              _buildStatItem(
-                                '${profile.stats?.libraryCount ?? 0}',
-                                'Library',
-                                textColor,
-                              ),
-                              _buildStatItem(
-                                '${profile.stats?.points ?? 0}',
-                                'Points',
-                                textColor,
-                              ),
-                            ],
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildStatItem(
+                              '${profile.stats?.commentsCount ?? 0}',
+                              'Comments',
+                              textColor,
+                            ),
+                            _buildStatItem(
+                              '${profile.stats?.mangasReadToday ?? 0}',
+                              'Read today',
+                              textColor,
+                            ),
+                            _buildStatItem(
+                              '${profile.stats?.libraryCount ?? 0}',
+                              'Library',
+                              textColor,
+                            ),
+                            _buildStatItem(
+                              '${profile.stats?.points ?? 0}',
+                              'Points',
+                              textColor,
+                            ),
+                          ],
+                        ),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
@@ -259,47 +258,23 @@ class _UserProfileSheetState extends State<UserProfileSheet> {
       return Image.network(
         bannerUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.asset(
-          'images/profileBg.jpeg',
-          fit: BoxFit.cover,
-        ),
+        errorBuilder: (context, error, stackTrace) =>
+            Image.asset('images/profileBg.jpeg', fit: BoxFit.cover),
       );
     }
 
     return Image.asset('images/profileBg.jpeg', fit: BoxFit.cover);
   }
 
-  Widget _buildAvatar(String? avatarUrl, double size) {
-    if (avatarUrl != null && avatarUrl.isNotEmpty) {
-      final isNetwork = avatarUrl.startsWith('http');
-      if (isNetwork) {
-        return Image.network(
-          avatarUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Image.asset(
-            'images/user3.jpeg',
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-          ),
-        );
-      }
-
-      return Image.asset(
-        avatarUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-      );
-    }
-
-    return Image.asset(
-      'images/user3.jpeg',
-      width: size,
-      height: size,
-      fit: BoxFit.cover,
+  Widget _buildAvatar(PublicProfile? profile, String label, double size) {
+    return UserBlobatar(
+      seed: profile?.id ?? widget.userId,
+      label: label,
+      size: size,
+      hue: profile?.avatarHue,
+      shape: profile?.avatarShape,
+      expression: profile?.avatarExpression ?? 'happy',
+      animated: profile?.avatarAnimated ?? false,
     );
   }
 
@@ -317,10 +292,7 @@ class _UserProfileSheetState extends State<UserProfileSheet> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 11,
-            color: textColor.withOpacity(0.5),
-          ),
+          style: TextStyle(fontSize: 11, color: textColor.withOpacity(0.5)),
         ),
       ],
     );

@@ -94,6 +94,20 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Reloads the authoritative profile after an editor route closes.
+  ///
+  /// Profile updates return before the previous route is revealed. Fetching
+  /// the user again prevents that cached route from continuing to render an
+  /// older avatar configuration, while retaining the separately loaded stats.
+  Future<void> refreshCurrentUser() async {
+    if (_token == null) return;
+
+    final currentStats = _user?.stats;
+    final refreshedUser = await _authApi.getMe(_token!);
+    _user = refreshedUser.copyWith(stats: currentStats);
+    notifyListeners();
+  }
+
   Future<void> fetchPreferences() async {
     try {
       final localPrefs = await userRepository.getPreferences();
@@ -269,8 +283,11 @@ class AuthProvider with ChangeNotifier {
   Future<void> updateProfile({
     String? username,
     String? bio,
-    File? avatar,
     File? banner,
+    double? avatarHue,
+    double? avatarShape,
+    required String avatarExpression,
+    required bool avatarAnimated,
   }) async {
     if (_token == null) return;
 
@@ -282,10 +299,13 @@ class AuthProvider with ChangeNotifier {
         token: _token!,
         username: username,
         bio: bio,
-        avatar: avatar,
         banner: banner,
+        avatarHue: avatarHue,
+        avatarShape: avatarShape,
+        avatarExpression: avatarExpression,
+        avatarAnimated: avatarAnimated,
       );
-      _user = updatedUser;
+      _user = updatedUser.copyWith(stats: _user?.stats);
       _isLoading = false;
       notifyListeners();
     } catch (e) {

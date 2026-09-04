@@ -3,6 +3,10 @@ class User {
   final String? googleId;
   final String? email;
   final String? avatarUrl;
+  final double? avatarHue;
+  final double? avatarShape;
+  final String avatarExpression;
+  final bool avatarAnimated;
   final String? bannerUrl;
   final String? username;
   final String? bio;
@@ -21,6 +25,10 @@ class User {
     this.googleId,
     this.email,
     this.avatarUrl,
+    this.avatarHue,
+    this.avatarShape,
+    this.avatarExpression = 'happy',
+    this.avatarAnimated = false,
     this.bannerUrl,
     this.username,
     this.bio,
@@ -41,12 +49,22 @@ class User {
       googleId: json['googleId'],
       email: json['email'],
       avatarUrl: json['avatarUrl'],
+      avatarHue: (json['avatarHue'] as num?)?.toDouble(),
+      avatarShape: (json['avatarShape'] as num?)?.toDouble(),
+      avatarExpression: json['avatarExpression'] ?? 'happy',
+      avatarAnimated: json['avatarAnimated'] ?? false,
       bannerUrl: json['bannerUrl'],
       username: json['username'],
       bio: json['bio'],
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
-      lastLoginAt: json['lastLoginAt'] != null ? DateTime.parse(json['lastLoginAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : null,
+      lastLoginAt: json['lastLoginAt'] != null
+          ? DateTime.parse(json['lastLoginAt'])
+          : null,
       isOnboarded: json['isOnboarded'] ?? false,
       isProfilePublic: json['isProfilePublic'] ?? true,
       readingStats: json['readingStats'],
@@ -62,6 +80,10 @@ class User {
       'googleId': googleId,
       'email': email,
       'avatarUrl': avatarUrl,
+      'avatarHue': avatarHue,
+      'avatarShape': avatarShape,
+      'avatarExpression': avatarExpression,
+      'avatarAnimated': avatarAnimated,
       'bannerUrl': bannerUrl,
       'username': username,
       'bio': bio,
@@ -82,6 +104,10 @@ class User {
     String? googleId,
     String? email,
     String? avatarUrl,
+    double? avatarHue,
+    double? avatarShape,
+    String? avatarExpression,
+    bool? avatarAnimated,
     String? bannerUrl,
     String? username,
     String? bio,
@@ -100,6 +126,10 @@ class User {
       googleId: googleId ?? this.googleId,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      avatarHue: avatarHue ?? this.avatarHue,
+      avatarShape: avatarShape ?? this.avatarShape,
+      avatarExpression: avatarExpression ?? this.avatarExpression,
+      avatarAnimated: avatarAnimated ?? this.avatarAnimated,
       bannerUrl: bannerUrl ?? this.bannerUrl,
       username: username ?? this.username,
       bio: bio ?? this.bio,
@@ -212,6 +242,10 @@ class PublicProfile {
   final String id;
   final String username;
   final String? avatarUrl;
+  final double? avatarHue;
+  final double? avatarShape;
+  final String avatarExpression;
+  final bool avatarAnimated;
   final String? bannerUrl;
   final String? bio;
   final bool isProfilePublic;
@@ -223,6 +257,10 @@ class PublicProfile {
     required this.id,
     required this.username,
     this.avatarUrl,
+    this.avatarHue,
+    this.avatarShape,
+    this.avatarExpression = 'happy',
+    this.avatarAnimated = false,
     this.bannerUrl,
     this.bio,
     this.isProfilePublic = true,
@@ -236,6 +274,10 @@ class PublicProfile {
       id: json['id'] ?? '',
       username: json['username'] ?? '',
       avatarUrl: json['avatarUrl'],
+      avatarHue: (json['avatarHue'] as num?)?.toDouble(),
+      avatarShape: (json['avatarShape'] as num?)?.toDouble(),
+      avatarExpression: json['avatarExpression'] ?? 'happy',
+      avatarAnimated: json['avatarAnimated'] ?? false,
       bannerUrl: json['bannerUrl'],
       bio: json['bio'],
       isProfilePublic: json['isProfilePublic'] ?? true,

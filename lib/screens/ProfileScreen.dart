@@ -13,6 +13,7 @@ import 'package:keihatsu/components/menu/menu_tile.dart';
 import 'package:keihatsu/components/menu/styled_sheet.dart';
 import 'package:keihatsu/components/menu/version_indicator.dart';
 import 'package:keihatsu/components/notification_pill.dart';
+import 'package:keihatsu/components/user_blobatar.dart';
 import 'package:keihatsu/providers/auth_provider.dart';
 import 'package:keihatsu/providers/download_provider.dart';
 import 'package:keihatsu/screens/AboutScreen.dart';
@@ -27,7 +28,6 @@ import 'package:keihatsu/screens/StatsScreen.dart';
 import 'package:keihatsu/theme_provider.dart';
 import 'package:material_shapes/material_shapes.dart';
 import 'package:provider/provider.dart';
-import 'package:usenavii/usenavii.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -71,6 +71,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _push(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+  }
+
+  Future<void> _openEditProfile(AuthProvider authProvider) async {
+    final profileChanged = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+    );
+    if (!mounted || profileChanged != true) return;
+
+    try {
+      await authProvider.refreshCurrentUser();
+    } catch (error) {
+      // The optimistic update from the PATCH response is still available.
+      // A later pull-to-refresh or app launch can retry the authoritative GET.
+      debugPrint('Failed to refresh profile after editing: $error');
+    }
   }
 
   // Future<void> _handleGoogleSignIn(
@@ -143,11 +159,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               backgroundColor: Colors.transparent,
                               child: ClipOval(
                                 child: avatarSeed != null
-                                    ? Navii(
+                                    ? UserBlobatar(
                                         seed: avatarSeed,
+                                        label: displayName,
                                         size: 32,
-                                        background: 'none',
-                                        title: '$displayName avatar',
+                                        hue: user?.avatarHue,
+                                        shape: user?.avatarShape,
+                                        expression:
+                                            user?.avatarExpression ?? 'happy',
+                                        animated: user?.avatarAnimated ?? false,
                                       )
                                     : OfflineImage(
                                         imageUrl: avatarUrl,
@@ -192,6 +212,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           displayName: displayName,
                           avatarSeed: avatarSeed,
                           avatarUrl: avatarUrl,
+                          avatarHue: user?.avatarHue,
+                          avatarShape: user?.avatarShape,
+                          avatarExpression: user?.avatarExpression ?? 'happy',
+                          avatarAnimated: user?.avatarAnimated ?? false,
                           stats: [
                             MenuHeaderStat(
                               value: _formatListeningTime(readingMinutes),
@@ -234,7 +258,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             );
                           },
                           onEditTap: isAuthenticated
-                              ? () => _push(context, const EditProfileScreen())
+                              ? () => _openEditProfile(authProvider)
                               : null,
                           // Guest sign-in — commented to preview authenticated layout.
                           // belowName: !authProvider.isAuthenticated

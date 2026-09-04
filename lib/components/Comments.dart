@@ -9,6 +9,7 @@ import 'UserProfileSheet.dart';
 import '../providers/auth_provider.dart';
 import '../providers/comments_provider.dart';
 import '../models/comment.dart';
+import 'user_blobatar.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -132,11 +133,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   void _showUserProfile(
-      BuildContext context,
-      String userId,
-      String username,
-      String? userImage,
-      ) {
+    BuildContext context,
+    String userId,
+    String username,
+    String? userImage,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -238,15 +239,17 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
     final brandColor = themeProvider.brandColor;
     final bgColor = themeProvider.effectiveBgColor;
-    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
+    final isDarkMode = themeProvider.isDarkTheme;
     final textColor = isDarkMode ? Colors.white : Colors.black87;
-
-    ImageProvider userAvatar;
-    if (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty) {
-      userAvatar = NetworkImage(user!.avatarUrl!);
-    } else {
-      userAvatar = const AssetImage("images/user3.jpeg");
-    }
+    final userAvatar = UserBlobatar(
+      seed: user?.id ?? 'keihatsu-guest',
+      label: user?.username ?? 'Reader',
+      size: 36,
+      hue: user?.avatarHue,
+      shape: user?.avatarShape,
+      expression: user?.avatarExpression ?? 'happy',
+      animated: user?.avatarAnimated ?? false,
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -292,7 +295,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                 PhosphorIcons.caretLeft(),
                                 "Previous",
                                 isEnabled:
-                                _currentIndex < widget.chapters.length - 1,
+                                    _currentIndex < widget.chapters.length - 1,
                               ),
                             ),
                             Text(
@@ -388,35 +391,35 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                         else if (commentsProvider.error != null)
                           Center(child: Text(commentsProvider.error!))
                         else if (commentsProvider.comments.isEmpty)
-                            Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const SizedBox(height: 40),
-                                  Icon(
-                                    PhosphorIcons.chatTeardropDots(
-                                      PhosphorIconsStyle.fill,
-                                    ),
-                                    size: 64,
-                                    color: textColor.withOpacity(0.2),
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(height: 40),
+                                Icon(
+                                  PhosphorIcons.chatTeardropDots(
+                                    PhosphorIconsStyle.fill,
                                   ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    "Be the first to comment",
-                                    style: TextStyle(
-                                      color: textColor.withOpacity(0.6),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  size: 64,
+                                  color: textColor.withOpacity(0.2),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  "Be the first to comment",
+                                  style: TextStyle(
+                                    color: textColor.withOpacity(0.6),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ],
-                              ),
-                            )
-                          else
-                            ...commentsProvider.comments.map(
-                                  (comment) =>
-                                  _buildCommentThread(context, comment: comment),
+                                ),
+                              ],
                             ),
+                          )
+                        else
+                          ...commentsProvider.comments.map(
+                            (comment) =>
+                                _buildCommentThread(context, comment: comment),
+                          ),
                       ],
                     ),
                   ),
@@ -438,12 +441,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   Widget _buildInputArea(
-      BuildContext context,
-      Color bgColor,
-      Color textColor,
-      ImageProvider userAvatar,
-      Color brandColor,
-      ) {
+    BuildContext context,
+    Color bgColor,
+    Color textColor,
+    Widget userAvatar,
+    Color brandColor,
+  ) {
     if (!_isOnline) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -487,15 +490,15 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   ? CrossAxisAlignment.start
                   : CrossAxisAlignment.center,
               children: [
-                CircleAvatar(radius: 18, backgroundImage: userAvatar),
+                ClipOval(child: userAvatar),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Container(
                     decoration: !_isFocused
                         ? BoxDecoration(
-                      color: textColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(24),
-                    )
+                            color: textColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(24),
+                          )
                         : null,
                     constraints: _isFocused
                         ? const BoxConstraints(maxHeight: 120)
@@ -513,20 +516,20 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                         border: InputBorder.none,
                         contentPadding: !_isFocused
                             ? const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        )
+                                horizontal: 16,
+                                vertical: 12,
+                              )
                             : EdgeInsets.zero,
                         isDense: true,
                         suffixIcon: !_isFocused
                             ? GestureDetector(
-                          onTap: _pickImage,
-                          child: Icon(
-                            PhosphorIcons.image(),
-                            color: textColor.withOpacity(0.6),
-                            size: 24,
-                          ),
-                        )
+                                onTap: _pickImage,
+                                child: Icon(
+                                  PhosphorIcons.image(),
+                                  color: textColor.withOpacity(0.6),
+                                  size: 24,
+                                ),
+                              )
                             : null,
                       ),
                     ),
@@ -624,12 +627,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   Widget _buildNavButton(
-      BuildContext context,
-      PhosphorIconData icon,
-      String label, {
-        bool isRight = false,
-        bool isEnabled = true,
-      }) {
+    BuildContext context,
+    PhosphorIconData icon,
+    String label, {
+    bool isRight = false,
+    bool isEnabled = true,
+  }) {
     final textColor = Theme.of(context).brightness == Brightness.dark
         ? Colors.white
         : Colors.black87;
@@ -692,10 +695,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   Widget _buildCommentThread(
-      BuildContext context, {
-        required Comment comment,
-        bool isReply = false,
-      }) {
+    BuildContext context, {
+    required Comment comment,
+    bool isReply = false,
+  }) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final commentsProvider = Provider.of<CommentsProvider>(
@@ -703,13 +706,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       listen: false,
     );
 
-    final textColor = themeProvider.themeMode == ThemeMode.dark
-        ? Colors.white
-        : Colors.black87;
+    final textColor = themeProvider.isDarkTheme ? Colors.white : Colors.black87;
 
     final profileUserId = comment.user?.id ?? comment.userId;
     final user = comment.user?.username ?? "Unknown";
-    final userImage = comment.user?.avatarUrl;
+    final commentUser = comment.user;
     final time = _formatTime(comment.createdAt);
     final text = comment.content;
     final int likeCount = comment.likes;
@@ -725,15 +726,17 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         children: [
           // Avatar
           GestureDetector(
-            onTap: () =>
-                _showUserProfile(context, profileUserId, user, userImage),
-            child: CircleAvatar(
-              radius: isReply ? 14 : 18,
-              backgroundImage: userImage != null && userImage.isNotEmpty
-                  ? (userImage.startsWith('http')
-                  ? NetworkImage(userImage)
-                  : AssetImage(userImage) as ImageProvider)
-                  : const AssetImage('images/user3.jpeg'),
+            onTap: () => _showUserProfile(context, profileUserId, user, null),
+            child: ClipOval(
+              child: UserBlobatar(
+                seed: profileUserId,
+                label: user,
+                size: isReply ? 28 : 36,
+                hue: commentUser?.avatarHue,
+                shape: commentUser?.avatarShape,
+                expression: commentUser?.avatarExpression ?? 'happy',
+                animated: commentUser?.avatarAnimated ?? false,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -745,7 +748,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                 // Username
                 GestureDetector(
                   onTap: () =>
-                      _showUserProfile(context, profileUserId, user, userImage),
+                      _showUserProfile(context, profileUserId, user, null),
                   child: Text(
                     user,
                     style: TextStyle(
@@ -901,7 +904,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   if (isExpanded) ...[
                     const SizedBox(height: 16),
                     ...comment.replies.map(
-                          (reply) => _buildCommentThread(
+                      (reply) => _buildCommentThread(
                         context,
                         comment: reply,
                         isReply: true,

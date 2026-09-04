@@ -6,8 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keihatsu/components/OfflineImage.dart';
 import 'package:keihatsu/components/menu/menu_extensions.dart';
 import 'package:keihatsu/components/profile/shaped_action_button.dart';
+import 'package:keihatsu/components/user_blobatar.dart';
 import 'package:material_shapes/material_shapes.dart';
-import 'package:usenavii/usenavii.dart';
 
 const Duration _kBadgeMorphDuration = Duration(milliseconds: 600);
 const double _kBadgeMorphRotationDegrees = 45;
@@ -32,6 +32,10 @@ class MenuHeader extends StatefulWidget {
     required this.displayName,
     this.avatarSeed,
     this.avatarUrl,
+    this.avatarHue,
+    this.avatarShape,
+    this.avatarExpression = 'happy',
+    this.avatarAnimated = false,
     required this.stats,
     this.onEditTap,
     this.belowName,
@@ -48,6 +52,10 @@ class MenuHeader extends StatefulWidget {
   final String displayName;
   final String? avatarSeed;
   final String? avatarUrl;
+  final double? avatarHue;
+  final double? avatarShape;
+  final String avatarExpression;
+  final bool avatarAnimated;
   final List<MenuHeaderStat> stats;
   final VoidCallback? onEditTap;
   final List<Widget>? belowName;
@@ -152,11 +160,14 @@ class _MenuHeaderState extends State<MenuHeader> {
                       child:
                           widget.avatarSeed != null &&
                               widget.avatarSeed!.isNotEmpty
-                          ? Navii(
+                          ? UserBlobatar(
                               seed: widget.avatarSeed!,
+                              label: widget.displayName,
                               size: 188,
-                              background: 'none',
-                              title: '${widget.displayName} avatar',
+                              hue: widget.avatarHue,
+                              shape: widget.avatarShape,
+                              expression: widget.avatarExpression,
+                              animated: widget.avatarAnimated,
                             )
                           : OfflineImage(
                               imageUrl: widget.avatarUrl,

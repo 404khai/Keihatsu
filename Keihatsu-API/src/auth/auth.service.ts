@@ -106,7 +106,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Google token payload');
     }
 
-    const { sub: googleId, email, name, picture } = payload;
+    const { sub: googleId, email, name } = payload;
 
     if (!email) {
       throw new UnauthorizedException('Email not found in Google token');
@@ -125,16 +125,24 @@ export class AuthService {
         // Let's assume we just return that user or update googleId.
         user = await this.usersService.updateUser({
           where: { id: userByEmail.id },
-          data: { googleId, avatarUrl: picture || userByEmail.avatarUrl },
+          data: { googleId, avatarUrl: null },
         });
       } else {
         user = await this.usersService.createGoogleUser({
           googleId,
           email,
           displayName: name || email.split('@')[0],
-          avatarUrl: picture,
         });
       }
+    }
+
+    // Never retain an identifying Google profile photo. Existing accounts are
+    // migrated to their deterministic Blobatar the next time they sign in.
+    if (user.avatarUrl) {
+      user = await this.usersService.updateUser({
+        where: { id: user.id },
+        data: { avatarUrl: null },
+      });
     }
 
     // Update last login

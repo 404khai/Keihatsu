@@ -4,6 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import '../components/CustomBackButton.dart';
 import '../components/keihatsu_refresh_indicator.dart';
+import '../components/user_blobatar.dart';
 import '../models/user.dart';
 import '../services/auth_api.dart';
 import '../services/sources_repository.dart';
@@ -80,7 +81,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final brandColor = themeProvider.brandColor;
     final bgColor = themeProvider.effectiveBgColor;
-    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
+    final isDarkMode = themeProvider.isDarkTheme;
     final textColor = isDarkMode ? Colors.white : Colors.black87;
     final cardColor = isDarkMode
         ? Colors.white.withOpacity(0.05)
@@ -142,33 +143,28 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                   leading: _showTitle ? const CustomBackButton() : null,
                   title: _showTitle
                       ? Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.transparent,
-                        child: ClipOval(
-                          child: _buildAvatar(
-                            profile.avatarUrl ?? widget.fallbackAvatarUrl,
-                            32,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          profile.username,
-                          style: GoogleFonts.denkOne(
-                            textStyle: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.transparent,
+                              child: ClipOval(child: _buildAvatar(profile, 32)),
                             ),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  )
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                profile.username,
+                                style: GoogleFonts.denkOne(
+                                  textStyle: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        )
                       : null,
                   flexibleSpace: FlexibleSpaceBar(
                     background: Stack(
@@ -203,10 +199,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(20),
-                              child: _buildAvatar(
-                                profile.avatarUrl ?? widget.fallbackAvatarUrl,
-                                100,
-                              ),
+                              child: _buildAvatar(profile, 100),
                             ),
                           ),
                         ),
@@ -391,45 +384,45 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                     ),
                   )
                 else if (_isGridView)
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
-                      sliver: SliverGrid(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final entry = profile.library[index];
-                          return _buildGridItem(
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+                    sliver: SliverGrid(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entry = profile.library[index];
+                        return _buildGridItem(
+                          entry,
+                          textColor,
+                          brandColor,
+                          cardColor,
+                        );
+                      }, childCount: profile.library.length),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.58,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
+                          ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entry = profile.library[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: _buildListItem(
                             entry,
                             textColor,
                             brandColor,
                             cardColor,
-                          );
-                        }, childCount: profile.library.length),
-                        gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.58,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                        ),
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final entry = profile.library[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _buildListItem(
-                              entry,
-                              textColor,
-                              brandColor,
-                              cardColor,
-                            ),
-                          );
-                        }, childCount: profile.library.length),
-                      ),
+                          ),
+                        );
+                      }, childCount: profile.library.length),
                     ),
+                  ),
               ],
             ),
           );
@@ -451,37 +444,15 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     return Image.asset('images/profileBg.jpeg', fit: BoxFit.cover);
   }
 
-  Widget _buildAvatar(String? avatarUrl, double size) {
-    if (avatarUrl != null && avatarUrl.isNotEmpty) {
-      final isNetwork = avatarUrl.startsWith('http');
-      if (isNetwork) {
-        return Image.network(
-          avatarUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Image.asset(
-            'images/user3.jpeg',
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-          ),
-        );
-      }
-
-      return Image.asset(
-        avatarUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-      );
-    }
-
-    return Image.asset(
-      'images/user3.jpeg',
-      width: size,
-      height: size,
-      fit: BoxFit.cover,
+  Widget _buildAvatar(PublicProfile profile, double size) {
+    return UserBlobatar(
+      seed: profile.id,
+      label: profile.username,
+      size: size,
+      hue: profile.avatarHue,
+      shape: profile.avatarShape,
+      expression: profile.avatarExpression,
+      animated: profile.avatarAnimated,
     );
   }
 
@@ -510,11 +481,11 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Widget _buildListItem(
-      PublicLibraryEntry entry,
-      Color textColor,
-      Color brandColor,
-      Color cardColor,
-      ) {
+    PublicLibraryEntry entry,
+    Color textColor,
+    Color brandColor,
+    Color cardColor,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -580,11 +551,11 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Widget _buildGridItem(
-      PublicLibraryEntry entry,
-      Color textColor,
-      Color brandColor,
-      Color cardColor,
-      ) {
+    PublicLibraryEntry entry,
+    Color textColor,
+    Color brandColor,
+    Color cardColor,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -648,11 +619,11 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Widget _buildMetaChip(
-      IconData icon,
-      String text,
-      Color textColor,
-      Color brandColor,
-      ) {
+    IconData icon,
+    String text,
+    Color textColor,
+    Color brandColor,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
