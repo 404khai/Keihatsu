@@ -73,6 +73,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
   }
 
+  Future<void> _openEditProfile(AuthProvider authProvider) async {
+    final profileChanged = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+    );
+    if (!mounted || profileChanged != true) return;
+
+    try {
+      await authProvider.refreshCurrentUser();
+    } catch (error) {
+      // The optimistic update from the PATCH response is still available.
+      // A later pull-to-refresh or app launch can retry the authoritative GET.
+      debugPrint('Failed to refresh profile after editing: $error');
+    }
+  }
+
   // Future<void> _handleGoogleSignIn(
   //   BuildContext context,
   //   AuthProvider authProvider,
@@ -242,7 +258,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             );
                           },
                           onEditTap: isAuthenticated
-                              ? () => _push(context, const EditProfileScreen())
+                              ? () => _openEditProfile(authProvider)
                               : null,
                           // Guest sign-in — commented to preview authenticated layout.
                           // belowName: !authProvider.isAuthenticated

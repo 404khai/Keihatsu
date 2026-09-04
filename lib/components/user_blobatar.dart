@@ -44,9 +44,13 @@ class UserBlobatar extends StatelessWidget {
       traits: shape == null ? null : <String, Object>{'shape': shape!},
     );
     final safeSeed = seed.trim().isEmpty ? 'keihatsu-reader' : seed;
+    final renderKey = ValueKey<String>(
+      '$safeSeed|$hue|$shape|$expression|$animated|$background',
+    );
 
     if (animated) {
       return blobatar.AnimatedBlobatar(
+        key: renderKey,
         name: safeSeed,
         size: size,
         semanticLabel: '$label avatar',
@@ -56,6 +60,7 @@ class UserBlobatar extends StatelessWidget {
     }
 
     return blobatar.Blobatar(
+      key: renderKey,
       name: safeSeed,
       size: size,
       semanticLabel: '$label avatar',
