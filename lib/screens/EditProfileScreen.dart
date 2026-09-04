@@ -1,14 +1,10 @@
-import 'dart:io';
-
 import 'package:blobatar/flutter.dart' as blobatar;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../components/user_blobatar.dart';
 import '../providers/auth_provider.dart';
-import '../theme_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -70,8 +66,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _usernameController;
   late final TextEditingController _bioController;
 
-  File? _bannerFile;
-  final ImagePicker _picker = ImagePicker();
   double? _avatarHue;
   double? _avatarShape;
   String _avatarExpression = 'happy';
@@ -96,12 +90,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _pickBanner() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image == null || !mounted) return;
-    setState(() => _bannerFile = File(image.path));
-  }
-
   Future<void> _saveProfile() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -109,7 +97,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       await authProvider.updateProfile(
         username: _usernameController.text.trim(),
         bio: _bioController.text.trim(),
-        banner: _bannerFile,
         avatarHue: _avatarHue,
         avatarShape: _avatarShape,
         avatarExpression: _avatarExpression,
@@ -130,11 +117,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
-    final colors = Theme.of(context).colorScheme;
-    final bgColor = themeProvider.effectiveBgColor;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final bgColor = theme.scaffoldBackgroundColor;
     final avatarSeed = user?.id ?? 'keihatsu-reader';
     final avatarLabel = user?.username ?? 'Reader';
 
@@ -148,7 +135,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Edit Profile', style: GoogleFonts.denkOne(fontSize: 22)),
+        title: Text(
+          'Edit Profile',
+          style: GoogleFonts.unbounded(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         actions: [
           if (authProvider.isLoading)
             const Center(
@@ -161,11 +154,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             )
           else
-            TextButton(
-              onPressed: _saveProfile,
-              child: const Text(
-                'Save',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 8, 12, 8),
+              child: FilledButton.icon(
+                onPressed: _saveProfile,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.surfaceContainerHigh,
+                  foregroundColor: colors.onSurface,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                ),
+                icon: Icon(
+                  Icons.check_rounded,
+                  size: 18,
+                  color: colors.onSurface,
+                ),
+                label: Text(
+                  'Save',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
         ],
@@ -175,28 +187,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildProfileHeader(
+            const SizedBox(height: 10),
+            _buildAvatarPreview(
               colors: colors,
-              backgroundColor: bgColor,
-              bannerUrl: user?.bannerUrl,
               avatarSeed: avatarSeed,
               avatarLabel: avatarLabel,
             ),
-            const SizedBox(height: 74),
+            const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Your Blobatar',
+                    'Customize your Blobatar',
+                    textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Generated from your private Keihatsu ID—never your Google photo.',
+                    'Give your blob some personality, tweak the shape, its expression and even animate it.',
+                    textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
@@ -225,7 +238,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   Text(
                     'Username can only be changed twice every 7 days.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
+                      color: colors.primary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -239,82 +253,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader({
+  Widget _buildAvatarPreview({
     required ColorScheme colors,
-    required Color backgroundColor,
-    required String? bannerUrl,
     required String avatarSeed,
     required String avatarLabel,
   }) {
-    final ImageProvider bannerImage = _bannerFile != null
-        ? FileImage(_bannerFile!)
-        : bannerUrl != null && bannerUrl.isNotEmpty
-        ? NetworkImage(bannerUrl)
-        : const AssetImage('images/profileBg.jpeg');
-
-    return SizedBox(
-      height: 180,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          GestureDetector(
-            onTap: _pickBanner,
-            child: Container(
-              height: 150,
-              decoration: BoxDecoration(
-                image: DecorationImage(image: bannerImage, fit: BoxFit.cover),
-              ),
-              foregroundDecoration: const BoxDecoration(color: Colors.black26),
-              child: const Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.image_outlined, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      'Change banner',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    return Center(
+      child: Container(
+        width: 120,
+        height: 120,
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: colors.shadow.withValues(alpha: 0.2),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(25),
+          child: UserBlobatar(
+            seed: avatarSeed,
+            label: avatarLabel,
+            hue: _avatarHue,
+            shape: _avatarShape,
+            expression: _avatarExpression,
+            animated: _avatarAnimated,
           ),
-          Positioned(
-            left: 20,
-            bottom: -44,
-            child: Container(
-              width: 120,
-              height: 120,
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.shadow.withOpacity(0.2),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(25),
-                child: UserBlobatar(
-                  seed: avatarSeed,
-                  label: avatarLabel,
-                  hue: _avatarHue,
-                  shape: _avatarShape,
-                  expression: _avatarExpression,
-                  animated: _avatarAnimated,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -454,17 +424,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     TextEditingController controller, {
     int maxLines = 1,
   }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
-      ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: label == 'Username'
+                ? 'Enter your username'
+                : 'Tell readers about yourself',
+            filled: true,
+            fillColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -487,10 +472,14 @@ class _AvatarOptionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected
-          ? colors.primaryContainer
-          : colors.surfaceContainerHighest.withOpacity(0.55),
-      borderRadius: BorderRadius.circular(16),
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: selected ? colors.primary : Colors.transparent,
+          width: 2,
+        ),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -508,9 +497,7 @@ class _AvatarOptionTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: selected
-                        ? colors.onPrimaryContainer
-                        : colors.onSurfaceVariant,
+                    color: selected ? colors.primary : colors.onSurfaceVariant,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
