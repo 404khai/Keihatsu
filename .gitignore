@@ -31,7 +31,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+/apps/flutter/build/
 
 # Symbolication related
 app.*.symbols
@@ -42,14 +42,31 @@ google-services.json
 .google-services.json
 ./google-services.json
 # Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/app/google-services.json
+/apps/flutter/android/app/debug
+/apps/flutter/android/app/profile
+/apps/flutter/android/app/release
+/apps/flutter/android/app/google-services.json
 
 # Signing — NEVER commit these
-/android/key.properties
-/android/upload-keystore.jks
-/android/app/upload-keystore.jks
+/apps/flutter/android/key.properties
+/apps/flutter/android/upload-keystore.jks
+/apps/flutter/android/app/upload-keystore.jks
 *.jks
 *.keystore
+
+# Node/NestJS
+**/node_modules/
+**/dist/
+**/coverage/
+/apps/api/chrome/
+**/.env
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+**/.env.local
+
+# Swift/Xcode
+**/DerivedData/
+**/xcuserdata/
+**/*.xcuserstate
+**/Pods/

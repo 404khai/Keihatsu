@@ -45,7 +45,7 @@ dependencies:
   material_wavy_progress_indicator:
     path: packages/material_wavy_progress_indicator
   usenavii:
-    path: ../navii/packages/flutter
+    path: ../../../navii/packages/flutter
   blobatar:
     path: /Users/admin/Developer/blobatar/packages/flutter
 

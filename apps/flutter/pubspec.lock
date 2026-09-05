@@ -1254,7 +1254,7 @@ packages:
   usenavii:
     dependency: "direct main"
     description:
-      path: "../navii/packages/flutter"
+      path: "../../../navii/packages/flutter"
       relative: true
     source: path
     version: "0.1.0-dev.1"

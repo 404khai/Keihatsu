@@ -1,6 +1,15 @@
-# Keihatsu Mobile 📖
+# Keihatsu 📖
 
-A modern, offline-first manga and light novel reader built with **Flutter**. Keihatsu provides a seamless reading experience with extension-based content discovery, deep customization, and cloud synchronization.
+A modern, offline-first manga and light novel reader. This monorepo contains the Flutter application, NestJS API, and native SwiftUI application.
+
+## Repository Structure
+
+```text
+apps/
+├── flutter/  # Cross-platform Flutter application
+├── api/      # NestJS/TypeScript backend
+└── ios/      # Native SwiftUI application
+```
 
 ## 🌟 Key Features
 
@@ -27,13 +36,17 @@ A modern, offline-first manga and light novel reader built with **Flutter**. Kei
 ### Prerequisites
 
 - Flutter SDK (latest stable)
+- Node.js and npm
+- Xcode
 - Android Studio / VS Code with Flutter extension
-- An active instance of the [Keihatsu API](https://github.com/DanielsFega/keihatsu-api)
 
-### Installation
+### Flutter Application
 
-1. Clone the repository
-2. Install dependencies:
+1. Enter the Flutter application:
+   ```bash
+   cd apps/flutter
+   ```
+2. Install its existing dependencies:
    ```bash
    flutter pub get
    ```
@@ -42,7 +55,7 @@ A modern, offline-first manga and light novel reader built with **Flutter**. Kei
    flutter pub run build_runner build --delete-conflicting-outputs
    ```
 4. Configure API Endpoint:
-    - Open `lib/services/api_constants.dart`
+    - Open `apps/flutter/lib/services/api_constants.dart` from the repository root.
     - Update `baseUrl` to point to your running backend API.
 
 5. Run the app:
@@ -50,16 +63,27 @@ A modern, offline-first manga and light novel reader built with **Flutter**. Kei
    flutter run
    ```
 
+### API
+
+```bash
+cd apps/api
+npm run start:dev
+```
+
+### Native iOS Application
+
+Open `apps/ios/Keihatsu.xcodeproj` in Xcode.
+
 ## 📂 Project Structure
 
 ```text
-lib/
-├── components/     # Reusable UI Widgets
-├── models/         # Data Models & Isar Schemas
-├── providers/      # State Management (Theme, Auth, Library)
-├── screens/        # Feature Pages (Home, Reader, Settings)
-├── services/       # API Clients & Repository Logic
-└── theme_provider.dart # Global UI Styling & Persistence
+apps/flutter/lib/
+├── components/          # Reusable UI widgets
+├── models/              # Data models and Isar schemas
+├── providers/           # State management
+├── screens/             # Feature pages
+├── services/            # API clients and repository logic
+└── theme_provider.dart  # Global UI styling and persistence
 ```
 
 ## 🛡️ License
