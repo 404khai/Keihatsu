@@ -14,7 +14,7 @@ To make the workflow run securely and handle integrations like Firebase and (lat
 
 #### Required Now (for Firebase):
 - **`GOOGLE_SERVICES_JSON`**
-  - **Value:** The complete text contents of `android/app/google-services.json`. Just open the file in your code editor, copy everything, and paste it here.
+  - **Value:** The complete text contents of `apps/flutter/android/app/google-services.json`. Just open the file in your code editor, copy everything, and paste it here.
 
 #### For Future Use (When you want to build signed APKs):
 - **`KEY_ALIAS`**
@@ -26,7 +26,7 @@ To make the workflow run securely and handle integrations like Firebase and (lat
 - **`KEYSTORE_BASE64`**
   - **Value:** Your keystore needs to be base64-encoded to store as a secret. Run this PowerShell command in your terminal to generate the string and copy it to your clipboard:
     ```powershell
-    [convert]::ToBase64String((Get-Content -path "android\upload-keystore.jks" -Encoding byte)) | clp
+    [convert]::ToBase64String((Get-Content -path "apps\flutter\android\upload-keystore.jks" -Encoding byte)) | clp
     ```
 
 ---
@@ -37,14 +37,14 @@ The workflow is configured to run ONLY when a new tag that starts with `v` is pu
 
 Here is the exact step-by-step process you should use in your Git terminal when you're ready to release a new version:
 
-1. **Update the version in `pubspec.yaml`** (e.g., change `version: 1.2.0+4` to `version: 1.3.0+5`).
+1. **Update the version in `apps/flutter/pubspec.yaml`** (e.g., change `version: 1.2.0+4` to `version: 1.3.0+5`).
 2. **Commit your changes:**
    ```bash
-   git add pubspec.yaml
+   git add apps/flutter/pubspec.yaml
    git commit -m "chore: bump version to 1.3.0"
    git push
    ```
-3. **Create a git tag** that MUST match the version in `pubspec.yaml`:
+3. **Create a git tag** that MUST match the version in `apps/flutter/pubspec.yaml`:
    ```bash
    git tag v1.3.0
    ```

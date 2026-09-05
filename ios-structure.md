@@ -127,7 +127,7 @@ MVVM
 feature-based architecture
 content-heavy apps
 
-Keihatsu-iOS/
+apps/ios/
 ├── Keihatsu.xcodeproj
 │
 ├── Keihatsu/

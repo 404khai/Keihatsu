@@ -9,7 +9,7 @@
 #   KEY_ALIAS             — Keystore alias  (e.g. "upload")
 #   KEY_PASSWORD          — Key password
 #   STORE_PASSWORD        — Keystore password
-#   GOOGLE_SERVICES_JSON  — Contents of android/app/google-services.json
+#   GOOGLE_SERVICES_JSON  — Contents of apps/flutter/android/app/google-services.json
 #
 # Optional secrets (for future use):
 #   FIREBASE_APP_ID       — Firebase App Distribution app ID
@@ -42,6 +42,9 @@ jobs:
     name: "Build Release APK"
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/flutter
 
     steps:
       # -----------------------------------------------------------------------
@@ -112,8 +115,8 @@ jobs:
         with:
           path: |
             ${{ env.PUB_CACHE }}
-            .dart_tool/
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+            apps/flutter/.dart_tool/
+          key: pub-${{ runner.os }}-${{ hashFiles('apps/flutter/pubspec.lock') }}
           restore-keys: |
             pub-${{ runner.os }}-
 
@@ -180,7 +183,7 @@ jobs:
           APK_SIZE=$(du -h "$APK_NAME" | cut -f1)
 
           echo "apk_name=${APK_NAME}" >> "$GITHUB_OUTPUT"
-          echo "apk_path=${APK_NAME}" >> "$GITHUB_OUTPUT"
+          echo "apk_path=apps/flutter/${APK_NAME}" >> "$GITHUB_OUTPUT"
           echo "📦 APK: ${APK_NAME} (${APK_SIZE})"
 
       # -----------------------------------------------------------------------
@@ -241,7 +244,7 @@ jobs:
           } > release_notes.md
 
           cat release_notes.md
-          echo "notes_file=release_notes.md" >> "$GITHUB_OUTPUT"
+          echo "notes_file=apps/flutter/release_notes.md" >> "$GITHUB_OUTPUT"
 
       # -----------------------------------------------------------------------
       # 11. Create GitHub Release

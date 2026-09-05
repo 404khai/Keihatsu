@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #FAFFFD;
+  --foreground: #342E37;
+  --black: #000000;
+  --card: #FFFFFF;
+  --card-foreground: #342E37;
+  --popover: #FFFFFF;
+  --popover-foreground: #342E37;
+  --primary: #342E37;
+  --primary-foreground: #FAFFFD;
+  --secondary: #EFF7E9;
+  --secondary-foreground: #342E37;
+  --muted: #EEF4EF;
+  --muted-foreground: #6E6670;
+  --accent: #9FD356;
+  --accent-foreground: #252027;
+  --destructive: #B42318;
+  --destructive-foreground: #FFFFFF;
+  --border: #DDE8DF;
+  --input: #DDE8DF;
+  --ring: #9FD356;
+  --radius: 0.875rem;
+  
+  --surface-1: #FFFFFF;
+  --surface-2: #F4FAF5;
+  --surface-3: #EAF3E9;
+  --surface-4: #DAEAD6;
+  --shadow-grey: #342E37;
+  --yellow-green: #9FD356;
+  --porcelain: #FAFFFD;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), 'Inter', system-ui, sans-serif;
+  --font-serif: var(--font-cormorant), Georgia, serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-display: var(--font-henny-penny), 'Henny Penny', cursive;
+  
+  /* Surface colors for layered dark UI */
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background:
+      radial-gradient(circle at 50% -10%, rgb(159 211 86 / 0.24), transparent 34rem),
+      linear-gradient(180deg, #fafffd 0%, #f4faf5 48%, #fafffd 100%);
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgb(159 211 86 / 0.45);
+    color: #342E37;
+  }
+}
+
+@layer utilities {
+  .site-shell {
+    width: min(80vw, 1180px);
+    margin-inline: auto;
+  }
+
+  @media (max-width: 768px) {
+    .site-shell {
+      width: min(100% - 2rem, 1180px);
+    }
+  }
+
+  .font-serif-display {
+    font-family: var(--font-cormorant), Georgia, serif;
+  }
+
+  .glass-panel {
+    background: linear-gradient(135deg, rgb(255 255 255 / 0.76), rgb(250 255 253 / 0.48));
+    border: 1px solid rgb(52 46 55 / 0.1);
+    box-shadow:
+      0 24px 80px rgb(52 46 55 / 0.12),
+      inset 0 1px 0 rgb(255 255 255 / 0.8);
+    backdrop-filter: blur(24px) saturate(140%);
+  }
+
+  .soft-grid {
+    background-image:
+      linear-gradient(rgb(52 46 55 / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(52 46 55 / 0.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at center, black 0%, transparent 74%);
+  }
+
+  .mockup-mask {
+    mask-image: linear-gradient(to bottom, transparent 0%, black 16%, black 88%, transparent 100%);
+  }
+}
