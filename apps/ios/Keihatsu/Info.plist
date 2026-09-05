@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIconFile</key>
+	<string>KeihatsuIcon</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>BricolageGrotesque_24pt-SemiBold.ttf</string>
+		<string>BricolageGrotesque_24pt-Regular.ttf</string>
+	</array>
+</dict>
+</plist>
