@@ -1,6 +1,6 @@
 # Keihatsu 📖
 
-A modern, offline-first manga and light novel reader. This monorepo contains the Flutter application, NestJS API, and native SwiftUI application.
+A modern, offline-first manga and light novel reader. This monorepo contains the Flutter application, NestJS API, native SwiftUI application, and Keihatsu website.
 
 ## Repository Structure
 
@@ -8,7 +8,8 @@ A modern, offline-first manga and light novel reader. This monorepo contains the
 apps/
 ├── flutter/  # Cross-platform Flutter application
 ├── api/      # NestJS/TypeScript backend
-└── ios/      # Native SwiftUI application
+├── ios/      # Native SwiftUI application
+└── web/      # Next.js website
 ```
 
 ## 🌟 Key Features
@@ -36,7 +37,7 @@ apps/
 ### Prerequisites
 
 - Flutter SDK (latest stable)
-- Node.js and npm
+- Node.js, npm, and pnpm
 - Xcode
 - Android Studio / VS Code with Flutter extension
 
@@ -73,6 +74,14 @@ npm run start:dev
 ### Native iOS Application
 
 Open `apps/ios/Keihatsu.xcodeproj` in Xcode.
+
+### Website
+
+```bash
+cd apps/web
+pnpm install
+pnpm dev
+```
 
 ## 📂 Project Structure
 
