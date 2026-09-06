@@ -1,32 +1,21 @@
 import SwiftUI
 
 struct HistoryView: View {
-    @State private var sections: [HistorySection] = HistorySection.sampleData
+    @EnvironmentObject private var collections: CollectionStore
     @State private var selectionMode: Bool = false
     @State private var selectedItemIDs: Set<UUID> = []
     @State private var deletePrompt: DeletePrompt?
     @State private var searchText = ""
 
     private var filteredSections: [HistorySection] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return sections }
-
-        return sections.compactMap { section in
-            let items = section.items.filter { item in
-                item.title.localizedCaseInsensitiveContains(query)
-                || item.chapter.localizedCaseInsensitiveContains(query)
-                || item.time.localizedCaseInsensitiveContains(query)
-                || section.date.localizedCaseInsensitiveContains(query)
-            }
-
-            guard !items.isEmpty else { return nil }
-            return HistorySection(id: section.id, date: section.date, items: items)
-        }
+        collections.historySections(query: searchText.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 28) {
+                Text("Sample history • Account sync coming soon").font(.caption).foregroundStyle(.secondary)
+                if let error = collections.error { CatalogueMessage(message: error) { collections.reload() } }
                 ForEach(filteredSections) { section in
                     VStack(alignment: .leading, spacing: 18) {
                         Text(section.date)
@@ -128,11 +117,7 @@ struct HistoryView: View {
     }
 
     private func deleteItems(withIDs ids: Set<UUID>) {
-        sections = sections.compactMap { section in
-            let remainingItems = section.items.filter { !ids.contains($0.id) }
-            guard !remainingItems.isEmpty else { return nil }
-            return HistorySection(id: section.id, date: section.date, items: remainingItems)
-        }
+        collections.deleteHistory(ids)
 
         selectedItemIDs.subtract(ids)
 
@@ -185,9 +170,9 @@ private struct HistoryRow: View {
             if !showCheckboxes {
                 HStack(spacing: 24) {
                     Button {
-                    } label: {
-                        Image(systemName: "book.closed")
-                    }
+                    } label: { Image(systemName: "book.closed") }
+                    .disabled(true)
+                    .accessibilityLabel("Reading coming soon")
 
                     Button(role: .destructive, action: onDelete) {
                         Image(systemName: "trash.fill")
@@ -208,49 +193,6 @@ private struct HistoryRow: View {
                 .stroke(isSelected ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
         }
     }
-}
-
-private struct HistorySection: Identifiable {
-    let id: UUID
-    let date: String
-    let items: [HistoryItem]
-
-    static let sampleData: [HistorySection] = [
-        HistorySection(date: "Today", items: [
-            HistoryItem(image: "Image1", title: "The Regressed Mercenary's Machinations", chapter: "Chapter 110", time: "02:28"),
-            HistoryItem(image: "Image11", title: "Graymark", chapter: "Chapter 84", time: "08:42")
-        ]),
-        HistorySection(date: "27 May, 2026", items: [
-            HistoryItem(image: "Image12", title: "My Bias on the Last Train", chapter: "Chapter 57", time: "11:16"),
-            HistoryItem(image: "Image7", title: "Return of the SSS Class Ranker", chapter: "Chapter 139", time: "19:04")
-        ]),
-        HistorySection(date: "26 May, 2026", items: [
-            HistoryItem(image: "Image9", title: "Pick Me Up Infinite Gacha", chapter: "Chapter 112", time: "17:31"),
-            HistoryItem(image: "Image6", title: "Superhuman Battlefield", chapter: "Chapter 91", time: "22:12")
-        ]),
-        HistorySection(date: "25 May, 2026", items: [
-            HistoryItem(image: "Image8", title: "Legend of the Northern Blade", chapter: "Chapter 112", time: "17:31"),
-            HistoryItem(image: "Image10", title: "Regressed Bastard of the Sword Clan", chapter: "Chapter 57", time: "11:16"),
-        ]),
-        HistorySection(date: "24 May, 2026", items: [
-            HistoryItem(image: "Image4", title: "Player", chapter: "Chapter 38", time: "09:18"),
-            HistoryItem(image: "Image5", title: "Ordeal", chapter: "Chapter 71", time: "21:47")
-        ])
-    ]
-
-    init(id: UUID = UUID(), date: String, items: [HistoryItem]) {
-        self.id = id
-        self.date = date
-        self.items = items
-    }
-}
-
-private struct HistoryItem: Identifiable {
-    let id = UUID()
-    let image: String
-    let title: String
-    let chapter: String
-    let time: String
 }
 
 private struct DeletePrompt: Identifiable {
@@ -281,6 +223,7 @@ private struct DeletePrompt: Identifiable {
 #Preview {
     NavigationStack {
         HistoryView()
+            .appEnvironment(.preview())
     }
 }
 

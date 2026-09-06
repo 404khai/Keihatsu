@@ -4,6 +4,7 @@ struct AccountSheetView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
+    @State private var showInbox = false
     @State private var incognitoModeEnabled = false
 
     private var pageBackground: Color {
@@ -46,7 +47,9 @@ struct AccountSheetView: View {
                         accountDivider
                         AccountSheetRow(icon: "chart.bar", title: "Stats", showsChevron: true)
                         accountDivider
-                        AccountSheetRow(icon: "tray", title: "Inbox", showsChevron: true)
+                        Button { showInbox = true } label: {
+                            AccountSheetRow(icon: "tray", title: "Inbox", showsChevron: true)
+                        }.buttonStyle(.plain)
                     }
                     
                     AccountSheetGroup(background: cardBackground) {
@@ -117,6 +120,7 @@ struct AccountSheetView: View {
                 incognitoModeEnabled = newValue
             }
         }
+        .sheet(isPresented: $showInbox) { NotificationsSheetView(title: "Inbox") }
         .presentationDragIndicator(.visible)
     }
 

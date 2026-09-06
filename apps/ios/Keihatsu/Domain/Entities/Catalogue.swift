@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct Manga: Identifiable, Hashable, Sendable {
+nonisolated struct Manga: Identifiable, Hashable, Codable, Sendable {
     let id: MangaIdentity
     let title: String
     let url: URL?
@@ -13,7 +13,7 @@ nonisolated struct Manga: Identifiable, Hashable, Sendable {
     let language: String?
 }
 
-nonisolated struct Chapter: Identifiable, Hashable, Sendable {
+nonisolated struct Chapter: Identifiable, Hashable, Codable, Sendable {
     let id: ChapterIdentity
     let name: String
     let number: Double
@@ -22,8 +22,8 @@ nonisolated struct Chapter: Identifiable, Hashable, Sendable {
     let scanlator: String?
 }
 
-nonisolated struct ReaderPage: Identifiable, Hashable, Sendable {
-    struct ID: Hashable, Sendable {
+nonisolated struct ReaderPage: Identifiable, Hashable, Codable, Sendable {
+    struct ID: Hashable, Codable, Sendable {
         let chapter: ChapterIdentity
         let index: Int
     }
@@ -33,7 +33,7 @@ nonisolated struct ReaderPage: Identifiable, Hashable, Sendable {
     let refererURL: URL?
 }
 
-nonisolated struct Source: Identifiable, Hashable, Sendable {
+nonisolated struct Source: Identifiable, Hashable, Codable, Sendable {
     let id: String
     let name: String
     let language: String
@@ -42,7 +42,7 @@ nonisolated struct Source: Identifiable, Hashable, Sendable {
     let version: Int
 }
 
-nonisolated struct MangaPage: Sendable {
+nonisolated struct MangaPage: Codable, Sendable {
     let mangas: [Manga]
     let hasNextPage: Bool
 }

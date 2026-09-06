@@ -60,7 +60,7 @@ struct FoundationTests {
     @Test func liveCompositionDoesNotFallBackToPreviewOrSimulateSync() {
         let services = AppServices.live()
         #expect(services.apiClient != nil)
-        #expect(services.catalogue == nil)
+        #expect(services.catalogue is LiveCatalogueRepository)
         #expect(AppServices.preview().apiClient == nil)
         let sync = SyncQueueStore()
         #expect(sync.operations.isEmpty)

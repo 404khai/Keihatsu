@@ -5,33 +5,17 @@ struct GlobalExtensionSearchView: View {
     @State private var selectedTab: SearchExtensionTab = .pinned
     @State private var showingFilters = false
 
-    private let extensions = SearchExtensionSource.installedSources
+    @EnvironmentObject private var sources: SourcePreferencesStore
+    @EnvironmentObject private var model: SearchViewModel
+    @EnvironmentObject private var navigation: AppNavigation
+    @Namespace private var animation
+    @State private var excludedSources: Set<String> = []
 
-    private var visibleExtensions: [SearchExtensionSource] {
-        switch selectedTab {
-        case .pinned:
-            return extensions.filter(\.isPinned)
-        case .all:
-            return extensions
-        }
+    private var visibleExtensions: [Source] {
+        sources.enabledSources.filter { (selectedTab == .all || sources.isPinned($0)) && !excludedSources.contains($0.id) }
     }
-
-    private var isSearching: Bool {
-        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var searchResultExtensions: [SearchExtensionSource] {
-        visibleExtensions.sorted { lhs, rhs in
-            let lhsHasResults = !lhs.results(for: searchText).isEmpty
-            let rhsHasResults = !rhs.results(for: searchText).isEmpty
-
-            if lhsHasResults != rhsHasResults {
-                return lhsHasResults && !rhsHasResults
-            }
-
-            return lhs.name < rhs.name
-        }
-    }
+    private var isSearching: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var searchKey: String { searchText + "|" + visibleExtensions.map(\.id).joined(separator: ",") }
 
     var body: some View {
         ScrollView {
@@ -43,9 +27,29 @@ struct GlobalExtensionSearchView: View {
                 }
                 .pickerStyle(.segmented)
 
+                if sources.isLoading { ProgressView("Loading sources…") }
+                if let error = sources.error {
+                    CatalogueMessage(message: error) { Task { await sources.load(force: true) } }
+                }
+                if visibleExtensions.isEmpty && !sources.isLoading {
+                    ContentUnavailableView {
+                        Label("No sources selected", systemImage: "magnifyingglass")
+                    } description: { Text("Choose All, adjust filters, or enable a source in Plugins.") }
+                    actions: { Button("Manage Sources") { navigation.selectedTab = .extensions } }
+                }
                 if isSearching {
                     searchResults
                 } else {
+                    if !model.recentQueries.isEmpty {
+                        HStack {
+                            Text("Recent searches").font(.headline)
+                            Spacer()
+                            Button("Clear") { model.clearHistory() }
+                        }
+                        ForEach(model.recentQueries, id: \.self) { query in
+                            Button { searchText = query } label: { Label(query, systemImage: "clock") }
+                        }
+                    }
                     sourceList
                 }
             }
@@ -53,6 +57,12 @@ struct GlobalExtensionSearchView: View {
             .padding(.vertical, 16)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .task { await sources.load() }
+        .task(id: searchKey) { await model.search(searchText, sources: visibleExtensions) }
+        .onSubmit(of: .search) { model.remember(searchText) }
+        .navigationDestination(for: ImageModel.self) { item in
+            CarouselDetailView(item: item, animation: animation)
+        }
         .navigationTitle("Search")
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search across sources"))
         .toolbar {
@@ -65,7 +75,7 @@ struct GlobalExtensionSearchView: View {
             }
         }
         .sheet(isPresented: $showingFilters) {
-            FilterSourcesSheet(sources: SearchExtensionSource.allFilterSources)
+            FilterSourcesSheet(sources: sources.enabledSources, excluded: $excludedSources)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
@@ -75,9 +85,7 @@ struct GlobalExtensionSearchView: View {
         VStack(spacing: 12) {
             ForEach(visibleExtensions) { source in
                 HStack(spacing: 14) {
-                    Image(source.assetName)
-                        .resizable()
-                        .scaledToFit()
+                    CatalogueCover(url: source.iconURL)
                         .frame(width: 56, height: 56)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
@@ -86,7 +94,7 @@ struct GlobalExtensionSearchView: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
 
-                        Text(source.subtitle)
+                        Text(source.language.uppercased() + " • " + (source.baseURL?.absoluteString ?? ""))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -94,7 +102,7 @@ struct GlobalExtensionSearchView: View {
 
                     Spacer(minLength: 0)
 
-                    if source.isPinned {
+                    if sources.isPinned(source) {
                         Image(systemName: "pin.fill")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Color.accentColor)
@@ -112,12 +120,11 @@ struct GlobalExtensionSearchView: View {
 
     private var searchResults: some View {
         VStack(alignment: .leading, spacing: 24) {
-            ForEach(searchResultExtensions) { source in
+            ForEach(model.sections) { section in
+                let source = section.source
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 10) {
-                        Image(source.assetName)
-                            .resizable()
-                            .scaledToFit()
+                        CatalogueCover(url: source.iconURL)
                             .frame(width: 28, height: 28)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
@@ -126,9 +133,13 @@ struct GlobalExtensionSearchView: View {
                             .foregroundStyle(.primary)
                     }
 
-                    let results = source.results(for: searchText)
+                    let results = section.mangas.map(ImageModel.init(manga:))
+                    if section.isLoading { ProgressView() }
+                    if let error = section.error {
+                        CatalogueMessage(message: error) { Task { await model.retry(source.id) } }
+                    }
 
-                    if results.isEmpty {
+                    if results.isEmpty && !section.isLoading && section.error == nil {
                         Text("No results found")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -137,12 +148,19 @@ struct GlobalExtensionSearchView: View {
                             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 14) {
+                            LazyHStack(spacing: 14) {
                                 ForEach(results) { item in
-                                    GlobalSearchMangaCard(item: item)
+                                    NavigationLink(value: item) {
+                                        GlobalSearchMangaCard(item: item)
+                                    }.buttonStyle(.plain)
+                                    .matchedTransitionSource(id: item.id, in: animation)
                                 }
                             }
                             .padding(.vertical, 2)
+                        }
+                        if section.hasNextPage && section.error == nil {
+                            Button("Load more") { Task { await model.loadMore(source.id) } }
+                                .disabled(section.isLoading)
                         }
                     }
                 }
@@ -156,9 +174,7 @@ private struct GlobalSearchMangaCard: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            Image(item.image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+            CatalogueCover(url: item.manga?.thumbnailURL, referer: item.manga?.url, asset: item.manga == nil ? item.image : nil)
                 .frame(width: 132, height: 190)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
@@ -194,15 +210,14 @@ private enum SearchExtensionTab: CaseIterable, Identifiable {
 }
 
 private struct FilterSourcesSheet: View {
-    let sources: [SearchExtensionSource]
+    let sources: [Source]
+    @Binding var excluded: Set<String>
 
     var body: some View {
         NavigationStack {
             List(sources) { source in
                 HStack(spacing: 14) {
-                    Image(source.assetName)
-                        .resizable()
-                        .scaledToFit()
+                    CatalogueCover(url: source.iconURL)
                         .frame(width: 44, height: 44)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
@@ -210,12 +225,16 @@ private struct FilterSourcesSheet: View {
                         Text(source.name)
                             .font(.headline)
 
-                        Text(source.subtitle)
+                        Text(source.language.uppercased() + " • " + (source.baseURL?.absoluteString ?? ""))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.vertical, 4)
+                .accessibilityElement(children: .combine)
+                Toggle("Search \(source.name)", isOn: Binding(get: { !excluded.contains(source.id) }, set: { value in
+                    if value { excluded.remove(source.id) } else { excluded.insert(source.id) }
+                }))
             }
             .navigationTitle("Filter Sources")
             .navigationBarTitleDisplayMode(.inline)
@@ -223,39 +242,9 @@ private struct FilterSourcesSheet: View {
     }
 }
 
-private struct SearchExtensionSource: Identifiable {
-    let id = UUID()
-    let name: String
-    let assetName: String
-    let subtitle: String
-    let isPinned: Bool
-
-    func results(for query: String) -> [ImageModel] {
-        if name == "Atsumaru" || name == "BatCave" {
-            return []
-        }
-
-        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedQuery.isEmpty else { return images }
-
-        return images.filter { item in
-            item.title.localizedCaseInsensitiveContains(normalizedQuery)
-        }
-    }
-
-    static let installedSources = [
-        SearchExtensionSource(name: "Atsumaru", assetName: "atsumaru", subtitle: "EN • https://atsumaru.example", isPinned: true),
-        SearchExtensionSource(name: "ManhuaTop", assetName: "manhuatop", subtitle: "EN • https://manhuatop.example", isPinned: true),
-        SearchExtensionSource(name: "WeebCentral", assetName: "weebcentral", subtitle: "EN • https://weebcentral.example", isPinned: true)
-    ]
-
-    static let allFilterSources = installedSources + [
-        SearchExtensionSource(name: "BatCave", assetName: "batcave", subtitle: "EN • https://batcave.example", isPinned: false)
-    ]
-}
-
 #Preview {
     NavigationStack {
         GlobalExtensionSearchView()
+            .appEnvironment(.preview())
     }
 }
