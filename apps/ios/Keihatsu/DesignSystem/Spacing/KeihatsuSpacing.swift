@@ -9,4 +9,6 @@ struct KeihatsuSpacing {
     let xxl: CGFloat = 24
     let xxxl: CGFloat = 32
     let screenPadding: CGFloat = 20
+    let onboardingArtworkHeight: CGFloat = 280
+    let minimumControlHeight: CGFloat = 44
 }

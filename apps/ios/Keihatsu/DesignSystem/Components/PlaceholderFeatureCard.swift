@@ -1,7 +1,13 @@
 import SwiftUI
 
 struct PlaceholderFeatureCard: View {
-    let destination: FeatureDestination
+    struct Destination {
+        let rawValue: String
+        let symbolName: String
+        let summary: String
+    }
+
+    let destination: Destination
 
     @Environment(\.keihatsuTheme) private var theme
 

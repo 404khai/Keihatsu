@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject private var navigation: AppNavigation
     let animation: Namespace.ID
     @State private var showMenu: Bool = false
     @State private var showNotifications: Bool = false
@@ -35,7 +36,7 @@ struct HomeView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigation.homePath) {
             ScrollView {
                 VStack(spacing: 36){
                     let s = selectedType.settings
@@ -206,6 +207,6 @@ struct HomeView: View {
 #Preview {
     @Previewable @Namespace var animation
     HomeView(animation: animation)
+        .appEnvironment(.preview())
 }
-
 

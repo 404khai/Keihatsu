@@ -1,0 +1,20 @@
+[
+  {
+    "id": "Onboarding1",
+    "title": "Multi-Extension Search",
+    "subtitle": "Search for mangas and manwhas from multiple sources in one place.",
+    "image": "Onboarding1"
+  },
+  {
+    "id": "Onboarding2",
+    "title": "Read Anywhere",
+    "subtitle": "Download chapters to read offline, anytime, anywhere.",
+    "image": "Onboarding2"
+  },
+  {
+    "id": "Onboarding3",
+    "title": "Join the Community",
+    "subtitle": "Discuss chapters, track progress, and share with friends.",
+    "image": "Onboarding3"
+  }
+]
