@@ -353,10 +353,9 @@ struct SyncStatusView: View {
 
                 Spacer(minLength: 0)
 
-                Button("Sync Now") {
-                    syncQueueStore.markAllCompleted()
-                }
-                .buttonStyle(.borderedProminent)
+                Label("Unavailable", systemImage: "icloud.slash")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             ForEach(syncQueueStore.operations.prefix(3)) { operation in
@@ -390,7 +389,7 @@ struct SyncStatusView: View {
 
     private var lastSyncedText: String {
         guard let lastSyncedAt = syncQueueStore.lastSyncedAt else {
-            return "Not synced yet"
+            return "Account sync is not available yet"
         }
 
         return "Last synced \(lastSyncedAt.formatted(date: .abbreviated, time: .shortened))"

@@ -11,11 +11,7 @@ final class SyncQueueStore: ObservableObject {
     }
 
     init(
-        operations: [SyncOperation] = [
-            SyncOperation(kind: .library, summary: "Refresh saved titles from local library"),
-            SyncOperation(kind: .history, summary: "Upload recent reading progress"),
-            SyncOperation(kind: .preferences, summary: "Sync app and reader preferences")
-        ],
+        operations: [SyncOperation] = [],
         lastSyncedAt: Date? = nil
     ) {
         self.operations = operations
@@ -24,15 +20,6 @@ final class SyncQueueStore: ObservableObject {
 
     func enqueue(_ operation: SyncOperation) {
         operations.insert(operation, at: 0)
-    }
-
-    func markAllCompleted() {
-        operations = operations.map { operation in
-            var updated = operation
-            updated.status = .completed
-            return updated
-        }
-        lastSyncedAt = .now
     }
 
     func retryFailed() {

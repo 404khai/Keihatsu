@@ -5,9 +5,19 @@
 	};
 	objectVersion = 77;
 	objects = {
+/* Begin PBXTargetDependency section */
+		A1000000000000000000006E = {isa = PBXTargetDependency; target = 84876FE42FC78D73003E68ED; targetProxy = A1000000000000000000006D; };
+		A10000000000000000000082 = {isa = PBXTargetDependency; target = 84876FE42FC78D73003E68ED; targetProxy = A10000000000000000000081; };
+/* End PBXTargetDependency section */
+/* Begin PBXContainerItemProxy section */
+		A1000000000000000000006D = {isa = PBXContainerItemProxy; containerPortal = 84876FDD2FC78D73003E68ED; proxyType = 1; remoteGlobalIDString = 84876FE42FC78D73003E68ED; remoteInfo = Keihatsu; };
+		A10000000000000000000081 = {isa = PBXContainerItemProxy; containerPortal = 84876FDD2FC78D73003E68ED; proxyType = 1; remoteGlobalIDString = 84876FE42FC78D73003E68ED; remoteInfo = Keihatsu; };
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		84876FE52FC78D73003E68ED /* Keihatsu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Keihatsu.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000064 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = KeihatsuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000078 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = KeihatsuUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -15,6 +25,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				"Info-Debug.plist",
 			);
 			target = 84876FE42FC78D73003E68ED /* Keihatsu */;
 		};
@@ -29,6 +40,8 @@
 			path = Keihatsu;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000065 = {isa = PBXFileSystemSynchronizedRootGroup; path = KeihatsuTests; sourceTree = "<group>"; };
+		A10000000000000000000079 = {isa = PBXFileSystemSynchronizedRootGroup; path = KeihatsuUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -39,6 +52,8 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000067 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A1000000000000000000007B = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -46,6 +61,8 @@
 			isa = PBXGroup;
 			children = (
 				84876FE72FC78D73003E68ED /* Keihatsu */,
+				A10000000000000000000079,
+				A10000000000000000000065,
 				84876FE62FC78D73003E68ED /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +71,8 @@
 			isa = PBXGroup;
 			children = (
 				84876FE52FC78D73003E68ED /* Keihatsu.app */,
+				A10000000000000000000078,
+				A10000000000000000000064,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -83,6 +102,8 @@
 			productReference = 84876FE52FC78D73003E68ED /* Keihatsu.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A10000000000000000000069 = {isa = PBXNativeTarget; buildConfigurationList = A1000000000000000000006C; buildPhases = (A10000000000000000000066, A10000000000000000000067, A10000000000000000000068,); buildRules = (); dependencies = (A1000000000000000000006E,); fileSystemSynchronizedGroups = (A10000000000000000000065,); name = KeihatsuTests; productName = KeihatsuTests; productReference = A10000000000000000000064; productType = "com.apple.product-type.bundle.unit-test"; };
+		A1000000000000000000007D = {isa = PBXNativeTarget; buildConfigurationList = A10000000000000000000080; buildPhases = (A1000000000000000000007A, A1000000000000000000007B, A1000000000000000000007C,); buildRules = (); dependencies = (A10000000000000000000082,); fileSystemSynchronizedGroups = (A10000000000000000000079,); name = KeihatsuUITests; productName = KeihatsuUITests; productReference = A10000000000000000000078; productType = "com.apple.product-type.bundle.ui-testing"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -113,6 +134,8 @@
 			projectRoot = "";
 			targets = (
 				84876FE42FC78D73003E68ED /* Keihatsu */,
+				A1000000000000000000007D,
+				A10000000000000000000069,
 			);
 		};
 /* End PBXProject section */
@@ -125,6 +148,8 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000068 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A1000000000000000000007C = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -135,6 +160,8 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000066 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A1000000000000000000007A = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
@@ -266,7 +293,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Keihatsu/Info.plist;
+				INFOPLIST_FILE = "Keihatsu/Info-Debug.plist";
+				KEIHATSU_API_BASE_URL = "";
+				"KEIHATSU_API_BASE_URL[sdk=iphonesimulator*]" = "http://127.0.0.1:3000";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -299,6 +328,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Keihatsu/Info.plist;
+				KEIHATSU_API_BASE_URL = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -321,6 +351,10 @@
 			};
 			name = Release;
 		};
+		A1000000000000000000006A = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.kaizel.KeihatsuTests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; BUNDLE_LOADER = "$(TEST_HOST)"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Keihatsu.app/Keihatsu";}; name = Debug; };
+		A1000000000000000000006B = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.kaizel.KeihatsuTests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; BUNDLE_LOADER = "$(TEST_HOST)"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Keihatsu.app/Keihatsu";}; name = Release; };
+		A1000000000000000000007E = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.kaizel.KeihatsuUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; TEST_TARGET_NAME = Keihatsu;}; name = Debug; };
+		A1000000000000000000007F = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.kaizel.KeihatsuUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; TEST_TARGET_NAME = Keihatsu;}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -342,6 +376,8 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A1000000000000000000006C = {isa = XCConfigurationList; buildConfigurations = (A1000000000000000000006A, A1000000000000000000006B,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A10000000000000000000080 = {isa = XCConfigurationList; buildConfigurations = (A1000000000000000000007E, A1000000000000000000007F,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = 84876FDD2FC78D73003E68ED /* Project object */;

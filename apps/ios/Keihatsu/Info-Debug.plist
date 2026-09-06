@@ -11,5 +11,12 @@
 	</array>
 	<key>KEIHATSU_API_BASE_URL</key>
 	<string>$(KEIHATSU_API_BASE_URL)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Connect to your local Keihatsu development server.</string>
 </dict>
 </plist>
