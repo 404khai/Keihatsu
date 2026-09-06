@@ -13,31 +13,33 @@ struct HistoryView: View {
         collections.historySections(query: searchText.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
+    private var filteredReadingEntries: [ReaderProgressRecord] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return readingHistory.entries }
+
+        return readingHistory.entries.filter { entry in
+            entry.manga.title.localizedCaseInsensitiveContains(query)
+                || entry.chapter.name.localizedCaseInsensitiveContains(query)
+                || entry.updatedAt.formatted(date: .abbreviated, time: .shortened).localizedCaseInsensitiveContains(query)
+        }
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 28) {
-                if !readingHistory.entries.isEmpty {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Recent Reading").font(.title3.weight(.semibold))
-                        ForEach(readingHistory.entries) { entry in
-                            NavigationLink(value: MangaDetailsSeed(manga: entry.manga, fallbackChapters: [entry.chapter])) {
-                                HStack(spacing: 14) {
-                                    CatalogueCover(url: entry.manga.thumbnailURL, referer: entry.manga.url)
-                                        .frame(width: 58, height: 82)
-                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(entry.manga.title).font(.headline).lineLimit(1)
-                                        Text(entry.chapter.name).font(.subheadline).foregroundStyle(.secondary)
-                                        Text("Page \(entry.displayedPage) of \(max(entry.totalPages, 1)) • \(entry.updatedAt.formatted(date: .abbreviated, time: .shortened))")
-                                            .font(.caption).foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Image(systemName: "book.pages").font(.title3).foregroundStyle(.tint)
+                if !filteredReadingEntries.isEmpty {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text("Recent Reading")
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(.primary.opacity(0.8))
+
+                        VStack(spacing: 18) {
+                            ForEach(filteredReadingEntries) { entry in
+                                NavigationLink(value: MangaDetailsSeed(manga: entry.manga, fallbackChapters: [entry.chapter])) {
+                                    ReadingHistoryRow(entry: entry)
                                 }
-                                .padding(12)
-                                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -85,7 +87,7 @@ struct HistoryView: View {
         }
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search history"))
         .overlay {
-            if filteredSections.isEmpty {
+            if filteredSections.isEmpty && filteredReadingEntries.isEmpty {
                 ContentUnavailableView(
                     "No History Found",
                     systemImage: "clock.badge.questionmark",
@@ -155,6 +157,43 @@ struct HistoryView: View {
         if selectedItemIDs.isEmpty {
             selectionMode = false
         }
+    }
+}
+
+private struct ReadingHistoryRow: View {
+    let entry: ReaderProgressRecord
+
+    var body: some View {
+        HStack(spacing: 18) {
+            CatalogueCover(url: entry.manga.thumbnailURL, referer: entry.manga.url)
+                .frame(width: 78, height: 116)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(entry.manga.title)
+                    .font(.system(size: 18, weight: .medium))
+                    .lineLimit(1)
+
+                Text(entry.chapter.name)
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+
+                Text("Page \(entry.displayedPage) of \(max(entry.totalPages, 1)) • \(entry.updatedAt.formatted(date: .omitted, time: .shortened))")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "book.closed")
+                .font(.title2)
+                .foregroundStyle(.primary)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
     }
 }
 
