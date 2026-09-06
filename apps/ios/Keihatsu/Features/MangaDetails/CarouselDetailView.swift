@@ -47,6 +47,10 @@ private struct MangaDetailsContentView: View {
         return url
     }
 
+    private var chapterListHeight: CGFloat {
+        CGFloat(model.displayedChapters.count) * 96
+    }
+
     init(
         seed: MangaDetailsSeed,
         animation: Namespace.ID,
@@ -239,12 +243,19 @@ private struct MangaDetailsContentView: View {
                 }
                 .foregroundStyle(.white)
             } else {
-                LazyVStack(spacing: 0) {
+                List {
                     ForEach(model.displayedChapters) { chapter in
-                        chapterRow(chapter)
-                        if chapter.id != model.displayedChapters.last?.id { Divider().overlay(.white.opacity(0.08)) }
+                        chapterRow(chapter, showsDivider: chapter.id != model.displayedChapters.last?.id)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                     }
                 }
+                .listStyle(.plain)
+                .scrollDisabled(true)
+                .scrollContentBackground(.hidden)
+                .environment(\.defaultMinListRowHeight, 96)
+                .frame(height: chapterListHeight)
                 .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1) }
 
@@ -259,29 +270,50 @@ private struct MangaDetailsContentView: View {
         }
     }
 
-    private func chapterRow(_ chapter: Chapter) -> some View {
+    private func chapterRow(_ chapter: Chapter, showsDivider: Bool) -> some View {
         let state = model.state(for: chapter)
         return Button { open(chapter) } label: {
-            HStack(spacing: 12) {
-                if state.isBookmarked { Image(systemName: "bookmark.fill").foregroundStyle(.tint) }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(chapter.name).font(.headline).foregroundStyle(state.isRead ? .white.opacity(0.45) : .white)
+            HStack(spacing: 14) {
+                if state.isBookmarked {
+                    Image(systemName: "bookmark.fill")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.tint)
+                        .frame(width: 24)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(chapter.name)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(state.isRead ? .white.opacity(0.48) : .white)
+                        .lineLimit(2)
                     HStack(spacing: 6) {
                         if let date = chapter.uploadedAt { Text(date.formatted(date: .abbreviated, time: .omitted)) }
                         if let scanlator = chapter.scanlator, !scanlator.isEmpty { Text("• \(scanlator)") }
                     }
-                    .font(.subheadline)
-                    .foregroundStyle(state.isRead ? .white.opacity(0.35) : .white.opacity(0.62))
+                    .font(.callout)
+                    .foregroundStyle(state.isRead ? .white.opacity(0.38) : .white.opacity(0.68))
                 }
                 Spacer()
-                if state.isDownloaded { Image(systemName: "arrow.down.circle.fill").foregroundStyle(.secondary) }
-                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                Image(systemName: state.isDownloaded ? "arrow.down.circle.fill" : "arrow.down.to.line.circle")
+                    .font(.system(size: 30, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.white.opacity(state.isDownloaded ? 0.78 : 0.58))
+                    .frame(width: 44, height: 52)
+                    .accessibilityLabel(state.isDownloaded ? "Downloaded" : "Download")
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 20)
+            .frame(minHeight: 96)
             .contentShape(Rectangle())
         }
+        .overlay(alignment: .bottom) {
+            if showsDivider {
+                Divider()
+                    .overlay(.white.opacity(0.12))
+                    .padding(.horizontal, 20)
+            }
+        }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("manga.chapter.\(chapter.id.chapterID)")
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button { Task { await model.toggleBookmark(chapter) } } label: {
                 Label(state.isBookmarked ? "Unbookmark" : "Bookmark", systemImage: state.isBookmarked ? "bookmark.slash" : "bookmark")
