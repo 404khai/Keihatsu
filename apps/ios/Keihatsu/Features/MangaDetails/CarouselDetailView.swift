@@ -48,7 +48,7 @@ private struct MangaDetailsContentView: View {
     }
 
     private var chapterListHeight: CGFloat {
-        CGFloat(model.displayedChapters.count) * 96
+        CGFloat(model.displayedChapters.count) * 88
     }
 
     init(
@@ -254,7 +254,7 @@ private struct MangaDetailsContentView: View {
                 .listStyle(.plain)
                 .scrollDisabled(true)
                 .scrollContentBackground(.hidden)
-                .environment(\.defaultMinListRowHeight, 96)
+                .environment(\.defaultMinListRowHeight, 88)
                 .frame(height: chapterListHeight)
                 .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1) }
@@ -301,8 +301,8 @@ private struct MangaDetailsContentView: View {
                     .accessibilityLabel(state.isDownloaded ? "Downloaded" : "Download")
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 20)
-            .frame(minHeight: 96)
+            .padding(.vertical, 16)
+            .frame(minHeight: 88)
             .contentShape(Rectangle())
         }
         .overlay(alignment: .bottom) {

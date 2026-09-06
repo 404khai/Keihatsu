@@ -2,6 +2,38 @@ import XCTest
 
 final class ShellUITests: XCTestCase {
     @MainActor
+    func testBundledReaderLoadsPagesAndPreservesControls() {
+        let app = XCUIApplication()
+        app.launchEnvironment["KEIHATSU_API_BASE_URL"] = "http://127.0.0.1:1"
+        app.launchArguments = ["-keihatsu.hasSeenOnboarding", "YES", "-keihatsu.hasEnteredAsGuest", "YES"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Library"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Library"].tap()
+        let thriller = app.buttons["Thriller(3)"]
+        XCTAssertTrue(thriller.waitForExistence(timeout: 5))
+        thriller.tap()
+        let title = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Ordeal")).firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        let read = app.buttons["manga.details.read"]
+        XCTAssertTrue(read.waitForExistence(timeout: 5))
+        read.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["reader.entry"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["reader.page.chapter-139.0"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Bookmark"].exists)
+        XCTAssertTrue(app.buttons["Comments"].exists)
+        XCTAssertTrue(app.buttons["Next chapter"].exists)
+        measure(metrics: [XCTMemoryMetric(), XCTOSSignpostMetric.scrollDecelerationMetric]) {
+            app.swipeUp()
+        }
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Phase 4 reader"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    @MainActor
     func testChapterRowsExposeReadAndBookmarkSwipeActions() {
         let app = XCUIApplication()
         app.launchEnvironment["KEIHATSU_API_BASE_URL"] = "http://127.0.0.1:1"
