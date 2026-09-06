@@ -1,11 +1,11 @@
 import SwiftUI
 
-struct AccountSheetView: View {
+struct ProfilePageContent: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
     @State private var showInbox = false
     @State private var incognitoModeEnabled = false
+    @State private var showLogoutUnavailable = false
 
     private var pageBackground: Color {
         incognitoModeEnabled ? Color.black.opacity(0.94) : Color(.systemGroupedBackground)
@@ -22,106 +22,108 @@ struct AccountSheetView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    profileHeader
-                    statsCard
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                profileHeader
+                statsCard
 
-                    AccountSheetGroup(background: cardBackground) {
-                        AccountSheetRow(
-                            icon: "icloud.and.arrow.down",
-                            title: "Download Queue",
-                            showsChevron: true
-                        )
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-
-                    AccountSheetGroup(background: cardBackground) {
-                        NavigationLink {
-                            SettingsView()
-                        } label: {
-                            AccountSheetRow(icon: "gearshape", title: "Settings", showsChevron: true)
-                        }
-                        .buttonStyle(.plain)
-                        accountDivider
-                        AccountSheetRow(icon: "chart.bar", title: "Stats", showsChevron: true)
-                        accountDivider
-                        Button { showInbox = true } label: {
-                            AccountSheetRow(icon: "tray", title: "Inbox", showsChevron: true)
-                        }.buttonStyle(.plain)
-                    }
-                    
-                    AccountSheetGroup(background: cardBackground) {
-                        AccountSheetRow(icon: "tag", title: "Categories", showsChevron: true)
-                        accountDivider
-                        AccountSheetRow(icon: "server.rack", title: "Data & Storage", showsChevron: true)
-                    }
-
-                    AccountSheetGroup(background: cardBackground) {
-                        NavigationLink {
-                            HelpAndSupportView()
-                        } label: {
-                            AccountSheetRow(icon: "questionmark.circle", title: "Help & Support", showsChevron: true)
-                        }
-                        .buttonStyle(.plain)
-                        accountDivider
-                        AccountSheetRow(icon: "lightbulb.max", title: "Suggest a Feature", showsChevron: true)
-                        accountDivider
-                        AccountSheetRow(icon: "gift", title: "Support the Developer", showsChevron: true)
-                        accountDivider
-                        NavigationLink {
-                            AboutView()
-                        } label: {
-                            AccountSheetRow(icon: "info.circle", title: "About", showsChevron: true)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    AccountSheetGroup(background: cardBackground) {
-                        HStack(spacing: 18) {
-                            AccountIcon(symbol: "theatermasks.fill")
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Incognito Mode")
-                                    .font(.title3.weight(.medium))
-                                    .fontDesign(.rounded)
-                                    .foregroundStyle(.primary)
-
-                                Text("Read without saving history")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer(minLength: 12)
-
-                            Toggle("Incognito Mode", isOn: $preferencesStore.preferences.incognitoModeEnabled)
-                                .labelsHidden()
-                                .tint(accent)
-                        }
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 18)
-                    }
-
-                    logoutButton
+                ProfileGroup(background: cardBackground) {
+                    ProfileRow(
+                        icon: "icloud.and.arrow.down",
+                        title: "Download Queue",
+                        showsChevron: true
+                    )
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 28)
-                .padding(.bottom, 34)
+                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+
+                ProfileGroup(background: cardBackground) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        ProfileRow(icon: "gearshape", title: "Settings", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                    accountDivider
+                    ProfileRow(icon: "chart.bar", title: "Stats", showsChevron: true)
+                    accountDivider
+                    Button { showInbox = true } label: {
+                        ProfileRow(icon: "tray", title: "Inbox", showsChevron: true)
+                    }.buttonStyle(.plain)
+                }
+
+                ProfileGroup(background: cardBackground) {
+                    ProfileRow(icon: "tag", title: "Categories", showsChevron: true)
+                    accountDivider
+                    ProfileRow(icon: "server.rack", title: "Data & Storage", showsChevron: true)
+                }
+
+                ProfileGroup(background: cardBackground) {
+                    NavigationLink {
+                        HelpAndSupportView()
+                    } label: {
+                        ProfileRow(icon: "questionmark.circle", title: "Help & Support", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                    accountDivider
+                    ProfileRow(icon: "lightbulb.max", title: "Suggest a Feature", showsChevron: true)
+                    accountDivider
+                    ProfileRow(icon: "gift", title: "Support the Developer", showsChevron: true)
+                    accountDivider
+                    NavigationLink {
+                        AboutView()
+                    } label: {
+                        ProfileRow(icon: "info.circle", title: "About", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                ProfileGroup(background: cardBackground) {
+                    HStack(spacing: 18) {
+                        AccountIcon(symbol: "theatermasks.fill")
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Incognito Mode")
+                                .font(.title3.weight(.medium))
+                                .fontDesign(.rounded)
+                                .foregroundStyle(.primary)
+
+                            Text("Read without saving history")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer(minLength: 12)
+
+                        Toggle("Incognito Mode", isOn: $preferencesStore.preferences.incognitoModeEnabled)
+                            .labelsHidden()
+                            .tint(accent)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 18)
+                }
+
+                logoutButton
             }
-            .background(pageBackground.ignoresSafeArea())
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .preferredColorScheme(incognitoModeEnabled ? .dark : nil)
-            .onAppear {
-                incognitoModeEnabled = preferencesStore.preferences.incognitoModeEnabled
-            }
-            .onChange(of: preferencesStore.preferences.incognitoModeEnabled) { _, newValue in
-                incognitoModeEnabled = newValue
-            }
+            .padding(.horizontal, 20)
+            .padding(.top, 28)
+            .padding(.bottom, 34)
+        }
+        .background(pageBackground.ignoresSafeArea())
+        .navigationTitle("Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(incognitoModeEnabled ? .dark : nil)
+        .onAppear {
+            incognitoModeEnabled = preferencesStore.preferences.incognitoModeEnabled
+        }
+        .onChange(of: preferencesStore.preferences.incognitoModeEnabled) { _, newValue in
+            incognitoModeEnabled = newValue
         }
         .sheet(isPresented: $showInbox) { NotificationsSheetView(title: "Inbox") }
-        .presentationDragIndicator(.visible)
+        .alert("Sign out unavailable", isPresented: $showLogoutUnavailable) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Account sessions are not connected in this build yet.")
+        }
     }
 
     private var accountDivider: some View {
@@ -133,7 +135,7 @@ struct AccountSheetView: View {
 
     private var logoutButton: some View {
         Button(role: .destructive) {
-            dismiss()
+            showLogoutUnavailable = true
         } label: {
             Text("Log Out")
                 .font(.title3.weight(.semibold))
@@ -223,7 +225,7 @@ struct AccountSheetView: View {
     }
 }
 
-private struct AccountSheetGroup<Content: View>: View {
+private struct ProfileGroup<Content: View>: View {
     var background: Color = Color(.secondarySystemGroupedBackground)
     @ViewBuilder var content: Content
 
@@ -235,7 +237,7 @@ private struct AccountSheetGroup<Content: View>: View {
     }
 }
 
-private struct AccountSheetRow: View {
+private struct ProfileRow: View {
     let icon: String
     let title: String
     var showsChevron: Bool = false

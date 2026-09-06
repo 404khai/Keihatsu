@@ -77,9 +77,9 @@ struct ContentView: View {
     @ViewBuilder
     func NativeTabView() -> some View {
         TabView(selection: $navigation.selectedTab){
-            Tab.init("Home", systemImage: "house.fill", value: AppNavigation.Tab.home){
-                HomeView(animation: animation)
-            }
+            // Tab.init("Home", systemImage: "house.fill", value: AppNavigation.Tab.home){
+            //     HomeView(animation: animation)
+            // }
 
             Tab.init("Library", systemImage: "books.vertical", value: AppNavigation.Tab.library){
                 NavigationStack(path: $navigation.libraryPath) {
@@ -99,6 +99,11 @@ struct ContentView: View {
                 }
             }
 
+            Tab.init("Profile", systemImage: "person.fill", value: AppNavigation.Tab.profile){
+                NavigationStack(path: $navigation.profilePath) {
+                    ProfileView()
+                }
+            }
 
             Tab.init("Search", systemImage: "magnifyingglass", value: AppNavigation.Tab.search, role: .search){
                 NavigationStack(path: $navigation.searchPath) {
