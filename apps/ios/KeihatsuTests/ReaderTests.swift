@@ -63,6 +63,28 @@ struct ReaderPersistenceTests {
         #expect(record.state(for: chapter.id).pageIndex == 11)
         #expect(record.state(for: chapter.id).isRead)
     }
+
+    @Test func recentHistoryKeepsOnlyLatestChapterForEachManga() async throws {
+        let store = ReaderProgressStore(namespace: "reader-test", persistToDisk: false)
+        let earlier = ReaderProgressRecord(
+            manga: manga(), chapter: chapter(1), pageIndex: 4, intraPageAnchor: 0,
+            totalPages: 20, activeReadingSeconds: 10, isRead: false, isBookmarked: false,
+            updatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let latest = ReaderProgressRecord(
+            manga: manga(), chapter: chapter(2), pageIndex: 8, intraPageAnchor: 0.25,
+            totalPages: 24, activeReadingSeconds: 20, isRead: false, isBookmarked: false,
+            updatedAt: Date(timeIntervalSince1970: 200)
+        )
+
+        try await store.save(earlier)
+        try await store.save(latest)
+
+        let recent = await store.recent()
+        #expect(recent.count == 1)
+        #expect(recent.first?.chapter.id == latest.chapter.id)
+        #expect(recent.first?.pageIndex == latest.pageIndex)
+    }
 }
 
 @Suite @MainActor

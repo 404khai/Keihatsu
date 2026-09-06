@@ -69,13 +69,13 @@ struct ReaderView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(model.manga.title)
                         .font(.headline)
                         .foregroundStyle(.white)
                         .lineLimit(1)
 
-                    Text(model.currentChapter?.name ?? "Reader")
+                    Text(model.currentChapter?.name ?? "Chapter")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.7))
                         .lineLimit(1)

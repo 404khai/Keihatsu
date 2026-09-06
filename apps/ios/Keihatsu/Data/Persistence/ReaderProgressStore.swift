@@ -34,7 +34,11 @@ actor ReaderProgressStore {
 
     func recent() -> [ReaderProgressRecord] {
         loadIfNeeded()
-        return records.values.filter { $0.totalPages > 0 }.sorted { $0.updatedAt > $1.updatedAt }
+        var seenManga = Set<MangaIdentity>()
+        return records.values
+            .filter { $0.totalPages > 0 }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .filter { seenManga.insert($0.manga.id).inserted }
     }
 
     func save(_ progress: ReaderProgressRecord) throws {

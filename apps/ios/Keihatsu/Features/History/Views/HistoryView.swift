@@ -13,28 +13,39 @@ struct HistoryView: View {
         collections.historySections(query: searchText.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    private var filteredReadingEntries: [ReaderProgressRecord] {
+    private var filteredReadingSections: [ReadingHistorySection] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return readingHistory.entries }
-
-        return readingHistory.entries.filter { entry in
-            entry.manga.title.localizedCaseInsensitiveContains(query)
+        let calendar = Calendar.current
+        let entries = readingHistory.entries.filter { entry in
+            query.isEmpty
+                || entry.manga.title.localizedCaseInsensitiveContains(query)
                 || entry.chapter.name.localizedCaseInsensitiveContains(query)
                 || entry.updatedAt.formatted(date: .abbreviated, time: .shortened).localizedCaseInsensitiveContains(query)
+                || readingDateTitle(for: entry.updatedAt, calendar: calendar).localizedCaseInsensitiveContains(query)
         }
+
+        return Dictionary(grouping: entries) { calendar.startOfDay(for: $0.updatedAt) }
+            .map { day, entries in
+                ReadingHistorySection(
+                    date: day,
+                    title: readingDateTitle(for: day, calendar: calendar),
+                    entries: entries.sorted { $0.updatedAt > $1.updatedAt }
+                )
+            }
+            .sorted { $0.date > $1.date }
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 28) {
-                if !filteredReadingEntries.isEmpty {
+                ForEach(filteredReadingSections) { section in
                     VStack(alignment: .leading, spacing: 18) {
-                        Text("Recent Reading")
+                        Text(section.title)
                             .font(.title3.weight(.medium))
                             .foregroundStyle(.primary.opacity(0.8))
 
                         VStack(spacing: 18) {
-                            ForEach(filteredReadingEntries) { entry in
+                            ForEach(section.entries) { entry in
                                 NavigationLink(value: MangaDetailsSeed(manga: entry.manga, fallbackChapters: [entry.chapter])) {
                                     ReadingHistoryRow(entry: entry)
                                 }
@@ -87,7 +98,7 @@ struct HistoryView: View {
         }
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search history"))
         .overlay {
-            if filteredSections.isEmpty && filteredReadingEntries.isEmpty {
+            if filteredSections.isEmpty && filteredReadingSections.isEmpty {
                 ContentUnavailableView(
                     "No History Found",
                     systemImage: "clock.badge.questionmark",
@@ -158,6 +169,24 @@ struct HistoryView: View {
             selectionMode = false
         }
     }
+
+    private func readingDateTitle(for date: Date, calendar: Calendar) -> String {
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "dd MMM yyyy"
+        return formatter.string(from: date)
+    }
+}
+
+private struct ReadingHistorySection: Identifiable {
+    let date: Date
+    let title: String
+    let entries: [ReaderProgressRecord]
+    var id: Date { date }
 }
 
 private struct ReadingHistoryRow: View {
