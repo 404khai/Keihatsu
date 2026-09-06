@@ -60,8 +60,8 @@ struct GlobalExtensionSearchView: View {
         .task { await sources.load() }
         .task(id: searchKey) { await model.search(searchText, sources: visibleExtensions) }
         .onSubmit(of: .search) { model.remember(searchText) }
-        .navigationDestination(for: ImageModel.self) { item in
-            CarouselDetailView(item: item, animation: animation)
+        .navigationDestination(for: MangaDetailsSeed.self) { seed in
+            CarouselDetailView(seed: seed, animation: animation, origin: .search)
         }
         .navigationTitle("Search")
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search across sources"))
@@ -150,7 +150,7 @@ struct GlobalExtensionSearchView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             LazyHStack(spacing: 14) {
                                 ForEach(results) { item in
-                                    NavigationLink(value: item) {
+                                    NavigationLink(value: MangaDetailsSeed(item: item)) {
                                         GlobalSearchMangaCard(item: item)
                                     }.buttonStyle(.plain)
                                     .matchedTransitionSource(id: item.id, in: animation)

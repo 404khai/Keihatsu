@@ -70,7 +70,7 @@ struct HomeView: View {
                     
                     if !items.isEmpty {
                     CustomCarousel(config: .init(hasOpacity: s.hasOpacity, hasScale: s.hasScale, cardWidth: s.cardWidth, minCardWidth: s.minCardWidth), selection: $activeID, data: items) { item in
-                        NavigationLink(value: item) {
+                        NavigationLink(value: MangaDetailsSeed(item: item)) {
                             CatalogueCover(url: item.manga?.thumbnailURL, referer: item.manga?.url, asset: item.manga == nil ? item.image : nil)
                                 .overlay(alignment: .bottomLeading) {
                                     LinearGradient(
@@ -129,7 +129,7 @@ struct HomeView: View {
 
                                 LazyVStack(spacing: 12) {
                                     ForEach(section.items) { entry in
-                                        NavigationLink(value: entry.item) {
+                                        NavigationLink(value: MangaDetailsSeed(item: entry.item)) {
                                             HStack(spacing: 12) {
                                                 CatalogueCover(url: entry.item.manga?.thumbnailURL, referer: entry.item.manga?.url, asset: entry.item.manga == nil ? entry.item.image : nil)
                                                     .frame(width: 54, height: 72)
@@ -193,8 +193,8 @@ struct HomeView: View {
                 NotificationsSheetView()
                     .navigationTransition(.zoom(sourceID: "Notifications", in: animation))
             }
-            .navigationDestination(for: ImageModel.self) { item in
-                CarouselDetailView(item: item, animation: animation)
+            .navigationDestination(for: MangaDetailsSeed.self) { seed in
+                CarouselDetailView(seed: seed, animation: animation, origin: .home)
             }
         }
     }
@@ -240,4 +240,3 @@ struct HomeView: View {
     HomeView(animation: animation)
         .appEnvironment(.preview())
 }
-

@@ -1,431 +1,398 @@
-//
-//  CarouselDetailView.swift
-//  Keihatsu
-//
-//  Created by admin on 6/3/26.
-//
-
 import SwiftUI
 
 struct CarouselDetailView: View {
-    let item: ImageModel
+    @EnvironmentObject private var environment: AppEnvironment
+    let seed: MangaDetailsSeed
     let animation: Namespace.ID
-    @State private var showCategorySheet: Bool = false
-    @State private var selectedCategories: Set<String> = ["DEFAULT"]
-    @State private var showCollapsedHeader: Bool = false
-    @State private var bookmarkedChapters: Set<Int> = []
-    @State private var readChapters: Set<Int> = []
-    @State private var navigateToChapter: ChapterEntry?
-    
-    private var chapters: [ChapterEntry] {
-        if item.manga != nil { return [] }
-        if item.title == "Ordeal" {
-            return [
-                ChapterEntry(id: 139, title: "Chapter 139", date: "14/5/26", resourcePrefix: "ordeal_ch139_"),
-                ChapterEntry(id: 156, title: "Chapter 156", date: "15/5/26", resourcePrefix: "ordeal_ch156_"),
-                ChapterEntry(id: 158, title: "Chapter 158", date: "16/5/26", resourcePrefix: "ordeal_ch158_")
-            ]
-        }
+    let origin: ReaderLaunchContext.Origin
 
-        return (1...10).map { index in
-            ChapterEntry(id: index, title: "Chapter \(index)", date: "\(13 + index)/5/26", resourcePrefix: nil)
-        }
+    init(item: ImageModel, animation: Namespace.ID, origin: ReaderLaunchContext.Origin = .details) {
+        seed = MangaDetailsSeed(item: item)
+        self.animation = animation
+        self.origin = origin
     }
 
-    private let categories = ["DEFAULT", "Thriller"]
-    private var chapterListHeight: CGFloat {
-        CGFloat(chapters.count) * 76
+    init(seed: MangaDetailsSeed, animation: Namespace.ID, origin: ReaderLaunchContext.Origin = .details) {
+        self.seed = seed
+        self.animation = animation
+        self.origin = origin
+    }
+
+    var body: some View {
+        MangaDetailsContentView(
+            seed: seed,
+            animation: animation,
+            origin: origin,
+            repository: environment.services.mangaDetails,
+            allowsFixtureLibraryActions: environment.services.isPreview
+        )
+    }
+}
+
+private struct MangaDetailsContentView: View {
+    @EnvironmentObject private var collections: CollectionStore
+    @StateObject private var model: MangaDetailsViewModel
+    let animation: Namespace.ID
+    let allowsFixtureLibraryActions: Bool
+
+    @State private var showCategorySheet = false
+    @State private var showFilterSheet = false
+    @State private var showCollapsedHeader = false
+    @State private var selectedCategories = Set<UUID>()
+    @State private var selectedReader: ReaderLaunchContext?
+    @State private var showAccountRequired = false
+
+    private var sourceURL: URL? {
+        guard let url = model.manga.url, ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
+        return url
+    }
+
+    init(
+        seed: MangaDetailsSeed,
+        animation: Namespace.ID,
+        origin: ReaderLaunchContext.Origin,
+        repository: any MangaDetailsRepository,
+        allowsFixtureLibraryActions: Bool
+    ) {
+        _model = StateObject(wrappedValue: MangaDetailsViewModel(seed: seed, origin: origin, repository: repository))
+        self.animation = animation
+        self.allowsFixtureLibraryActions = allowsFixtureLibraryActions
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
                 heroSection
-                
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 28) {
                     overviewSection
                     chapterSection
+                    recommendationsSection
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
-                .padding(.bottom, 40)
+                .padding(.bottom, 44)
             }
         }
         .coordinateSpace(name: "detailScroll")
         .background(Color.black.ignoresSafeArea())
         .ignoresSafeArea(edges: .top)
         .navigationBarTitleDisplayMode(.inline)
-//        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .toolbarBackground(showCollapsedHeader ? .visible : .hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .onPreferenceChange(HeroHeaderVisibilityKey.self) { minY in
-            showCollapsedHeader = minY < 50
-        }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                HStack(spacing: 10) {
-//                    Image(item.image)
-//                        .resizable()
-//                        .aspectRatio(contentMode: .fill)
-//                        .frame(width: 30, height: 30)
-//                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                    Text(item.title)
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .opacity(showCollapsedHeader ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: showCollapsedHeader)
-            }
-
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                }
-                
-                Button {
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease")
-                }
-                
-                Button {
-                } label: {
-                    Image(systemName: "ellipsis")
-                }
-            }
-        }
+        .onPreferenceChange(HeroHeaderVisibilityKey.self) { showCollapsedHeader = $0 < 50 }
+        .task(id: model.seed.manga.id) { await model.load() }
+        .refreshable { await model.refreshAll() }
+        .toolbar { detailToolbar }
         .sheet(isPresented: $showCategorySheet) {
-            categorySheet
-                .presentationDetents([.height(280)])
-                .presentationDragIndicator(.visible)
+            categorySheet.presentationDetents([.height(340)]).presentationDragIndicator(.visible)
         }
-        .navigationDestination(item: $navigateToChapter) { chapter in
-            ReaderView(item: item, chapters: chapters, initialChapterID: chapter.id)
+        .sheet(isPresented: $showFilterSheet) {
+            filterSheet.presentationDetents([.height(330)]).presentationDragIndicator(.visible)
+        }
+        .alert("Account required", isPresented: $showAccountRequired) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Sign in when account support is available to add titles to your library and categories.")
+        }
+        .navigationDestination(item: $selectedReader) { context in
+            ReaderEntryView(manga: model.manga, chapters: model.chapters, context: context)
+        }
+        .navigationDestination(for: MangaDetailsSeed.self) { seed in
+            CarouselDetailView(seed: seed, animation: animation, origin: .details)
         }
     }
-    
+
+    @ToolbarContentBuilder private var detailToolbar: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            Text(model.manga.title)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .opacity(showCollapsedHeader ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: showCollapsedHeader)
+                .accessibilityIdentifier("manga.details.title")
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            if let shareURL = sourceURL {
+                ShareLink(item: shareURL) { Image(systemName: "square.and.arrow.up") }
+            }
+            Button { showFilterSheet = true } label: {
+                Image(systemName: model.activeFilterCount == 0 ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+            }
+            .accessibilityLabel("Filter chapters")
+            Menu {
+                Button("Refresh", systemImage: "arrow.clockwise") { Task { await model.refreshAll() } }
+                if let sourceURL { Link("View on source", destination: sourceURL) }
+            } label: { Image(systemName: "ellipsis") }
+        }
+    }
+
     private var heroSection: some View {
         ZStack(alignment: .bottomLeading) {
-            heroImage
-            
+            CatalogueCover(url: model.manga.thumbnailURL, referer: model.manga.url, asset: model.seed.coverAsset)
+                .frame(maxWidth: .infinity)
+                .frame(height: 620)
+                .overlay {
+                    LinearGradient(colors: [.black.opacity(0.02), .black.opacity(0.12), .black.opacity(0.55), .black], startPoint: .top, endPoint: .bottom)
+                }
+                .navigationTransition(.zoom(sourceID: model.seed.transitionID, in: animation))
+                .modifier(BackgroundExtensionModifier())
+
             VStack(alignment: .leading, spacing: 10) {
-                Text(item.title.uppercased())
+                Text(model.manga.title.uppercased())
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(2)
-                
-                HStack(spacing: 10){
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.white.opacity(0.85))
-                    Text(item.manga.map { $0.author ?? "Author unavailable" } ?? "Brent Bristol, REDICE Studio")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-                
-                HStack(spacing: 10){
-                    Image(systemName: "paintbrush.pointed.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.white.opacity(0.85))
-                    Text(item.manga.map { $0.artist ?? "Artist unavailable" } ?? "Yong-Je Park")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-                
-                HStack(spacing: 10){
-                    Image("manhuatop")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 30, height: 30)
-                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    Text((item.manga?.id.sourceID ?? "manhuatop").uppercased())
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-                
-//                Text(item.category.uppercased())
-//                    .font(.headline)
-//                    .foregroundStyle(.white.opacity(0.9))
-                
-//                Text(item.metadataLine)
-//                    .font(.subheadline)
-//                    .foregroundStyle(.white.opacity(0.85))
-                
+
+                if let author = model.manga.author, !author.isEmpty { metadataLine(author, icon: "person.fill") }
+                if let artist = model.manga.artist, !artist.isEmpty { metadataLine(artist, icon: "paintbrush.pointed.fill") }
+                metadataLine(model.manga.id.sourceID.uppercased(), icon: "puzzlepiece.extension.fill")
+
                 HStack(spacing: 14) {
                     Button {
-                        showCategorySheet = true
+                        if allowsFixtureLibraryActions { showCategorySheet = true }
+                        else { showAccountRequired = true }
                     } label: {
-                        Label(item.manga == nil ? "Added to Library" : "Library coming soon", systemImage: "book.closed.fill")
+                        Label("Add to Library", systemImage: "book.closed.fill")
                             .font(.headline)
                             .foregroundStyle(.black)
-                            .padding(.horizontal, 28)
+                            .padding(.horizontal, 24)
                             .frame(height: 52)
                             .background(.white, in: Capsule())
                     }
-                    .disabled(item.manga != nil)
                     .glassEffect(.regular, in: .capsule)
-                    
-                    Button {
-                    } label: {
-                        Image(systemName: "arrow.down.to.line")
+
+                    Button { openResumeChapter() } label: {
+                        Image(systemName: "play.fill")
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(.white)
                             .frame(width: 52, height: 52)
-//                            .background(.white.opacity(0.18), in: Circle())
                     }
-                    .disabled(item.manga != nil)
+                    .disabled(model.resumeChapter == nil)
                     .glassEffect(.regular.interactive(), in: .circle)
+                    .accessibilityLabel(model.resumeChapter?.hasHistory == true ? "Resume reading" : "Read now")
+                    .accessibilityIdentifier("manga.details.read")
                 }
+                .padding(.top, 6)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
         }
         .background {
             GeometryReader { proxy in
-                Color.clear
-                    .preference(
-                        key: HeroHeaderVisibilityKey.self,
-                        value: proxy.frame(in: .named("detailScroll")).minY
-                    )
+                Color.clear.preference(key: HeroHeaderVisibilityKey.self, value: proxy.frame(in: .named("detailScroll")).minY)
             }
         }
     }
-    
-    private var heroImage: some View {
-        CatalogueCover(url: item.manga?.thumbnailURL, referer: item.manga?.url, asset: item.manga == nil ? item.image : nil)
-            .frame(maxWidth: .infinity)
-            .frame(height: 620)
-            .overlay {
-                LinearGradient(
-                    colors: [
-                        .black.opacity(0.02),
-                        .black.opacity(0.12),
-                        .black.opacity(0.5),
-                        .black
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .navigationTransition(.zoom(sourceID: item.id, in: animation))
-            .modifier(BackgroundExtensionModifier())
+
+    private func metadataLine(_ text: String, icon: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.system(size: 15))
+            .foregroundStyle(.white.opacity(0.85))
     }
-    
+
     private var overviewSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Overview")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
-            
-            Text(item.summary)
-                .font(.body)
-                .foregroundStyle(.white.opacity(0.82))
-            
-            Text(item.metadataLine)
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.6))
-                .padding(.top, 4)
+            HStack {
+                Text("Overview").font(.title3.weight(.semibold)).foregroundStyle(.white)
+                if model.metadataLoading { ProgressView().tint(.white).controlSize(.small) }
+            }
+            if let description = model.manga.description, !description.isEmpty {
+                Text(description)
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.82))
+                    .lineLimit(model.showsFullDescription ? nil : 5)
+                    .onTapGesture { withAnimation { model.showsFullDescription.toggle() } }
+                if description.count > 220 {
+                    Button(model.showsFullDescription ? "Show less" : "Read more") { withAnimation { model.showsFullDescription.toggle() } }
+                        .font(.subheadline.weight(.semibold))
+                }
+            } else {
+                Text("No description available.").foregroundStyle(.white.opacity(0.62))
+            }
+            if !model.manga.genres.isEmpty {
+                Text(model.manga.genres.joined(separator: " • ")).font(.footnote).foregroundStyle(.white.opacity(0.6))
+            }
+            if let error = model.metadataError {
+                InlineDetailError(message: error) { Task { await model.refreshMetadata() } }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
+
     private var chapterSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Chapters")
-                .font(.title3.weight(.semibold))
+            HStack {
+                Text("Chapters").font(.title3.weight(.semibold)).foregroundStyle(.white)
+                Text("\(model.filteredChapters.count)").font(.subheadline).foregroundStyle(.white.opacity(0.55)).monospacedDigit()
+                Spacer()
+                if model.chaptersLoading { ProgressView().tint(.white).controlSize(.small) }
+            }
+            if let error = model.chaptersError {
+                InlineDetailError(message: error) { Task { await model.refreshChapters() } }
+            }
+            if !model.chaptersLoading && model.filteredChapters.isEmpty {
+                ContentUnavailableView {
+                    Label(model.chapters.isEmpty ? "No chapters" : "No matching chapters", systemImage: "text.book.closed")
+                } description: {
+                    Text(model.chapters.isEmpty ? "This source has not returned any chapters." : "Change or clear the active filters.")
+                }
                 .foregroundStyle(.white)
-            
-            if item.manga != nil {
-                Text("Chapter reading is coming soon.").foregroundStyle(.white.opacity(0.7))
-                if let url = item.manga?.url, ["https", "http"].contains(url.scheme ?? "") {
-                    Link("View on source", destination: url).buttonStyle(.bordered)
+            } else {
+                LazyVStack(spacing: 0) {
+                    ForEach(model.displayedChapters) { chapter in
+                        chapterRow(chapter)
+                        if chapter.id != model.displayedChapters.last?.id { Divider().overlay(.white.opacity(0.08)) }
+                    }
+                }
+                .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1) }
+
+                if model.filteredChapters.count > 3 {
+                    Button(model.showsAllChapters ? "Show latest three" : "Show all chapters") {
+                        withAnimation { model.showsAllChapters.toggle() }
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
                 }
             }
-            List {
-                ForEach(chapters) { chapter in
-                    chapterRow(chapter)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparatorTint(.white.opacity(0.08))
-                        .listRowBackground(Color.clear)
+        }
+    }
+
+    private func chapterRow(_ chapter: Chapter) -> some View {
+        let state = model.state(for: chapter)
+        return Button { open(chapter) } label: {
+            HStack(spacing: 12) {
+                if state.isBookmarked { Image(systemName: "bookmark.fill").foregroundStyle(.tint) }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(chapter.name).font(.headline).foregroundStyle(state.isRead ? .white.opacity(0.45) : .white)
+                    HStack(spacing: 6) {
+                        if let date = chapter.uploadedAt { Text(date.formatted(date: .abbreviated, time: .omitted)) }
+                        if let scanlator = chapter.scanlator, !scanlator.isEmpty { Text("• \(scanlator)") }
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(state.isRead ? .white.opacity(0.35) : .white.opacity(0.62))
                 }
+                Spacer()
+                if state.isDownloaded { Image(systemName: "arrow.down.circle.fill").foregroundStyle(.secondary) }
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.secondary)
             }
-            .listStyle(.plain)
-            .scrollDisabled(true)
-            .scrollContentBackground(.hidden)
-            .frame(height: chapterListHeight)
-            .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(.white.opacity(0.08), lineWidth: 1)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button { Task { await model.toggleBookmark(chapter) } } label: {
+                Label(state.isBookmarked ? "Unbookmark" : "Bookmark", systemImage: state.isBookmarked ? "bookmark.slash" : "bookmark")
+            }.tint(.accentColor)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button { Task { await model.toggleRead(chapter) } } label: {
+                Label(state.isRead ? "Mark Unread" : "Mark Read", systemImage: state.isRead ? "circle" : "checkmark.circle.fill")
+            }.tint(state.isRead ? .gray : .green)
+        }
+    }
+
+    @ViewBuilder private var recommendationsSection: some View {
+        if model.recommendationsLoading || model.recommendationsError != nil || !model.recommendations.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text("You may also like").font(.title3.weight(.semibold)).foregroundStyle(.white)
+                    if model.recommendationsLoading { ProgressView().tint(.white).controlSize(.small) }
+                }
+                if let error = model.recommendationsError {
+                    InlineDetailError(message: error) { Task { await model.refreshRecommendations() } }
+                }
+                if !model.recommendations.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 14) {
+                            ForEach(model.recommendations) { manga in
+                                NavigationLink(value: MangaDetailsSeed(manga: manga)) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        CatalogueCover(url: manga.thumbnailURL, referer: manga.url)
+                                            .frame(width: 126, height: 184)
+                                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                        Text(manga.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white).lineLimit(2).frame(width: 126, alignment: .leading)
+                                    }
+                                }.buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     private var categorySheet: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Select Categories")
-                    .font(.title3.weight(.semibold))
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 12)
-
-                VStack(spacing: 0) {
-                    ForEach(categories, id: \.self) { category in
-                        Button {
-                            toggleCategory(category)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: selectedCategories.contains(category) ? "checkmark.square.fill" : "square")
-                                    .font(.title3)
-                                    .foregroundStyle(selectedCategories.contains(category) ? Color.accentColor : .secondary)
-
-                                Text(category)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-
-                                Spacer()
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 16)
-                        }
-                        .buttonStyle(.plain)
-
-                        if category != categories.last {
-                            Divider()
-                                .padding(.leading, 20)
-                        }
-                    }
-                }
-
-                Spacer(minLength: 16)
-
-                Button {
-                    showCategorySheet = false
-                } label: {
-                    Text("Add to Library")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+            List(selection: $selectedCategories) {
+                Text("Default")
+                ForEach(collections.snapshot.categories) { category in Text(category.name).tag(category.id) }
+            }
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle("Select Categories")
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) {
+                Button("Add to Library") { showCategorySheet = false }
+                    .buttonStyle(.borderedProminent).controlSize(.large).padding()
             }
         }
     }
 
-    private func toggleCategory(_ category: String) {
-        if selectedCategories.contains(category) {
-            selectedCategories.remove(category)
-        } else {
-            selectedCategories.insert(category)
-        }
-    }
-
-    @ViewBuilder
-    private func chapterRow(_ chapter: ChapterEntry) -> some View {
-        let isBookmarked = bookmarkedChapters.contains(chapter.id)
-        let isRead = readChapters.contains(chapter.id)
-
-        Button {
-            navigateToChapter = chapter
-        } label: {
-            HStack(spacing: 12) {
-                if isBookmarked {
-                    Image(systemName: "bookmark.fill")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.tint)
+    private var filterSheet: some View {
+        NavigationStack {
+            Form {
+                Toggle("Downloaded", isOn: $model.filter.downloaded)
+                Toggle("Unread", isOn: $model.filter.unread)
+                Toggle("Bookmarked", isOn: $model.filter.bookmarked)
+                if model.activeFilterCount > 0 {
+                    Button("Clear Filters", role: .destructive) { model.filter = ChapterFilter() }
                 }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(chapter.title)
-                        .font(.headline)
-                        .foregroundStyle(isRead ? .white.opacity(0.45) : .white)
-//                        .strikethrough(isRead, color: .white.opacity(0.5))
-
-                    Text(chapter.date)
-                        .font(.subheadline)
-                        .foregroundStyle(isRead ? .white.opacity(0.35) : .white.opacity(0.62))
-                }
-
-                Spacer()
-
-                Image(systemName: "arrow.down.to.line.circle")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-        }
-        .buttonStyle(.plain)
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            Button {
-                toggleBookmark(for: chapter.id)
-            } label: {
-                Label(isBookmarked ? "Unbookmark" : "Bookmark", systemImage: isBookmarked ? "bookmark.slash" : "bookmark")
-            }
-            .tint(.accentColor)
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button {
-                toggleRead(for: chapter.id)
-            } label: {
-                Label(isRead ? "Mark Unread" : "Mark Read", systemImage: isRead ? "circle" : "checkmark.circle.fill")
-            }
-            .tint(isRead ? .gray : .green)
+            .navigationTitle("Filter Chapters")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
-    private func toggleBookmark(for id: Int) {
-        if bookmarkedChapters.contains(id) {
-            bookmarkedChapters.remove(id)
-        } else {
-            bookmarkedChapters.insert(id)
-        }
+    private func openResumeChapter() {
+        guard let resume = model.resumeChapter else { return }
+        open(resume.chapter, pageIndex: resume.pageIndex)
     }
 
-    private func toggleRead(for id: Int) {
-        if readChapters.contains(id) {
-            readChapters.remove(id)
-        } else {
-            readChapters.insert(id)
-        }
+    private func open(_ chapter: Chapter, pageIndex: Int? = nil) {
+        Task { selectedReader = await model.readerContext(for: chapter, pageIndex: pageIndex) }
     }
 }
 
-struct ChapterEntry: Identifiable, Hashable {
-    let id: Int
-    let title: String
-    let date: String
-    let resourcePrefix: String?
+private struct InlineDetailError: View {
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(message).font(.footnote).foregroundStyle(.white.opacity(0.62))
+            Spacer()
+            Button("Retry", action: retry).font(.footnote.weight(.semibold))
+        }
+        .padding(12)
+        .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
 }
 
 private struct HeroHeaderVisibilityKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 private struct BackgroundExtensionModifier: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
-            content.backgroundExtensionEffect()
-        } else {
-            content
-        }
+        if #available(iOS 18.0, *) { content.backgroundExtensionEffect() } else { content }
     }
 }
 
 #Preview {
     @Previewable @Namespace var animation
-
-    NavigationStack {
-        CarouselDetailView(item: images[0], animation: animation)
-    }
+    NavigationStack { CarouselDetailView(item: images[4], animation: animation, origin: .home) }
+        .appEnvironment(.preview())
 }

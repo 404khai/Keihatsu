@@ -2,6 +2,23 @@ import XCTest
 
 final class ShellUITests: XCTestCase {
     @MainActor
+    func testLibraryTitleOpensDetailsAndCarriesReaderEntry() {
+        let app = XCUIApplication()
+        app.launchEnvironment["KEIHATSU_API_BASE_URL"] = "http://127.0.0.1:1"
+        app.launchArguments = ["-keihatsu.hasSeenOnboarding", "YES", "-keihatsu.hasEnteredAsGuest", "YES"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Library"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Library"].tap()
+        let title = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Player")).firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        let read = app.buttons["manga.details.read"]
+        XCTAssertTrue(read.waitForExistence(timeout: 5))
+        read.tap()
+        XCTAssertTrue(app.staticTexts["Pages for Chapter 1 aren’t available in this build."].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testLibraryLayoutsAndCategoryControls() throws {
         let app = XCUIApplication()
         // Shell/collection tests must not depend on provider availability.
@@ -14,8 +31,12 @@ final class ShellUITests: XCTestCase {
             app.buttons["Library display and filters"].tap()
             XCTAssertTrue(app.navigationBars["Library Display"].waitForExistence(timeout: 5))
             app.swipeUp()
-            app.buttons["library.layout"].tap()
-            app.buttons[layout].tap()
+            let layoutPicker = app.buttons["library.layout"]
+            if layoutPicker.label != "Layout, \(layout)" {
+                layoutPicker.tap()
+                XCTAssertTrue(app.buttons[layout].waitForExistence(timeout: 5))
+                app.buttons[layout].tap()
+            }
             app.navigationBars["Library Display"].buttons["Done"].tap()
             XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
             let screenshot = XCTAttachment(screenshot: app.screenshot())

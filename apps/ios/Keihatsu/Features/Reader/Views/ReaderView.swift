@@ -8,6 +8,13 @@
 import SwiftUI
 import UIKit
 
+struct ChapterEntry: Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let date: String
+    let resourcePrefix: String?
+}
+
 struct ReaderView: View {
     let item: ImageModel
     let chapters: [ChapterEntry]
