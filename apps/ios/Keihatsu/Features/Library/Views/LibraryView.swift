@@ -72,12 +72,12 @@ struct LibraryView: View {
         .onChange(of: collections.snapshot.categories) {
             if let id = selectedCategory, !collections.snapshot.categories.contains(where: { $0.id == id }) { selectedCategory = nil }
         }
-        .navigationDestination(for: ImageModel.self) { item in
-            CarouselDetailView(item: item, animation: animation)
+        .navigationDestination(for: MangaDetailsSeed.self) { seed in
+            CarouselDetailView(seed: seed, animation: animation, origin: .library)
         }
     }
     private func entryLink(_ entry: LibraryEntry) -> some View {
-        NavigationLink(value: entry.item) {
+        NavigationLink(value: MangaDetailsSeed(item: entry.item)) {
             Group {
                 if options.options.layout == .list {
                     HStack(spacing: 14) {
