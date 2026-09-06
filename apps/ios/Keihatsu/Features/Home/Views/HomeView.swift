@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject private var environment: AppEnvironment
+    @EnvironmentObject private var sources: SourcePreferencesStore
+    @EnvironmentObject private var model: HomeViewModel
     @EnvironmentObject private var navigation: AppNavigation
     let animation: Namespace.ID
     @State private var showMenu: Bool = false
@@ -15,8 +18,17 @@ struct HomeView: View {
     @State private var activeID: UUID?
     @State private var selectedType: CarouselType = .type3
 
+    private var items: [ImageModel] { environment.services.isPreview ? images : model.mangas.map(ImageModel.init(manga:)) }
+
     private var updateSections: [UpdateSection] {
-        [
+        if !environment.services.isPreview {
+            return model.sections.map { section in
+                UpdateSection(title: section.source.name, items: section.mangas.map { manga in
+                    UpdateEntry(item: ImageModel(manga: manga), chapterLine: manga.genres.joined(separator: " • "), trailingIcon: "chevron.right")
+                })
+            }
+        }
+        return [
             UpdateSection(
                 title: "Today",
                 items: [
@@ -38,14 +50,28 @@ struct HomeView: View {
     var body: some View {
         NavigationStack(path: $navigation.homePath) {
             ScrollView {
-                VStack(spacing: 36){
+                LazyVStack(spacing: 36){
+                    if sources.isLoading || model.isLoading { ProgressView("Loading latest titles…") }
+                    if let error = sources.error {
+                        CatalogueMessage(message: error) { Task { await sources.load(force: true) } }
+                    }
+                    ForEach(model.sections.filter { $0.error != nil }) { section in
+                        CatalogueMessage(message: "\(section.source.name): \(section.error ?? "")" + (section.isCached ? " Showing saved titles." : "")) {
+                            Task { await model.load(sources: sources.enabledSources) }
+                        }
+                    }
+                    if sources.enabledSources.isEmpty && !sources.isLoading && sources.error == nil && !environment.services.isPreview {
+                        ContentUnavailableView {
+                            Label("No enabled sources", systemImage: "puzzlepiece.extension")
+                        } description: { Text("Enable an available source to discover titles.") }
+                        actions: { Button("Manage Sources") { navigation.selectedTab = .extensions } }
+                    }
                     let s = selectedType.settings
                     
-                    CustomCarousel(config: .init(hasOpacity: s.hasOpacity, hasScale: s.hasScale, cardWidth: s.cardWidth, minCardWidth: s.minCardWidth), selection: $activeID, data: images) { item in
+                    if !items.isEmpty {
+                    CustomCarousel(config: .init(hasOpacity: s.hasOpacity, hasScale: s.hasScale, cardWidth: s.cardWidth, minCardWidth: s.minCardWidth), selection: $activeID, data: items) { item in
                         NavigationLink(value: item) {
-                            Image(item.image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
+                            CatalogueCover(url: item.manga?.thumbnailURL, referer: item.manga?.url, asset: item.manga == nil ? item.image : nil)
                                 .overlay(alignment: .bottomLeading) {
                                     LinearGradient(
                                         colors: [.clear, .black.opacity(0.7)],
@@ -75,16 +101,20 @@ struct HomeView: View {
                         .matchedTransitionSource(id: item.id, in: animation)
                     }
                     .frame(height: 250)
+                    }
 
+                    if !model.isLoading && !sources.isLoading && items.isEmpty && !sources.enabledSources.isEmpty && model.sections.allSatisfy({ $0.error == nil }) {
+                        CatalogueMessage(message: "No latest titles found. Pull to refresh.")
+                    }
                     VStack(alignment: .leading, spacing: 20) {
                         HStack {
-                            Text("Updates")
+                            Text(environment.services.isPreview ? "Updates" : "Latest")
                                 .font(.title3.weight(.semibold))
                             
                             Spacer()
                             
                             Button {
-                                
+                                navigation.selectedTab = .search
                             } label: {
                                 Text("See More")
                             }
@@ -97,13 +127,11 @@ struct HomeView: View {
                                     .font(.headline)
                                     .foregroundStyle(.secondary)
 
-                                VStack(spacing: 12) {
+                                LazyVStack(spacing: 12) {
                                     ForEach(section.items) { entry in
                                         NavigationLink(value: entry.item) {
                                             HStack(spacing: 12) {
-                                                Image(entry.item.image)
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fill)
+                                                CatalogueCover(url: entry.item.manga?.thumbnailURL, referer: entry.item.manga?.url, asset: entry.item.manga == nil ? entry.item.image : nil)
                                                     .frame(width: 54, height: 72)
                                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
@@ -137,6 +165,9 @@ struct HomeView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 20)
             }
+            .task { await sources.load() }
+            .task(id: sources.revision) { await model.load(sources: sources.enabledSources) }
+            .refreshable { await model.load(sources: sources.enabledSources) }
             .navigationTitle("Explore")
             .navigationBarTitleDisplayMode(.automatic)
             .toolbar {

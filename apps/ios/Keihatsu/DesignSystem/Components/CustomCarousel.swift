@@ -17,7 +17,7 @@ struct CustomCarousel<Content: View, Data: RandomAccessCollection>: View where D
         GeometryReader {
             let size = $0.size
             ScrollView(.horizontal){
-                HStack(spacing: config .spacing){
+                LazyHStack(spacing: config.spacing){
                     ForEach(data){ item in
                         ItemView(item)
                     }

@@ -3,14 +3,27 @@ import SwiftUI
 
 @MainActor
 final class AppEnvironment: ObservableObject {
+    let collections: CollectionStore
+    let libraryOptions: LibraryOptionsStore
+    let sources: SourcePreferencesStore
+    let home: HomeViewModel
+    let search: SearchViewModel
+    let imagePipeline: ImagePipeline
     let services: AppServices
     let navigation: AppNavigation
     let bootstrap: AppBootstrap
     let preferencesStore: AppPreferencesStore
     let syncQueueStore: SyncQueueStore
 
-    init(services: AppServices = .live(), defaults: UserDefaults = .standard) {
+    init(services: AppServices? = nil, defaults: UserDefaults = .standard) {
+        let services = services ?? .live()
         self.services = services
+        collections = CollectionStore(repository: FixtureCollectionRepository(loader: services.contentLoader))
+        libraryOptions = LibraryOptionsStore(defaults: defaults)
+        sources = SourcePreferencesStore(repository: services.catalogue, defaults: defaults)
+        home = HomeViewModel(repository: services.catalogue)
+        search = SearchViewModel(repository: services.catalogue, defaults: defaults)
+        imagePipeline = ImagePipeline(configuration: services.configuration)
         navigation = AppNavigation()
         bootstrap = AppBootstrap(defaults: defaults)
         preferencesStore = AppPreferencesStore(userDefaults: defaults)
@@ -37,6 +50,11 @@ private struct AppEnvironmentModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environmentObject(environment)
+            .environmentObject(environment.collections)
+            .environmentObject(environment.libraryOptions)
+            .environmentObject(environment.sources)
+            .environmentObject(environment.home)
+            .environmentObject(environment.search)
             .environmentObject(environment.navigation)
             .environmentObject(environment.bootstrap)
             .environmentObject(environment.preferencesStore)

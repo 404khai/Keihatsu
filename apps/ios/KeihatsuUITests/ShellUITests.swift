@@ -2,8 +2,43 @@ import XCTest
 
 final class ShellUITests: XCTestCase {
     @MainActor
+    func testLibraryLayoutsAndCategoryControls() throws {
+        let app = XCUIApplication()
+        // Shell/collection tests must not depend on provider availability.
+        app.launchEnvironment["KEIHATSU_API_BASE_URL"] = "http://127.0.0.1:1"
+        app.launchArguments = ["-keihatsu.hasSeenOnboarding", "YES", "-keihatsu.hasEnteredAsGuest", "YES"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Library"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Library"].tap()
+        for layout in ["Comfortable grid", "Cover grid", "List", "Compact grid"] {
+            app.buttons["Library display and filters"].tap()
+            XCTAssertTrue(app.navigationBars["Library Display"].waitForExistence(timeout: 5))
+            app.swipeUp()
+            app.buttons["library.layout"].tap()
+            app.buttons[layout].tap()
+            app.navigationBars["Library Display"].buttons["Done"].tap()
+            XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = layout
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+        app.buttons["Edit categories"].tap()
+        let name = app.textFields["Category name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Favorites")
+        app.buttons["Add Category"].tap()
+        XCTAssertTrue(app.buttons["Favorites"].waitForExistence(timeout: 5))
+        app.navigationBars["Categories"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["Library"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testOnboardingAndExistingNavigationPlacement() throws {
         let app = XCUIApplication()
+        // Shell/collection tests must not depend on provider availability.
+        app.launchEnvironment["KEIHATSU_API_BASE_URL"] = "http://127.0.0.1:1"
         app.launchArguments = ["-keihatsu.hasSeenOnboarding", "NO", "-keihatsu.hasEnteredAsGuest", "NO"]
         app.launch()
         XCTAssertTrue(app.buttons["onboarding.next"].waitForExistence(timeout: 10))
@@ -51,6 +86,8 @@ final class ShellUITests: XCTestCase {
     @MainActor
     func testOnboardingCanBeSkipped() {
         let app = XCUIApplication()
+        // Shell/collection tests must not depend on provider availability.
+        app.launchEnvironment["KEIHATSU_API_BASE_URL"] = "http://127.0.0.1:1"
         app.launchArguments = ["-keihatsu.hasSeenOnboarding", "NO", "-keihatsu.hasEnteredAsGuest", "NO"]
         app.launch()
         XCTAssertTrue(app.buttons["onboarding.skip"].waitForExistence(timeout: 10))

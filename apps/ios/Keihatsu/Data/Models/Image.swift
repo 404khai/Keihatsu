@@ -7,14 +7,16 @@
 
 
 import SwiftUI
+import CryptoKit
 
-struct ImageModel: Identifiable, Hashable {
+nonisolated struct ImageModel: Identifiable, Hashable, Codable, Sendable {
     var id: UUID = .init()
     var image: String
     var title: String
     var category: String
     var metadataLine: String
     var summary: String
+    var manga: Manga? = nil
 }
 
 var images: [ImageModel] = [
@@ -113,3 +115,18 @@ var images: [ImageModel] = [
     ),
 
 ]
+
+// A narrow adapter keeps the existing card/detail composition while Phase 3 migrates details.
+extension ImageModel {
+    nonisolated init(manga: Manga) {
+        let key = (try? JSONEncoder().encode([manga.id.sourceID, manga.id.mangaID])) ?? Data()
+        let bytes = Array(SHA256.hash(data: key).prefix(16))
+        id = UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7], bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
+        image = ""
+        title = manga.title
+        category = manga.language ?? ""
+        metadataLine = manga.genres.isEmpty ? manga.id.sourceID : manga.genres.joined(separator: " • ")
+        summary = manga.description ?? "No description available."
+        self.manga = manga
+    }
+}

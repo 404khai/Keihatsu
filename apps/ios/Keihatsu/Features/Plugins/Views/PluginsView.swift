@@ -12,13 +12,14 @@ struct PluginsView: View {
     @State private var selectedTab: PluginsTab = .sources
     @State private var searchText = ""
 
-    @State private var plugins: [PluginSource] = [
-        PluginSource(name: "Atsumaru", assetName: "atsumaru", subtitle: "EN • https://atsumaru.example", status: "Installed", isEnabled: true, isPinned: true),
-        PluginSource(name: "BatCave", assetName: "batcave", subtitle: "EN • https://batcave.example", status: "Available now", isEnabled: false, isPinned: false),
-        PluginSource(name: "MangaFire", assetName: "mangafire", subtitle: "EN • https://mangafire.example", status: "Available now", isEnabled: false, isPinned: false),
-        PluginSource(name: "ManhuaTop", assetName: "manhuatop", subtitle: "EN • https://manhuatop.example", status: "Installed", isEnabled: true, isPinned: true),
-        PluginSource(name: "WeebCentral", assetName: "weebcentral", subtitle: "EN • https://weebcentral.example", status: "Installed", isEnabled: true, isPinned: true)
-    ]
+    @EnvironmentObject private var sources: SourcePreferencesStore
+    @State private var availableOnly = false
+
+    private var plugins: [PluginSource] {
+        sources.sortedSources.map { source in
+            PluginSource(source: source, isEnabled: sources.isEnabled(source), isPinned: sources.isPinned(source), isAvailable: sources.isAvailable(source))
+        }
+    }
 
     private var filteredSourceItems: [PluginSource] {
         filteredAndSorted(plugins.filter(\.isEnabled))
@@ -30,6 +31,7 @@ struct PluginsView: View {
 
     private func filteredAndSorted(_ items: [PluginSource]) -> [PluginSource] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let items = availableOnly ? items.filter(\.isAvailable) : items
         let filteredItems: [PluginSource]
 
         if query.isEmpty {
@@ -61,21 +63,28 @@ struct PluginsView: View {
                 }
                 .pickerStyle(.segmented)
 
+                if sources.isLoading { ProgressView("Loading sources…") }
+                if let error = sources.error {
+                    CatalogueMessage(message: error) { Task { await sources.load(force: true) } }
+                }
                 VStack(spacing: 14) {
                     switch selectedTab {
                     case .sources:
+                        if filteredSourceItems.isEmpty && !sources.isLoading {
+                            CatalogueMessage(message: "No enabled sources. Add an available source from Plugins.")
+                            Button("Browse Sources") { selectedTab = .plugins }
+                        }
                         ForEach(filteredSourceItems) { item in
-                            if let index = plugins.firstIndex(where: { $0.id == item.id }) {
-                                PluginCard(item: $plugins[index])
-                            }
+                            PluginCard(item: item)
                         }
                     case .plugins:
+                        Text("Enable available sources below. Downloadable plugins are not available yet.")
+                            .font(.subheadline).foregroundStyle(.secondary)
                         ForEach(filteredPluginItems) { item in
-                            if let index = plugins.firstIndex(where: { $0.id == item.id }) {
-                                PluginCard(item: $plugins[index])
-                            }
+                            PluginCard(item: item)
                         }
                     case .migrate:
+                        Text("Source migration is not available yet.").font(.subheadline).foregroundStyle(.secondary)
                         ForEach(filteredPluginItems) { item in
                             MigratePluginRow(item: item)
                         }
@@ -87,6 +96,8 @@ struct PluginsView: View {
             .padding(.bottom, 32)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .task { await sources.load() }
+        .refreshable { await sources.load(force: true) }
         .navigationTitle("Plugins")
         .navigationBarTitleDisplayMode(.automatic)
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search plugins"))
@@ -94,30 +105,27 @@ struct PluginsView: View {
 //        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease")
-                }
+                Menu {
+                    Toggle("Available sources only", isOn: $availableOnly)
+                } label: { Image(systemName: "line.3.horizontal.decrease") }
+                .accessibilityLabel("Filter sources")
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                } label: {
-                    Image(systemName: "plus")
-                }
+                Button { selectedTab = .plugins } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("Add source")
             }
         }
     }
 }
 
 private struct PluginCard: View {
-    @Binding var item: PluginSource
+    let item: PluginSource
+    @EnvironmentObject private var sources: SourcePreferencesStore
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(item.assetName)
-                .resizable()
-                .scaledToFit()
+            CatalogueCover(url: item.source.iconURL)
                 .frame(width: 60, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
@@ -140,15 +148,17 @@ private struct PluginCard: View {
 
             VStack(spacing: 14) {
                 Button {
-                    item.isPinned.toggle()
+                    sources.setPinned(!item.isPinned, source: item.source)
                 } label: {
                     Image(systemName: item.isPinned ? "pin.fill" : "pin")
                         .font(.body)
                         .foregroundStyle(item.isPinned ? Color.accentColor : Color.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(item.isPinned ? "Unpin \(item.name)" : "Pin \(item.name)")
 
-                Toggle("", isOn: $item.isEnabled)
+                Toggle("Enable \(item.name)", isOn: Binding(get: { item.isEnabled }, set: { sources.setEnabled($0, source: item.source) }))
+                    .disabled(!item.isAvailable)
                     .labelsHidden()
                     .tint(.accentColor)
             }
@@ -167,9 +177,7 @@ private struct MigratePluginRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(item.assetName)
-                .resizable()
-                .scaledToFit()
+            CatalogueCover(url: item.source.iconURL)
                 .frame(width: 54, height: 54)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
@@ -188,7 +196,7 @@ private struct MigratePluginRow: View {
 
             Button {
             } label: {
-                Text("45")
+                Image(systemName: "arrow.up.arrow.down")
                     .frame(width: 44, height: 44)
 //                Image(systemName: "arrow.up.arrow.down")
 //                    .font(.title2.weight(.semibold))
@@ -196,7 +204,9 @@ private struct MigratePluginRow: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.primary)
-            .glassEffect(.regular.interactive())
+            .disabled(true)
+            .accessibilityLabel("Migration unavailable")
+            .glassEffect(.regular)
         }
         .padding(16)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -222,17 +232,19 @@ private enum PluginsTab: CaseIterable {
 }
 
 private struct PluginSource: Identifiable {
-    let id: UUID = UUID()
-    let name: String
-    let assetName: String
-    let subtitle: String
-    let status: String
-    var isEnabled: Bool
-    var isPinned: Bool
+    let source: Source
+    let isEnabled: Bool
+    let isPinned: Bool
+    let isAvailable: Bool
+    var id: String { source.id }
+    var name: String { source.name }
+    var subtitle: String { source.language.uppercased() + " • " + (source.baseURL?.absoluteString ?? "") }
+    var status: String { !isAvailable ? "Coming soon" : isEnabled ? "Enabled" : "Available" }
 }
 
 #Preview {
     NavigationStack {
         PluginsView()
+            .appEnvironment(.preview())
     }
 }

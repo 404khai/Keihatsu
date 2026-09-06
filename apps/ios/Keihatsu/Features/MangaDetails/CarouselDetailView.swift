@@ -18,6 +18,7 @@ struct CarouselDetailView: View {
     @State private var navigateToChapter: ChapterEntry?
     
     private var chapters: [ChapterEntry] {
+        if item.manga != nil { return [] }
         if item.title == "Ordeal" {
             return [
                 ChapterEntry(id: 139, title: "Chapter 139", date: "14/5/26", resourcePrefix: "ordeal_ch139_"),
@@ -120,7 +121,7 @@ struct CarouselDetailView: View {
                     Image(systemName: "person.fill")
                         .font(.system(size: 15))
                         .foregroundStyle(.white.opacity(0.85))
-                    Text("Brent Bristol, REDICE Studio")
+                    Text(item.manga.map { $0.author ?? "Author unavailable" } ?? "Brent Bristol, REDICE Studio")
                         .font(.system(size: 15))
                         .foregroundStyle(.white.opacity(0.85))
                 }
@@ -129,7 +130,7 @@ struct CarouselDetailView: View {
                     Image(systemName: "paintbrush.pointed.fill")
                         .font(.system(size: 15))
                         .foregroundStyle(.white.opacity(0.85))
-                    Text("Yong-Je Park")
+                    Text(item.manga.map { $0.artist ?? "Artist unavailable" } ?? "Yong-Je Park")
                         .font(.system(size: 15))
                         .foregroundStyle(.white.opacity(0.85))
                 }
@@ -140,7 +141,7 @@ struct CarouselDetailView: View {
                         .scaledToFit()
                         .frame(width: 30, height: 30)
                         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    Text("manhuatop".uppercased())
+                    Text((item.manga?.id.sourceID ?? "manhuatop").uppercased())
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.9))
                 }
@@ -157,13 +158,14 @@ struct CarouselDetailView: View {
                     Button {
                         showCategorySheet = true
                     } label: {
-                        Label("Added to Library", systemImage: "book.closed.fill")
+                        Label(item.manga == nil ? "Added to Library" : "Library coming soon", systemImage: "book.closed.fill")
                             .font(.headline)
                             .foregroundStyle(.black)
                             .padding(.horizontal, 28)
                             .frame(height: 52)
                             .background(.white, in: Capsule())
                     }
+                    .disabled(item.manga != nil)
                     .glassEffect(.regular, in: .capsule)
                     
                     Button {
@@ -174,6 +176,7 @@ struct CarouselDetailView: View {
                             .frame(width: 52, height: 52)
 //                            .background(.white.opacity(0.18), in: Circle())
                     }
+                    .disabled(item.manga != nil)
                     .glassEffect(.regular.interactive(), in: .circle)
                 }
             }
@@ -192,9 +195,7 @@ struct CarouselDetailView: View {
     }
     
     private var heroImage: some View {
-        Image(item.image)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
+        CatalogueCover(url: item.manga?.thumbnailURL, referer: item.manga?.url, asset: item.manga == nil ? item.image : nil)
             .frame(maxWidth: .infinity)
             .frame(height: 620)
             .overlay {
@@ -237,6 +238,12 @@ struct CarouselDetailView: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.white)
             
+            if item.manga != nil {
+                Text("Chapter reading is coming soon.").foregroundStyle(.white.opacity(0.7))
+                if let url = item.manga?.url, ["https", "http"].contains(url.scheme ?? "") {
+                    Link("View on source", destination: url).buttonStyle(.bordered)
+                }
+            }
             List {
                 ForEach(chapters) { chapter in
                     chapterRow(chapter)

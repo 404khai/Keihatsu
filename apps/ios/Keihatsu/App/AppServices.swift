@@ -2,16 +2,19 @@ import Foundation
 
 nonisolated struct AppServices: Sendable {
     let apiClient: APIClient?
-    /// Live feature repositories are supplied in Phase 2; no preview fallback is installed.
-    let catalogue: (any CatalogueRepository)?
+    let catalogue: any CatalogueRepository
     let contentLoader: BundledJSONLoader
+    let configuration: APIConfiguration
+    let isPreview: Bool
 
-    static func live(configuration: APIConfiguration = .application(), session: URLSession = .shared) -> Self {
-        Self(apiClient: APIClient(configuration: configuration, session: session), catalogue: nil, contentLoader: BundledJSONLoader())
+    @MainActor static func live(configuration: APIConfiguration = .application(), session: URLSession = .shared) -> Self {
+        let client = APIClient(configuration: configuration, session: session)
+        let cache = CatalogueCache(namespace: configuration.baseURLString ?? "unconfigured")
+        return Self(apiClient: client, catalogue: LiveCatalogueRepository(client: client, cache: cache), contentLoader: BundledJSONLoader(), configuration: configuration, isPreview: false)
     }
 
     @MainActor static func preview(bundle: Bundle = .main) -> Self {
         let loader = BundledJSONLoader(bundle: bundle)
-        return Self(apiClient: nil, catalogue: FixtureCatalogueRepository(loader: loader), contentLoader: loader)
+        return Self(apiClient: nil, catalogue: FixtureCatalogueRepository(loader: loader), contentLoader: loader, configuration: .application(), isPreview: true)
     }
 }
