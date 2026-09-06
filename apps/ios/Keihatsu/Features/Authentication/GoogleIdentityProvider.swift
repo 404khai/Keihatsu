@@ -18,6 +18,16 @@ final class GoogleIdentityProvider: GoogleIdentityProviding {
             !clientID.contains("$(")
         else { throw GoogleIdentityError.missingClientID }
 
+        let expectedCallbackScheme = clientID
+            .split(separator: ".")
+            .reversed()
+            .joined(separator: ".")
+        let registeredSchemes = (Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]] ?? [])
+            .flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }
+        guard registeredSchemes.contains(expectedCallbackScheme) else {
+            throw GoogleIdentityError.invalidCallbackScheme(expected: expectedCallbackScheme)
+        }
+
         let serverClientID = (Bundle.main.object(forInfoDictionaryKey: "GIDServerClientID") as? String)
             .flatMap { $0.isEmpty || $0.contains("$(") ? nil : $0 }
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID, serverClientID: serverClientID)
@@ -45,6 +55,7 @@ final class GoogleIdentityProvider: GoogleIdentityProviding {
 
 nonisolated enum GoogleIdentityError: LocalizedError, Equatable, Sendable {
     case missingClientID, missingPresenter, missingIDToken, cancelled
+    case invalidCallbackScheme(expected: String)
 
     var errorDescription: String? {
         switch self {
@@ -52,6 +63,7 @@ nonisolated enum GoogleIdentityError: LocalizedError, Equatable, Sendable {
         case .missingPresenter: "Google Sign-In could not open from the current screen."
         case .missingIDToken: "Google did not return an identity token."
         case .cancelled: "Google Sign-In was cancelled."
+        case .invalidCallbackScheme(let expected): "Google Sign-In callback is misconfigured. Expected URL scheme: \(expected)"
         }
     }
 }
