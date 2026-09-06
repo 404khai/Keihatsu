@@ -106,10 +106,6 @@ final class MangaDetailsViewModel: ObservableObject {
 
     func readerContext(for chapter: Chapter, pageIndex: Int? = nil) async -> ReaderLaunchContext {
         let pageIndex = pageIndex ?? state(for: chapter).pageIndex
-        await update(chapter) { value in
-            value.lastReadAt = .now
-            value.pageIndex = pageIndex
-        }
         return ReaderLaunchContext(chapter: chapter.id, origin: origin, pageIndex: pageIndex)
     }
 

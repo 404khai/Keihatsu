@@ -167,9 +167,9 @@ struct ReaderSettingsView: View {
                 SettingsPickerRow(
                     icon: "rectangle.portrait.on.rectangle.portrait",
                     title: "Reading Direction",
-                    subtitle: "Default flow for new chapters",
+                    subtitle: "Vertical continuous reading",
                     selection: $preferencesStore.preferences.readerDirection,
-                    options: ReaderDirectionPreference.allCases,
+                    options: [ReaderDirectionPreference.vertical],
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
 

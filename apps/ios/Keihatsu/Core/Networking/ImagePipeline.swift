@@ -40,9 +40,17 @@ final class ImagePipeline {
     }
 
     func image(url: URL, referer: URL?) async throws -> UIImage {
+        try await image(url: url, referer: referer, maximumPixelSize: 1_200)
+    }
+
+    func readerImage(url: URL, referer: URL?) async throws -> UIImage {
+        try await image(url: url, referer: referer, maximumPixelSize: 2_000)
+    }
+
+    private func image(url: URL, referer: URL?, maximumPixelSize: Int) async throws -> UIImage {
         try Task.checkCancellation()
-        let request = try Self.request(url: url, referer: referer, configuration: configuration)
-        let key = (request.url ?? url) as NSURL
+        let request = url.isFileURL ? nil : try Self.request(url: url, referer: referer, configuration: configuration)
+        let key = (request?.url ?? url) as NSURL
         if let image = decoded.object(forKey: key) { return image }
         if let pending = inFlight[key] {
             let image = try await pending.value
@@ -50,14 +58,23 @@ final class ImagePipeline {
             return image
         }
         let task = Task { [session] in
-            let (data, response) = try await session.data(for: request)
+            let data: Data
+            if let request {
+                let result = try await session.data(for: request)
+                guard let response = result.1 as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+                    throw APIError.invalidResponse
+                }
+                data = result.0
+            } else {
+                data = try await Task.detached { try Data(contentsOf: url, options: .mappedIfSafe) }.value
+            }
             try Task.checkCancellation()
-            guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode), data.count <= 12 * 1_024 * 1_024,
+            guard data.count <= 20 * 1_024 * 1_024,
                   let source = CGImageSourceCreateWithData(data as CFData, nil),
                   let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
                     kCGImageSourceCreateThumbnailWithTransform: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 1_200
+                    kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize
                   ] as CFDictionary) else { throw APIError.invalidResponse }
             let image = UIImage(cgImage: thumbnail)
             decoded.setObject(image, forKey: key, cost: thumbnail.bytesPerRow * thumbnail.height)

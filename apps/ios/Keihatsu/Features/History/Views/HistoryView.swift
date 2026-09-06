@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HistoryView: View {
     @EnvironmentObject private var collections: CollectionStore
+    @EnvironmentObject private var readingHistory: ReadingHistoryModel
+    @Namespace private var animation
     @State private var selectionMode: Bool = false
     @State private var selectedItemIDs: Set<UUID> = []
     @State private var deletePrompt: DeletePrompt?
@@ -14,6 +16,31 @@ struct HistoryView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 28) {
+                if !readingHistory.entries.isEmpty {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Recent Reading").font(.title3.weight(.semibold))
+                        ForEach(readingHistory.entries) { entry in
+                            NavigationLink(value: MangaDetailsSeed(manga: entry.manga, fallbackChapters: [entry.chapter])) {
+                                HStack(spacing: 14) {
+                                    CatalogueCover(url: entry.manga.thumbnailURL, referer: entry.manga.url)
+                                        .frame(width: 58, height: 82)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(entry.manga.title).font(.headline).lineLimit(1)
+                                        Text(entry.chapter.name).font(.subheadline).foregroundStyle(.secondary)
+                                        Text("Page \(entry.displayedPage) of \(max(entry.totalPages, 1)) • \(entry.updatedAt.formatted(date: .abbreviated, time: .shortened))")
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "book.pages").font(.title3).foregroundStyle(.tint)
+                                }
+                                .padding(12)
+                                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
                 Text("Sample history • Account sync coming soon").font(.caption).foregroundStyle(.secondary)
                 if let error = collections.error { CatalogueMessage(message: error) { collections.reload() } }
                 ForEach(filteredSections) { section in
@@ -52,6 +79,10 @@ struct HistoryView: View {
             .padding(.vertical, 16)
         }
         .navigationTitle("History")
+        .task { await readingHistory.refresh() }
+        .navigationDestination(for: MangaDetailsSeed.self) { seed in
+            CarouselDetailView(seed: seed, animation: animation, origin: .history)
+        }
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search history"))
         .overlay {
             if filteredSections.isEmpty {
@@ -226,4 +257,3 @@ private struct DeletePrompt: Identifiable {
             .appEnvironment(.preview())
     }
 }
-

@@ -11,6 +11,7 @@ struct HomeView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var sources: SourcePreferencesStore
     @EnvironmentObject private var model: HomeViewModel
+    @EnvironmentObject private var readingHistory: ReadingHistoryModel
     @EnvironmentObject private var navigation: AppNavigation
     let animation: Namespace.ID
     @State private var showMenu: Bool = false
@@ -19,6 +20,11 @@ struct HomeView: View {
     @State private var selectedType: CarouselType = .type3
 
     private var items: [ImageModel] { environment.services.isPreview ? images : model.mangas.map(ImageModel.init(manga:)) }
+
+    private var continueReading: [ReaderProgressRecord] {
+        var seen = Set<MangaIdentity>()
+        return readingHistory.entries.filter { seen.insert($0.manga.id).inserted }.prefix(6).map { $0 }
+    }
 
     private var updateSections: [UpdateSection] {
         if !environment.services.isPreview {
@@ -67,6 +73,35 @@ struct HomeView: View {
                         actions: { Button("Manage Sources") { navigation.selectedTab = .extensions } }
                     }
                     let s = selectedType.settings
+
+                    if !continueReading.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Continue Reading").font(.title3.weight(.semibold))
+                            ScrollView(.horizontal) {
+                                LazyHStack(spacing: 14) {
+                                    ForEach(continueReading) { entry in
+                                        NavigationLink(value: MangaDetailsSeed(manga: entry.manga, fallbackChapters: [entry.chapter])) {
+                                            HStack(spacing: 12) {
+                                                CatalogueCover(url: entry.manga.thumbnailURL, referer: entry.manga.url)
+                                                    .frame(width: 58, height: 82)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                                VStack(alignment: .leading, spacing: 6) {
+                                                    Text(entry.manga.title).font(.headline).lineLimit(2)
+                                                    Text("\(entry.chapter.name) • Page \(entry.displayedPage) of \(max(entry.totalPages, 1))")
+                                                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                                }
+                                                .frame(width: 180, alignment: .leading)
+                                            }
+                                            .padding(10)
+                                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                            .scrollIndicators(.hidden)
+                        }
+                    }
                     
                     if !items.isEmpty {
                     CustomCarousel(config: .init(hasOpacity: s.hasOpacity, hasScale: s.hasScale, cardWidth: s.cardWidth, minCardWidth: s.minCardWidth), selection: $activeID, data: items) { item in
@@ -166,6 +201,7 @@ struct HomeView: View {
                 .padding(.vertical, 20)
             }
             .task { await sources.load() }
+            .task { await readingHistory.refresh() }
             .task(id: sources.revision) { await model.load(sources: sources.enabledSources) }
             .refreshable { await model.load(sources: sources.enabledSources) }
             .navigationTitle("Explore")

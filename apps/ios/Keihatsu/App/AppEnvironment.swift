@@ -9,6 +9,7 @@ final class AppEnvironment: ObservableObject {
     let home: HomeViewModel
     let search: SearchViewModel
     let imagePipeline: ImagePipeline
+    let readingHistory: ReadingHistoryModel
     let services: AppServices
     let navigation: AppNavigation
     let bootstrap: AppBootstrap
@@ -24,6 +25,7 @@ final class AppEnvironment: ObservableObject {
         home = HomeViewModel(repository: services.catalogue)
         search = SearchViewModel(repository: services.catalogue, defaults: defaults)
         imagePipeline = ImagePipeline(configuration: services.configuration)
+        readingHistory = ReadingHistoryModel(repository: services.history)
         navigation = AppNavigation()
         bootstrap = AppBootstrap(defaults: defaults)
         preferencesStore = AppPreferencesStore(userDefaults: defaults)
@@ -55,6 +57,7 @@ private struct AppEnvironmentModifier: ViewModifier {
             .environmentObject(environment.sources)
             .environmentObject(environment.home)
             .environmentObject(environment.search)
+            .environmentObject(environment.readingHistory)
             .environmentObject(environment.navigation)
             .environmentObject(environment.bootstrap)
             .environmentObject(environment.preferencesStore)
