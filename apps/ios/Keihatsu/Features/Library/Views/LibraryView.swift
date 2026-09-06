@@ -58,11 +58,20 @@ struct LibraryView: View {
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search library"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    LibraryUpdatesCalendarView()
+                } label: {
+                    Image(systemName: "calendar")
+                }
+                .accessibilityLabel("Upcoming updates")
+            }
+
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 Button { showingControls = true } label: { Image(systemName: "line.3.horizontal.decrease") }
                     .accessibilityLabel("Library display and filters")
-            }
-            
-            ToolbarItem(placement: .topBarTrailing) {
+
                 Button { showingCategories = true } label: { Image(systemName: "plus") }
                     .accessibilityLabel("Edit categories")
             }
