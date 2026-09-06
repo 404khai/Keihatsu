@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -16,11 +17,27 @@ export class CommentsService {
 
   async create(
     userId: string,
+    sourceId: string,
     mangaId: string,
     chapterId: string,
     createCommentDto: CreateCommentDto,
     files: Express.Multer.File[] = [],
   ) {
+    if (createCommentDto.parentId) {
+      const parent = await this.prisma.comment.findFirst({
+        where: {
+          id: createCommentDto.parentId,
+          sourceId,
+          mangaId,
+          chapterId,
+        },
+        select: { id: true },
+      });
+      if (!parent) {
+        throw new BadRequestException('Reply parent is not in this thread');
+      }
+    }
+
     const uploadPromises = files.map((file) =>
       this.cloudinary.uploadImage(file, 'keihatsu-comments'),
     );
@@ -33,6 +50,7 @@ export class CommentsService {
         content: createCommentDto.content || '',
         images: imageUrls,
         userId,
+        sourceId,
         mangaId,
         chapterId,
         parentId: createCommentDto.parentId || null,
@@ -52,7 +70,12 @@ export class CommentsService {
     });
   }
 
-  async findAll(mangaId: string, chapterId: string, userId?: string) {
+  async findAll(
+    sourceId: string,
+    mangaId: string,
+    chapterId: string,
+    userId?: string,
+  ) {
     const includeLike = userId
       ? {
           where: { userId },
@@ -88,6 +111,7 @@ export class CommentsService {
     // Fetching top-level comments with up to 3 levels of nesting
     const comments = await this.prisma.comment.findMany({
       where: {
+        sourceId,
         mangaId,
         chapterId,
         parentId: null, // Only fetch root comments

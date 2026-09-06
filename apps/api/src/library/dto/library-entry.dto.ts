@@ -1,9 +1,12 @@
 import {
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateLibraryEntryDto {
@@ -48,4 +51,11 @@ export class UpdateLibraryEntryDto {
   @IsOptional()
   @IsBoolean()
   isCompleted?: boolean;
+}
+
+export class SetLibraryCategoriesDto {
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  categoryIds: string[];
 }

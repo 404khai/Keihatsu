@@ -28,8 +28,31 @@ export class HistoryController {
     @Request() req,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '50',
+    @Query('include_deleted') includeDeleted: string = 'false',
   ) {
-    return this.historyService.getHistory(req.user.id, +page, +limit);
+    return this.historyService.getHistory(
+      req.user.id,
+      +page,
+      +limit,
+      includeDeleted === 'true',
+    );
+  }
+
+  @Delete(':sourceId/:mangaId')
+  async deleteSourceHistory(
+    @Request() req,
+    @Param('sourceId') sourceId: string,
+    @Param('mangaId') mangaId: string,
+    @Query('operation_id') operationId?: string,
+    @Query('deleted_at') deletedAt?: string,
+  ) {
+    return this.historyService.deleteHistoryEntry(
+      req.user.id,
+      mangaId,
+      sourceId,
+      operationId,
+      deletedAt,
+    );
   }
 
   @Delete(':mangaId')

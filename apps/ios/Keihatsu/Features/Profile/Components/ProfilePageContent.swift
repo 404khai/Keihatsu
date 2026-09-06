@@ -1,306 +1,182 @@
 import SwiftUI
 
 struct ProfilePageContent: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var accountSession: AccountSessionStore
+    @EnvironmentObject private var bootstrap: AppBootstrap
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
-    @State private var showInbox = false
-    @State private var incognitoModeEnabled = false
-    @State private var showLogoutUnavailable = false
+    @State private var showsInbox = false
+    @State private var showsSignIn = false
+    @State private var showsEditProfile = false
+    @State private var confirmsLogout = false
 
-    private var pageBackground: Color {
-        incognitoModeEnabled ? Color.black.opacity(0.94) : Color(.systemGroupedBackground)
-    }
-
-    private var cardBackground: Color {
-        incognitoModeEnabled
-            ? Color.white.opacity(0.08)
-            : Color(.secondarySystemGroupedBackground)
-    }
-
-    private var accent: Color {
-        Color(hex: preferencesStore.preferences.theme.hex)
-    }
+    private var account: UserAccount? { accountSession.account }
+    private var accent: Color { Color(hex: preferencesStore.preferences.theme.hex) }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 profileHeader
                 statsCard
-
-                ProfileGroup(background: cardBackground) {
-                    ProfileRow(
-                        icon: "icloud.and.arrow.down",
-                        title: "Download Queue",
-                        showsChevron: true
-                    )
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-
-                ProfileGroup(background: cardBackground) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        ProfileRow(icon: "gearshape", title: "Settings", showsChevron: true)
-                    }
-                    .buttonStyle(.plain)
-                    accountDivider
+                ProfileGroup { ProfileRow(icon: "icloud.and.arrow.down", title: "Download Queue", showsChevron: true) }
+                ProfileGroup {
+                    NavigationLink { SettingsView() } label: { ProfileRow(icon: "gearshape", title: "Settings", showsChevron: true) }
+                        .buttonStyle(.plain)
+                    ProfileDivider()
                     ProfileRow(icon: "chart.bar", title: "Stats", showsChevron: true)
-                    accountDivider
-                    Button { showInbox = true } label: {
-                        ProfileRow(icon: "tray", title: "Inbox", showsChevron: true)
-                    }.buttonStyle(.plain)
+                    ProfileDivider()
+                    Button { showsInbox = true } label: { ProfileRow(icon: "tray", title: "Inbox", showsChevron: true) }
+                        .buttonStyle(.plain)
                 }
-
-                ProfileGroup(background: cardBackground) {
+                ProfileGroup {
                     ProfileRow(icon: "tag", title: "Categories", showsChevron: true)
-                    accountDivider
+                    ProfileDivider()
                     ProfileRow(icon: "server.rack", title: "Data & Storage", showsChevron: true)
                 }
-
-                ProfileGroup(background: cardBackground) {
-                    NavigationLink {
-                        HelpAndSupportView()
-                    } label: {
-                        ProfileRow(icon: "questionmark.circle", title: "Help & Support", showsChevron: true)
-                    }
-                    .buttonStyle(.plain)
-                    accountDivider
-                    ProfileRow(icon: "lightbulb.max", title: "Suggest a Feature", showsChevron: true)
-                    accountDivider
-                    ProfileRow(icon: "gift", title: "Support the Developer", showsChevron: true)
-                    accountDivider
-                    NavigationLink {
-                        AboutView()
-                    } label: {
-                        ProfileRow(icon: "info.circle", title: "About", showsChevron: true)
-                    }
-                    .buttonStyle(.plain)
+                ProfileGroup {
+                    NavigationLink { HelpAndSupportView() } label: { ProfileRow(icon: "questionmark.circle", title: "Help & Support", showsChevron: true) }
+                        .buttonStyle(.plain)
+                    ProfileDivider()
+                    NavigationLink { AboutView() } label: { ProfileRow(icon: "info.circle", title: "About", showsChevron: true) }
+                        .buttonStyle(.plain)
                 }
-
-                ProfileGroup(background: cardBackground) {
+                ProfileGroup {
                     HStack(spacing: 18) {
-                        AccountIcon(symbol: "theatermasks.fill")
-
+                        ProfileIcon(symbol: "theatermasks.fill")
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Incognito Mode")
-                                .font(.title3.weight(.medium))
-                                .fontDesign(.rounded)
-                                .foregroundStyle(.primary)
-
-                            Text("Read without saving history")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                            Text("Incognito Mode").font(.title3.weight(.medium)).fontDesign(.rounded)
+                            Text("Read without saving history").font(.footnote).foregroundStyle(.secondary)
                         }
-
                         Spacer(minLength: 12)
-
                         Toggle("Incognito Mode", isOn: $preferencesStore.preferences.incognitoModeEnabled)
                             .labelsHidden()
                             .tint(accent)
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 18)
+                    .padding(18)
                 }
-
-                logoutButton
+                sessionButton
             }
             .padding(.horizontal, 20)
             .padding(.top, 28)
             .padding(.bottom, 34)
         }
-        .background(pageBackground.ignoresSafeArea())
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(incognitoModeEnabled ? .dark : nil)
-        .onAppear {
-            incognitoModeEnabled = preferencesStore.preferences.incognitoModeEnabled
+        .refreshable { await accountSession.refreshProfile() }
+        .sheet(isPresented: $showsInbox) { NotificationsSheetView(title: "Inbox") }
+        .sheet(isPresented: $showsSignIn) {
+            AccountEntryView(onSignedIn: { showsSignIn = false }, onContinueAsGuest: { showsSignIn = false })
         }
-        .onChange(of: preferencesStore.preferences.incognitoModeEnabled) { _, newValue in
-            incognitoModeEnabled = newValue
+        .sheet(isPresented: $showsEditProfile) {
+            if let account { EditProfileView(account: account) }
         }
-        .sheet(isPresented: $showInbox) { NotificationsSheetView(title: "Inbox") }
-        .alert("Sign out unavailable", isPresented: $showLogoutUnavailable) {
-            Button("OK", role: .cancel) { }
+        .confirmationDialog("Sign out of Keihatsu?", isPresented: $confirmsLogout) {
+            Button("Sign Out", role: .destructive) {
+                Task { await accountSession.logout(); bootstrap.requireAccountEntry() }
+            }
         } message: {
-            Text("Account sessions are not connected in this build yet.")
+            Text("This account’s library and history will be detached from the app until the next sign-in.")
         }
-    }
-
-    private var accountDivider: some View {
-        Divider()
-            .overlay(Color(.separator).opacity(incognitoModeEnabled ? 0.25 : 0.5))
-            .padding(.leading, 18)
-            .padding(.trailing, 18)
-    }
-
-    private var logoutButton: some View {
-        Button(role: .destructive) {
-            showLogoutUnavailable = true
-        } label: {
-            Text("Log Out")
-                .font(.title3.weight(.semibold))
-                .fontDesign(.rounded)
-                .frame(maxWidth: .infinity)
-        }
-        .padding(.vertical, 20)
-        .background(cardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .padding(.top, 6)
     }
 
     private var profileHeader: some View {
         VStack(spacing: 16) {
-            Image("user1")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 96, height: 96)
-                .clipShape(Circle())
-                .overlay {
-                    Circle()
-                        .stroke(.primary.opacity(colorScheme == .dark ? 0.14 : 0.08), lineWidth: 1)
-                }
-
+            UserAvatarView(seed: account?.id ?? "keihatsu-guest", label: account?.username ?? "Guest Reader", configuration: account?.avatar ?? .default, size: 100)
             VStack(spacing: 8) {
-                HStack(spacing: 8){
-                    Text("Kaizel")
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-
-                    Image(systemName: "hammer.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(accent)
-                }
-
-                Text("El Endministrator, Creator of Keihatsu")
+                Text(account?.username ?? "Guest Reader")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                Text(profileSubtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
                     .multilineTextAlignment(.center)
-
-                HStack(spacing: 18) {
-                    Label("Member since 2025", systemImage: "calendar")
-                    Label("Switzerland", systemImage: "mappin.and.ellipse")
+                if let joined = account?.createdAt {
+                    Label("Member since \(joined.formatted(.dateTime.year()))", systemImage: "calendar")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity)
-
-            HStack(spacing: 16) {
-                Button {
-                } label: {
-                    Label("Share Profile", systemImage: "square.and.arrow.up")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
+            if account != nil {
+                Button { showsEditProfile = true } label: {
+                    Label("Edit Profile", systemImage: "pencil").font(.headline).frame(maxWidth: .infinity).frame(height: 48)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.primary)
-                .glassEffect(.regular.interactive())
-
-                Button {
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.headline)
-                        .frame(width: 48, height: 48)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.primary)
-                .glassEffect(.regular.interactive())
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
             }
         }
         .frame(maxWidth: .infinity)
     }
 
+    private var profileSubtitle: String {
+        if let bio = account?.bio?.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty { return bio }
+        return account == nil ? "Sign in to sync your reading journey." : "Keihatsu reader"
+    }
+
     private var statsCard: some View {
-        HStack(spacing: 0) {
-            AccountStat(value: "143", label: "in Library")
-            AccountStat(value: "5h", label: "reading")
-            AccountStat(value: "7", label: "read")
-            AccountStat(value: "3", label: "comments", showsDivider: false)
+        let stats = account?.statistics ?? .empty
+        return HStack(spacing: 0) {
+            ProfileStat(value: "\(stats.libraryCount)", label: "in Library")
+            ProfileStat(value: readingTime(stats.totalReadingTimeMinutes), label: "reading")
+            ProfileStat(value: "\(stats.mangasReadToday)", label: "today")
+            ProfileStat(value: "\(stats.commentsCount)", label: "comments", showsDivider: false)
         }
         .padding(.vertical, 18)
-        .background(cardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
-}
 
-private struct ProfileGroup<Content: View>: View {
-    var background: Color = Color(.secondarySystemGroupedBackground)
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(spacing: 0) {
-            content
+    private var sessionButton: some View {
+        Button(role: account == nil ? nil : .destructive) {
+            if account == nil { showsSignIn = true } else { confirmsLogout = true }
+        } label: {
+            Text(account == nil ? "Sign In" : "Log Out").font(.title3.weight(.semibold)).fontDesign(.rounded).frame(maxWidth: .infinity)
         }
-        .background(background, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .padding(.vertical, 20)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
+
+    private func readingTime(_ minutes: Int) -> String { minutes >= 60 ? "\(minutes / 60)h" : "\(minutes)m" }
 }
 
-private struct ProfileRow: View {
+struct ProfileGroup<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View { VStack(spacing: 0) { content }.background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 26, style: .continuous)) }
+}
+
+struct ProfileDivider: View { var body: some View { Divider().padding(.horizontal, 18) } }
+
+struct ProfileRow: View {
     let icon: String
     let title: String
-    var showsChevron: Bool = false
-
+    var showsChevron = false
     var body: some View {
         HStack(spacing: 18) {
-            AccountIcon(symbol: icon)
-
-            Text(title)
-                .font(.title3.weight(.medium))
-                .fontDesign(.rounded)
-                .foregroundStyle(.primary)
-
-            Spacer(minLength: 0)
-
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
+            ProfileIcon(symbol: icon)
+            Text(title).font(.title3.weight(.medium)).fontDesign(.rounded)
+            Spacer()
+            if showsChevron { Image(systemName: "chevron.right").foregroundStyle(.tertiary) }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 20)
     }
 }
 
-private struct AccountIcon: View {
+struct ProfileIcon: View {
     let symbol: String
-
-    var body: some View {
-        Image(systemName: symbol)
-            .font(.title2.weight(.medium))
-            .symbolRenderingMode(.hierarchical)
-            .frame(width: 38, height: 38)
-            .foregroundStyle(.primary)
-    }
+    var body: some View { Image(systemName: symbol).font(.title2.weight(.medium)).symbolRenderingMode(.hierarchical).frame(width: 38, height: 38) }
 }
 
-private struct AccountStat: View {
+private struct ProfileStat: View {
     let value: String
     let label: String
     var showsDivider = true
-
     var body: some View {
         HStack(spacing: 0) {
             VStack(spacing: 4) {
-                Text(value)
-                    .font(.title.bold())
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.primary)
-
-                Text(label)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                Text(value).font(.title.bold()).fontDesign(.rounded)
+                Text(label).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
             }
             .frame(maxWidth: .infinity)
-
-            if showsDivider {
-                Rectangle()
-                    .fill(Color(.separator).opacity(0.5))
-                    .frame(width: 1, height: 42)
-            }
+            if showsDivider { Divider().frame(height: 42) }
         }
     }
 }

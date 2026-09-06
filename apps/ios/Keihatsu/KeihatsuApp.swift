@@ -8,6 +8,7 @@ struct KeihatsuApp: App {
         WindowGroup {
             AppRootView()
                 .appEnvironment(environment)
+                .onOpenURL { _ = environment.accountSession.handleOpenURL($0) }
         }
     }
 }

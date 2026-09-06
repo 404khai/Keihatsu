@@ -2,8 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(KEIHATSU_GOOGLE_REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleIconFile</key>
 	<string>KeihatsuIcon</string>
+	<key>GIDClientID</key>
+	<string>$(KEIHATSU_GOOGLE_CLIENT_ID)</string>
+	<key>GIDServerClientID</key>
+	<string>$(KEIHATSU_GOOGLE_SERVER_CLIENT_ID)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>BricolageGrotesque_24pt-SemiBold.ttf</string>

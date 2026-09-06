@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncHistoryDto } from './dto/sync-history.dto';
 
@@ -9,147 +10,205 @@ export class HistoryService {
   async syncHistory(userId: string, data: SyncHistoryDto) {
     const lastReadAt = data.lastReadAt ? new Date(data.lastReadAt) : new Date();
 
-    const historyEntry = await this.prisma.historyEntry.upsert({
-      where: {
-        userId_mangaId_chapterId: {
-          userId,
-          mangaId: data.mangaId,
-          chapterId: data.chapterId,
-        },
-      },
-      update: {
-        pageNumber: data.pageNumber,
-        lastReadAt: lastReadAt,
-        sourceId: data.sourceId,
-        isBookmarked: data.isBookmarked,
-        isRead: data.isRead,
-      },
-      create: {
+    return this.prisma.$transaction(async (tx) => {
+      const identity = {
         userId,
-        mangaId: data.mangaId,
         sourceId: data.sourceId,
+        mangaId: data.mangaId,
         chapterId: data.chapterId,
-        pageNumber: data.pageNumber || 0,
-        lastReadAt: lastReadAt,
-        isBookmarked: data.isBookmarked || false,
-        isRead: data.isRead || false,
-      },
-    });
-
-    // Update Library Entry (for sorting)
-    const libraryEntry = await this.prisma.libraryEntry.findUnique({
-      where: {
-        userId_mangaId: {
-          userId,
-          mangaId: data.mangaId,
-        },
-      },
-    });
-
-    if (libraryEntry) {
-      await this.prisma.libraryEntry.update({
-        where: { id: libraryEntry.id },
-        data: {
-          lastReadAt: lastReadAt,
-          ...this.buildLibrarySnapshotUpdate(data),
+      };
+      const processed = await tx.historySyncEvent.findUnique({
+        where: {
+          userId_operationId: { userId, operationId: data.operationId },
         },
       });
-    }
+      if (processed) {
+        const priorResult = await tx.historyEntry.findUnique({
+          where: { userId_sourceId_mangaId_chapterId: identity },
+        });
+        if (!priorResult) {
+          throw new ConflictException('Operation identity does not match');
+        }
+        return priorResult;
+      }
 
-    // Update Reading Stats
-    if (data.readingTimeMs && data.readingTimeMs > 0) {
-      const dateKey = lastReadAt.toISOString().split('T')[0];
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { readingStats: true },
+      await tx.historySyncEvent.create({
+        data: { userId, operationId: data.operationId },
       });
+      const existing = await tx.historyEntry.findUnique({
+        where: { userId_sourceId_mangaId_chapterId: identity },
+      });
+      const snapshot = this.historySnapshot(data);
+      const historyEntry = existing
+        ? lastReadAt >= existing.lastReadAt
+          ? await tx.historyEntry.update({
+              where: { id: existing.id },
+              data: {
+                pageNumber: data.pageNumber ?? existing.pageNumber,
+                lastReadAt,
+                isBookmarked: data.isBookmarked ?? existing.isBookmarked,
+                isRead: data.isRead ?? existing.isRead,
+                deletedAt: null,
+                ...snapshot,
+              },
+            })
+          : existing
+        : await tx.historyEntry.create({
+            data: {
+              ...identity,
+              pageNumber: data.pageNumber ?? 0,
+              lastReadAt,
+              isBookmarked: data.isBookmarked ?? false,
+              isRead: data.isRead ?? false,
+              ...snapshot,
+            },
+          });
 
-      const currentStats = (user?.readingStats as Record<string, number>) || {};
-      const currentDuration = currentStats[dateKey] || 0;
-
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          readingStats: {
-            ...currentStats,
-            [dateKey]: currentDuration + data.readingTimeMs,
+      const libraryEntry = await tx.libraryEntry.findUnique({
+        where: {
+          userId_sourceId_mangaId: {
+            userId,
+            sourceId: data.sourceId,
+            mangaId: data.mangaId,
           },
         },
       });
-    }
+      if (
+        libraryEntry &&
+        lastReadAt >= (libraryEntry.lastReadAt ?? new Date(0))
+      ) {
+        await tx.libraryEntry.update({
+          where: { id: libraryEntry.id },
+          data: {
+            lastReadAt,
+            ...this.buildLibrarySnapshotUpdate(data),
+          },
+        });
+      }
 
-    return historyEntry;
+      if (data.readingTimeMs && data.readingTimeMs > 0) {
+        await this.addReadingTime(tx, userId, lastReadAt, data.readingTimeMs);
+      }
+      return historyEntry;
+    });
   }
 
-  async getHistory(userId: string, page = 1, limit = 50) {
+  async getHistory(
+    userId: string,
+    page = 1,
+    limit = 50,
+    includeDeleted = false,
+  ) {
     const entries = await this.prisma.historyEntry.findMany({
-      where: { userId },
+      where: { userId, ...(includeDeleted ? {} : { deletedAt: null }) },
       orderBy: { lastReadAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     });
-
-    const mangaIds = [...new Set(entries.map((entry) => entry.mangaId))];
-    const libraryEntries =
-      mangaIds.length > 0
-        ? await this.prisma.libraryEntry.findMany({
-            where: {
-              userId,
-              mangaId: { in: mangaIds },
-            },
-            select: {
-              mangaId: true,
-              title: true,
-              thumbnailUrl: true,
-              author: true,
-              totalChapters: true,
-            },
-          })
-        : [];
-
-    const libraryByMangaId = new Map(
-      libraryEntries.map((entry) => [entry.mangaId, entry]),
+    const identities = entries.map(({ sourceId, mangaId }) => ({
+      sourceId,
+      mangaId,
+    }));
+    const libraryEntries = identities.length
+      ? await this.prisma.libraryEntry.findMany({
+          where: { userId, OR: identities },
+          select: {
+            sourceId: true,
+            mangaId: true,
+            title: true,
+            thumbnailUrl: true,
+            author: true,
+            totalChapters: true,
+          },
+        })
+      : [];
+    const library = new Map(
+      libraryEntries.map((entry) => [
+        `${entry.sourceId}\u0000${entry.mangaId}`,
+        entry,
+      ]),
     );
 
     return entries.map((entry) => {
-      const libraryEntry = libraryByMangaId.get(entry.mangaId);
-
+      const fallback = library.get(`${entry.sourceId}\u0000${entry.mangaId}`);
       return {
         ...entry,
-        title: libraryEntry?.title ?? null,
-        thumbnailUrl: libraryEntry?.thumbnailUrl ?? null,
-        author: libraryEntry?.author ?? null,
-        totalChapters: libraryEntry?.totalChapters ?? null,
+        title: entry.title ?? fallback?.title ?? null,
+        thumbnailUrl: entry.thumbnailUrl ?? fallback?.thumbnailUrl ?? null,
+        author: entry.author ?? fallback?.author ?? null,
+        totalChapters: fallback?.totalChapters ?? null,
         displayDate: this.formatHistoryDisplayDate(entry.lastReadAt),
-        chapterName: null,
-        chapterNumber: null,
       };
     });
   }
 
-  private buildLibrarySnapshotUpdate(data: SyncHistoryDto) {
-    const updateData: {
-      sourceId?: string;
-      title?: string;
-      thumbnailUrl?: string;
-      author?: string;
-    } = {
-      sourceId: data.sourceId,
+  async deleteHistoryEntry(
+    userId: string,
+    mangaId: string,
+    sourceId?: string,
+    operationId?: string,
+    deletedAtValue?: string,
+  ) {
+    const deletedAt = deletedAtValue ? new Date(deletedAtValue) : new Date();
+    return this.prisma.$transaction(async (tx) => {
+      if (operationId) {
+        const processed = await tx.historySyncEvent.findUnique({
+          where: { userId_operationId: { userId, operationId } },
+        });
+        if (processed) return { count: 0 };
+        await tx.historySyncEvent.create({ data: { userId, operationId } });
+      }
+      return tx.historyEntry.updateMany({
+        where: {
+          userId,
+          mangaId,
+          ...(sourceId ? { sourceId } : {}),
+          OR: [{ deletedAt: null }, { deletedAt: { lt: deletedAt } }],
+        },
+        data: { deletedAt },
+      });
+    });
+  }
+
+  private historySnapshot(data: SyncHistoryDto) {
+    return {
+      title: data.title?.trim() || undefined,
+      thumbnailUrl: data.thumbnailUrl?.trim() || undefined,
+      author: data.author?.trim() || undefined,
+      chapterName: data.chapterName?.trim() || undefined,
+      chapterNumber: data.chapterNumber,
     };
+  }
 
-    if (data.title?.trim()) {
-      updateData.title = data.title.trim();
-    }
+  private buildLibrarySnapshotUpdate(data: SyncHistoryDto) {
+    return {
+      title: data.title?.trim() || undefined,
+      thumbnailUrl: data.thumbnailUrl?.trim() || undefined,
+      author: data.author?.trim() || undefined,
+    };
+  }
 
-    if (data.thumbnailUrl?.trim()) {
-      updateData.thumbnailUrl = data.thumbnailUrl.trim();
-    }
-
-    if (data.author?.trim()) {
-      updateData.author = data.author.trim();
-    }
-
-    return updateData;
+  private async addReadingTime(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    lastReadAt: Date,
+    readingTimeMs: number,
+  ) {
+    const dateKey = lastReadAt.toISOString().split('T')[0];
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { readingStats: true },
+    });
+    const currentStats = (user?.readingStats as Record<string, number>) || {};
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        readingStats: {
+          ...currentStats,
+          [dateKey]: (currentStats[dateKey] || 0) + readingTimeMs,
+        },
+      },
+    });
   }
 
   private formatHistoryDisplayDate(date: Date) {
@@ -158,16 +217,11 @@ export class HistoryService {
       month: 'long',
       timeZone: 'UTC',
     }).format(date);
-    const year = date.getUTCFullYear();
-
-    return `${day}${this.getOrdinalSuffix(day)} ${month} ${year}`;
+    return `${day}${this.getOrdinalSuffix(day)} ${month} ${date.getUTCFullYear()}`;
   }
 
   private getOrdinalSuffix(day: number) {
-    if (day >= 11 && day <= 13) {
-      return 'th';
-    }
-
+    if (day >= 11 && day <= 13) return 'th';
     switch (day % 10) {
       case 1:
         return 'st';
@@ -178,14 +232,5 @@ export class HistoryService {
       default:
         return 'th';
     }
-  }
-
-  async deleteHistoryEntry(userId: string, mangaId: string) {
-    return this.prisma.historyEntry.deleteMany({
-      where: {
-        userId,
-        mangaId,
-      },
-    });
   }
 }

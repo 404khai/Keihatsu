@@ -25,7 +25,8 @@ export class AuthService {
     const androidClientId = this.configService.get<string>(
       'GOOGLE_CLIENT_ID_ANDROID',
     );
-    const clientId = webClientId || androidClientId;
+    const iosClientId = this.configService.get<string>('GOOGLE_CLIENT_ID_IOS');
+    const clientId = webClientId || androidClientId || iosClientId;
     this.googleClient = new OAuth2Client(clientId);
   }
 
@@ -68,6 +69,9 @@ export class AuthService {
       const androidClientId = this.configService.get<string>(
         'GOOGLE_CLIENT_ID_ANDROID',
       );
+      const iosClientId = this.configService.get<string>(
+        'GOOGLE_CLIENT_ID_IOS',
+      );
       const audiences: string[] = [];
 
       if (webClientId) {
@@ -75,6 +79,9 @@ export class AuthService {
       }
       if (androidClientId) {
         audiences.push(androidClientId);
+      }
+      if (iosClientId) {
+        audiences.push(iosClientId);
       }
 
       let audience: string | string[] | undefined;

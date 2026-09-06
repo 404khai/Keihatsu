@@ -48,4 +48,9 @@ actor LocalHistoryRepository: HistoryRepository {
         _ = try? await detailsStore.updateState(for: chapter.id) { $0.isBookmarked = bookmarked }
         return bookmarked
     }
+
+
+    func deleteProgress(for manga: MangaIdentity) async throws {
+        try await progressStore.delete(for: manga)
+    }
 }

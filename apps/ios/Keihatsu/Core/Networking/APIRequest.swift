@@ -40,3 +40,24 @@ nonisolated struct APIRequest<Response: Decodable & Sendable>: Sendable {
 }
 
 nonisolated struct EmptyAPIResponse: Decodable, Sendable {}
+
+nonisolated struct MultipartFormPart: Sendable {
+    let name: String
+    let value: Data
+    let filename: String?
+    let contentType: String?
+
+    init(name: String, value: String) {
+        self.name = name
+        self.value = Data(value.utf8)
+        filename = nil
+        contentType = nil
+    }
+
+    init(name: String, data: Data, filename: String, contentType: String) {
+        self.name = name
+        value = data
+        self.filename = filename
+        self.contentType = contentType
+    }
+}

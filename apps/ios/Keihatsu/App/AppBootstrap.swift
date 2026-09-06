@@ -31,4 +31,15 @@ final class AppBootstrap: ObservableObject {
         defaults.set(true, forKey: guestEntryKey)
         stage = .mainApp
     }
+
+    func enterAuthenticated() {
+        defaults.set(true, forKey: onboardingKey)
+        defaults.removeObject(forKey: guestEntryKey)
+        stage = .mainApp
+    }
+
+    func requireAccountEntry() {
+        defaults.removeObject(forKey: guestEntryKey)
+        stage = .accountEntry
+    }
 }

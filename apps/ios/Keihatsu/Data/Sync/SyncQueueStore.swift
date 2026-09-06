@@ -31,4 +31,15 @@ final class SyncQueueStore: ObservableObject {
             return updated
         }
     }
+
+    func replace(with operations: [SyncOperation], lastSyncedAt: Date?) {
+        self.operations = operations
+        self.lastSyncedAt = lastSyncedAt
+    }
+
+    func markSynced() { lastSyncedAt = .now }
+
+    func setError(_ message: String) {
+        operations.insert(SyncOperation(kind: .preferences, summary: message, status: .failed), at: 0)
+    }
 }

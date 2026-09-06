@@ -269,6 +269,7 @@ struct TrackingSettingsView: View {
 
 struct PrivacySettingsView: View {
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
+    @EnvironmentObject private var accountSession: AccountSessionStore
 
     var body: some View {
         SettingsControlsPage(title: "Privacy") {
@@ -280,6 +281,19 @@ struct PrivacySettingsView: View {
                     isOn: $preferencesStore.preferences.incognitoModeEnabled,
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
+            }
+            SettingsGroup(title: "Profile") {
+                SettingsToggleRow(
+                    icon: "books.vertical",
+                    title: "Public Library",
+                    subtitle: accountSession.isAuthenticated ? "Allow readers to view your library" : "Sign in to manage profile visibility",
+                    isOn: Binding(
+                        get: { accountSession.account?.isProfilePublic ?? false },
+                        set: { value in Task { try? await accountSession.updateVisibility(value) } }
+                    ),
+                    accent: Color(hex: preferencesStore.preferences.theme.hex)
+                )
+                .disabled(!accountSession.isAuthenticated)
             }
         }
     }
