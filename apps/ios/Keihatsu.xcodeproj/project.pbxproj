@@ -5,6 +5,10 @@
 	};
 	objectVersion = 77;
 	objects = {
+
+/* Begin PBXBuildFile section */
+		B50000000000000000000001 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B50000000000000000000003 /* GoogleSignIn */; };
+/* End PBXBuildFile section */
 /* Begin PBXTargetDependency section */
 		A1000000000000000000006E = {isa = PBXTargetDependency; target = 84876FE42FC78D73003E68ED; targetProxy = A1000000000000000000006D; };
 		A10000000000000000000082 = {isa = PBXTargetDependency; target = 84876FE42FC78D73003E68ED; targetProxy = A10000000000000000000081; };
@@ -49,6 +53,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B50000000000000000000001 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,6 +102,7 @@
 			);
 			name = Keihatsu;
 			packageProductDependencies = (
+				B50000000000000000000003 /* GoogleSignIn */,
 			);
 			productName = Keihatsu;
 			productReference = 84876FE52FC78D73003E68ED /* Keihatsu.app */;
@@ -130,6 +136,9 @@
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 84876FE62FC78D73003E68ED /* Products */;
+			packageReferences = (
+				B50000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -296,6 +305,9 @@
 				INFOPLIST_FILE = "Keihatsu/Info-Debug.plist";
 				KEIHATSU_API_BASE_URL = "";
 				"KEIHATSU_API_BASE_URL[sdk=iphonesimulator*]" = "http://127.0.0.1:3000";
+				KEIHATSU_GOOGLE_CLIENT_ID = "";
+				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "";
+				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -329,6 +341,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Keihatsu/Info.plist;
 				KEIHATSU_API_BASE_URL = "";
+				KEIHATSU_GOOGLE_CLIENT_ID = "";
+				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "";
+				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -379,6 +394,25 @@
 		A1000000000000000000006C = {isa = XCConfigurationList; buildConfigurations = (A1000000000000000000006A, A1000000000000000000006B,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		A10000000000000000000080 = {isa = XCConfigurationList; buildConfigurations = (A1000000000000000000007E, A1000000000000000000007F,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B50000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B50000000000000000000003 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B50000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 84876FDD2FC78D73003E68ED /* Project object */;
 }

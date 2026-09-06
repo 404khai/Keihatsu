@@ -10,6 +10,9 @@ describe('LibraryService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    category: {
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -69,5 +72,32 @@ describe('LibraryService', () => {
       },
     });
     expect(result).toEqual(updatedEntry);
+  });
+
+  it('replaces a library entry category set after ownership validation', async () => {
+    prismaService.libraryEntry.findUnique.mockResolvedValue({
+      id: 'library-1',
+      userId: 'user-1',
+    });
+    prismaService.category.findMany.mockResolvedValue([
+      { id: 'category-1' },
+      { id: 'category-2' },
+    ]);
+    prismaService.libraryEntry.update.mockResolvedValue({ id: 'library-1' });
+
+    await service.setCategories('library-1', 'user-1', [
+      'category-1',
+      'category-2',
+    ]);
+
+    expect(prismaService.libraryEntry.update).toHaveBeenCalledWith({
+      where: { id: 'library-1' },
+      data: {
+        categories: {
+          set: [{ id: 'category-1' }, { id: 'category-2' }],
+        },
+      },
+      include: { categories: true },
+    });
   });
 });

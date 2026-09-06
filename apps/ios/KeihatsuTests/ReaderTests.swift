@@ -166,4 +166,5 @@ private actor ReaderHistoryRepositorySpy: HistoryRepository {
         bookmarkCount += 1
         return true
     }
+    func deleteProgress(for manga: MangaIdentity) {}
 }

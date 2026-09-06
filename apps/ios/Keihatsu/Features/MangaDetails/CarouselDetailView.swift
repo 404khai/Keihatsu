@@ -31,6 +31,7 @@ struct CarouselDetailView: View {
 
 private struct MangaDetailsContentView: View {
     @EnvironmentObject private var collections: CollectionStore
+    @EnvironmentObject private var accountSession: AccountSessionStore
     @StateObject private var model: MangaDetailsViewModel
     let animation: Namespace.ID
     let allowsFixtureLibraryActions: Bool
@@ -96,7 +97,7 @@ private struct MangaDetailsContentView: View {
         .alert("Account required", isPresented: $showAccountRequired) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Sign in when account support is available to add titles to your library and categories.")
+            Text("Sign in with Google to sync this title and its categories across devices.")
         }
         .navigationDestination(item: $selectedReader) { context in
             ReaderEntryView(manga: model.manga, chapters: model.chapters, context: context)
@@ -154,7 +155,7 @@ private struct MangaDetailsContentView: View {
 
                 HStack(spacing: 14) {
                     Button {
-                        if allowsFixtureLibraryActions { showCategorySheet = true }
+                        if allowsFixtureLibraryActions || accountSession.isAuthenticated { showCategorySheet = true }
                         else { showAccountRequired = true }
                     } label: {
                         Label("Add to Library", systemImage: "book.closed.fill")
@@ -366,7 +367,10 @@ private struct MangaDetailsContentView: View {
             .navigationTitle("Select Categories")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
-                Button("Add to Library") { showCategorySheet = false }
+                Button("Add to Library") {
+                    _ = collections.addToLibrary(model.manga, categoryIDs: selectedCategories)
+                    showCategorySheet = false
+                }
                     .buttonStyle(.borderedProminent).controlSize(.large).padding()
             }
         }

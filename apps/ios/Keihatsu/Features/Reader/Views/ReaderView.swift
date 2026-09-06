@@ -82,19 +82,13 @@ struct ReaderView: View {
                 }
             }
 
-            if preferencesStore.preferences.incognitoModeEnabled {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Image(systemName: "eye.slash.fill")
-                        .accessibilityLabel("Incognito reading")
-                }
-            }
         }
         .toolbar(model.controlsVisible ? .visible : .hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .statusBarHidden(!model.controlsVisible)
         .persistentSystemOverlays(model.controlsVisible ? .automatic : .hidden)
         .sheet(isPresented: $showsComments) {
-            ReaderCommentsSheet(chapterName: model.currentChapter?.name ?? "Chapter")
+            ReaderCommentsSheet(manga: model.manga, chapter: model.currentChapter)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }

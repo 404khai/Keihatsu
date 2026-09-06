@@ -22,6 +22,43 @@ export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
   @UseGuards(JwtAuthGuard)
+  @Post('source/:sourceId/:mangaId/:chapterId')
+  @UseInterceptors(FilesInterceptor('images', 5))
+  createForSource(
+    @Param('sourceId') sourceId: string,
+    @Param('mangaId') mangaId: string,
+    @Param('chapterId') chapterId: string,
+    @Body() createCommentDto: CreateCommentDto,
+    @UploadedFiles() files: Array<Express.Multer.File>,
+    @Req() req: any,
+  ) {
+    return this.commentsService.create(
+      req.user.id,
+      sourceId,
+      mangaId,
+      chapterId,
+      createCommentDto,
+      files,
+    );
+  }
+
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('source/:sourceId/:mangaId/:chapterId')
+  findAllForSource(
+    @Param('sourceId') sourceId: string,
+    @Param('mangaId') mangaId: string,
+    @Param('chapterId') chapterId: string,
+    @Req() req: any,
+  ) {
+    return this.commentsService.findAll(
+      sourceId,
+      mangaId,
+      chapterId,
+      req.user?.id,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':mangaId/:chapterId')
   @UseInterceptors(FilesInterceptor('images', 5)) // Allow up to 5 images per comment
   async create(
@@ -33,6 +70,7 @@ export class CommentsController {
   ) {
     return this.commentsService.create(
       req.user.id,
+      'manhuatop',
       mangaId,
       chapterId,
       createCommentDto,
@@ -47,7 +85,12 @@ export class CommentsController {
     @Param('chapterId') chapterId: string,
     @Req() req: any,
   ) {
-    return this.commentsService.findAll(mangaId, chapterId, req.user?.id);
+    return this.commentsService.findAll(
+      'manhuatop',
+      mangaId,
+      chapterId,
+      req.user?.id,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

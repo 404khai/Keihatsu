@@ -50,11 +50,20 @@ struct HistoryView: View {
                                     ReadingHistoryRow(entry: entry)
                                 }
                                 .buttonStyle(.plain)
+                                .swipeActions {
+                                    Button("Delete", role: .destructive) {
+                                        Task { await readingHistory.delete(entry.manga.id) }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                Text("Sample history • Account sync coming soon").font(.caption).foregroundStyle(.secondary)
+                if !collections.isAccountScoped {
+                    Text("Sample history • Sign in to sync across devices")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if let error = collections.error { CatalogueMessage(message: error) { collections.reload() } }
                 ForEach(filteredSections) { section in
                     VStack(alignment: .leading, spacing: 18) {

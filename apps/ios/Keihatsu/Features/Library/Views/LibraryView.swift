@@ -30,13 +30,17 @@ struct LibraryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                if collections.snapshot.categories.count <= 2 {
-                    categoryPicker.pickerStyle(.segmented)
-                } else {
-                    categoryPicker.pickerStyle(.menu).frame(maxWidth: .infinity, alignment: .leading)
+                if options.options.displaysCategories {
+                    if collections.snapshot.categories.count <= 2 {
+                        categoryPicker.pickerStyle(.segmented)
+                    } else {
+                        categoryPicker.pickerStyle(.menu).frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
-                Text("Sample library • Account sync coming soon")
-                    .font(.caption).foregroundStyle(.secondary)
+                if !collections.isAccountScoped {
+                    Text("Guest library • Sign in to sync across devices")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 if let error = collections.error {
                     CatalogueMessage(message: error) { collections.reload() }
                 }
@@ -94,14 +98,14 @@ struct LibraryView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(entry.item.title).font(.headline).lineLimit(2)
                             Text(entry.item.metadataLine).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
-                            if options.options.showBadges { badge(entry) }
+                            if shouldShowBadges(for: entry) { badge(entry) }
                         }
                         Spacer(minLength: 0)
                     }
                 } else {
                     LibraryCard(item: entry.item, layout: options.options.layout)
                         .overlay(alignment: .topLeading) {
-                            if options.options.showBadges { badge(entry).padding(6) }
+                            if shouldShowBadges(for: entry) { badge(entry).padding(6) }
                         }
                 }
             }
@@ -119,13 +123,27 @@ struct LibraryView: View {
 
     private func badge(_ entry: LibraryEntry) -> some View {
         HStack(spacing: 6) {
-            Label("\(entry.unreadCount)", systemImage: "book.closed")
-            Label("\(entry.downloadedCount)", systemImage: "arrow.down")
+            if options.options.displaysUnreadBadge {
+                Label("\(entry.unreadCount)", systemImage: "book.closed")
+            }
+            if options.options.displaysDownloadedBadge {
+                Label("\(entry.downloadedCount)", systemImage: "arrow.down")
+            }
+            if options.options.displaysLanguageBadge,
+               let language = entry.item.manga?.language, !language.isEmpty {
+                Text(language.uppercased())
+            }
         }
         .font(.caption2).monospacedDigit().lineLimit(1)
         .padding(5).background(.regularMaterial, in: Capsule())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(entry.unreadCount) unread chapters, \(entry.downloadedCount) downloaded chapters")
+    }
+
+    private func shouldShowBadges(for entry: LibraryEntry) -> Bool {
+        options.options.displaysUnreadBadge
+            || options.options.displaysDownloadedBadge
+            || (options.options.displaysLanguageBadge && !(entry.item.manga?.language ?? "").isEmpty)
     }
 }
 

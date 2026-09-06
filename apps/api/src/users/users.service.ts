@@ -41,7 +41,7 @@ export class UsersService {
 
     // 3. Mangas Read Today (Unique mangas read today)
     const distinctMangas = await this.prisma.historyEntry.groupBy({
-      by: ['mangaId'],
+      by: ['sourceId', 'mangaId'],
       where: {
         userId,
         lastReadAt: { gte: today },
@@ -150,13 +150,14 @@ export class UsersService {
     const currentPreferences = (user?.preferences as object) || {};
     const newPreferences = { ...currentPreferences, ...preferencesDto };
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
         preferences: newPreferences,
       },
       select: { preferences: true },
     });
+    return updated.preferences || {};
   }
 
   async updateProfileVisibility(userId: string, isProfilePublic: boolean) {
