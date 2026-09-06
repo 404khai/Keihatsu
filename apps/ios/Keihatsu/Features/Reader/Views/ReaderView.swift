@@ -2,7 +2,6 @@ import SwiftUI
 import UIKit
 
 struct ReaderView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
     @StateObject private var model: ReaderViewModel
@@ -39,15 +38,11 @@ struct ReaderView: View {
 
                     if model.controlsVisible {
                         ReaderChrome(
-                            title: model.manga.title,
-                            chapterName: model.currentChapter?.name ?? "Reader",
                             page: model.displayedPage,
                             pageCount: model.currentPages.count,
                             isBookmarked: model.isBookmarked,
-                            isIncognito: preferencesStore.preferences.incognitoModeEnabled,
                             canOpenOlder: model.hasOlderChapter,
                             canOpenNewer: model.hasNewerChapter,
-                            onDismiss: { dismiss() },
                             onBookmark: { Task { await model.toggleBookmark() } },
                             onComments: { showsComments = true },
                             onOlder: { Task { await model.openOlderChapter() } },
@@ -71,7 +66,30 @@ struct ReaderView: View {
             }
         }
         .background(readerBackground.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 2) {
+                    Text(model.manga.title)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+
+                    Text(model.currentChapter?.name ?? "Reader")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .lineLimit(1)
+                }
+            }
+
+            if preferencesStore.preferences.incognitoModeEnabled {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Image(systemName: "eye.slash.fill")
+                        .accessibilityLabel("Incognito reading")
+                }
+            }
+        }
+        .toolbar(model.controlsVisible ? .visible : .hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .statusBarHidden(!model.controlsVisible)
         .persistentSystemOverlays(model.controlsVisible ? .automatic : .hidden)

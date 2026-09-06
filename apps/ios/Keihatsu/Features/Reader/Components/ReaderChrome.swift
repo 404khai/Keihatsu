@@ -1,15 +1,11 @@
 import SwiftUI
 
 struct ReaderChrome: View {
-    let title: String
-    let chapterName: String
     let page: Int
     let pageCount: Int
     let isBookmarked: Bool
-    let isIncognito: Bool
     let canOpenOlder: Bool
     let canOpenNewer: Bool
-    let onDismiss: () -> Void
     let onBookmark: () -> Void
     let onComments: () -> Void
     let onOlder: () -> Void
@@ -18,29 +14,6 @@ struct ReaderChrome: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Button(action: onDismiss) {
-                    Image(systemName: "chevron.backward")
-                        .font(.title2.weight(.semibold))
-                        .frame(width: 48, height: 48)
-                }
-                .glassEffect(.regular.interactive(), in: .circle)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline).lineLimit(1)
-                    Text(chapterName).font(.caption).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                if isIncognito {
-                    Image(systemName: "eye.slash.fill")
-                        .font(.caption.weight(.semibold))
-                        .accessibilityLabel("Incognito reading")
-                }
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-
             Spacer()
 
             HStack {
@@ -79,25 +52,6 @@ struct ReaderChrome: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
-        }
-        .background(alignment: .top) {
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .overlay(Color.black.opacity(0.18))
-                .mask {
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black, location: 0),
-                            .init(color: .black, location: 0.68),
-                            .init(color: .clear, location: 1)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                }
-                .frame(height: 112)
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
         }
     }
 
