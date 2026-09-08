@@ -82,6 +82,19 @@ final class CollectionStore: ObservableObject {
         return saved
     }
 
+    func libraryEntry(for mangaID: MangaIdentity) -> LibraryEntry? {
+        snapshot.library.first { $0.item.manga?.id == mangaID }
+    }
+
+    func setCategories(_ categoryIDs: Set<UUID>, for entry: UUID) {
+        var value = snapshot
+        guard let index = value.library.firstIndex(where: { $0.id == entry }) else { return }
+        value.library[index].categoryIDs = categoryIDs
+        if persist(value), isAccountScoped {
+            mutationHandler?.handleCollectionMutation(.assignCategories(entry, categoryIDs), snapshot: value)
+        }
+    }
+
     func removeFromLibrary(_ id: UUID) {
         var value = snapshot
         value.library.removeAll { $0.id == id }

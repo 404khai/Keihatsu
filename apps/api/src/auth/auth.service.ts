@@ -113,23 +113,31 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Google token payload');
     }
 
-    const { sub: googleId, email, name } = payload;
+    const {
+      sub: googleId,
+      email,
+      email_verified: emailVerified,
+      name,
+    } = payload;
 
     if (!email) {
       throw new UnauthorizedException('Email not found in Google token');
     }
+    if (!emailVerified) {
+      throw new UnauthorizedException('Google email is not verified');
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
 
     let user = await this.usersService.findByGoogleId(googleId);
 
     if (!user) {
-      // Check if user exists with same email (maybe signed up differently if we had other methods, but good practice)
-      const userByEmail = await this.usersService.findByEmail(email);
+      // The OAuth subject can differ when platform clients were configured in
+      // separate Google projects. A verified email is the cross-platform
+      // account key, so Android and iOS still resolve to one backend user.
+      const userByEmail = await this.usersService.findByEmail(normalizedEmail);
 
       if (userByEmail) {
-        // Link account logic could go here, for now, we just update or throw.
-        // Since we only have Google auth, this case shouldn't happen unless we manually inserted data.
-        // Or if we decide to support multiple providers later.
-        // Let's assume we just return that user or update googleId.
         user = await this.usersService.updateUser({
           where: { id: userByEmail.id },
           data: { googleId, avatarUrl: null },
@@ -137,8 +145,8 @@ export class AuthService {
       } else {
         user = await this.usersService.createGoogleUser({
           googleId,
-          email,
-          displayName: name || email.split('@')[0],
+          email: normalizedEmail,
+          displayName: name || normalizedEmail.split('@')[0],
         });
       }
     }

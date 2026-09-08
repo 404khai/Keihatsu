@@ -25,6 +25,25 @@ struct Phase5AccountTests {
         #expect(!store.isAccountScoped)
     }
 
+    @Test @MainActor func accountLibraryLookupAndCategoryReplacementUseCompositeMangaIdentity() throws {
+        let store = CollectionStore(repository: FixtureCollectionRepository())
+        let category = LibraryCategory(id: UUID(), name: "Reading")
+        store.applyAccountSnapshot(CollectionSnapshot(library: [], categories: [category], history: []))
+        let manga = Manga(
+            id: .init(sourceID: "source-a", mangaID: "manga-a"), title: "Account title",
+            url: nil, thumbnailURL: nil, description: nil, author: nil, artist: nil,
+            status: nil, genres: [], language: nil
+        )
+
+        #expect(store.libraryEntry(for: manga.id) == nil)
+        #expect(store.addToLibrary(manga, categoryIDs: []))
+        let entry = try #require(store.libraryEntry(for: manga.id))
+        store.setCategories([category.id], for: entry.id)
+
+        #expect(store.libraryEntry(for: manga.id)?.categoryIDs == [category.id])
+        #expect(store.libraryEntry(for: .init(sourceID: "source-b", mangaID: "manga-a")) == nil)
+    }
+
     @Test func preferencesDecodeExplicitSnakeCaseFields() throws {
         let json = Data(#"""
         {

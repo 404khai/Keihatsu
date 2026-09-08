@@ -2,6 +2,8 @@ import SwiftUI
 
 struct LibraryView: View {
     let animation: Namespace.ID
+    @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var collections: CollectionStore
     @EnvironmentObject private var options: LibraryOptionsStore
     @State private var selectedCategory: UUID?
@@ -11,6 +13,13 @@ struct LibraryView: View {
 
     private var currentEntries: [LibraryEntry] {
         options.options.filtered(collections.snapshot.library, category: selectedCategory, query: searchText)
+    }
+
+    private var gridColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: 0), spacing: 14, alignment: .top),
+            count: options.options.columns
+        )
     }
 
     private func categoryLabel(_ name: String, id: UUID?) -> String {
@@ -50,7 +59,7 @@ struct LibraryView: View {
                 if options.options.layout == .list {
                     LazyVStack(spacing: 18) { ForEach(currentEntries) { entry in entryLink(entry) } }
                 } else {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: options.options.columns), spacing: 18) {
+                    LazyVGrid(columns: gridColumns, alignment: .center, spacing: 18) {
                         ForEach(currentEntries) { entry in entryLink(entry) }
                     }
                 }
@@ -82,6 +91,12 @@ struct LibraryView: View {
         }
         .sheet(isPresented: $showingControls) { LibraryControlsSheet().presentationDragIndicator(.visible) }
         .sheet(isPresented: $showingCategories) { LibraryCategoriesSheet().presentationDragIndicator(.visible) }
+        .task { await environment.accountData.refreshCollections() }
+        .refreshable { await environment.accountData.refreshCollections() }
+        .onChange(of: scenePhase) {
+            guard scenePhase == .active else { return }
+            Task { await environment.accountData.refreshCollections() }
+        }
         .onChange(of: collections.snapshot.categories) {
             if let id = selectedCategory, !collections.snapshot.categories.contains(where: { $0.id == id }) { selectedCategory = nil }
         }
@@ -104,6 +119,7 @@ struct LibraryView: View {
                     }
                 } else {
                     LibraryCard(item: entry.item, layout: options.options.layout)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .top)
                         .overlay(alignment: .topLeading) {
                             if shouldShowBadges(for: entry) { badge(entry).padding(6) }
                         }
@@ -111,6 +127,7 @@ struct LibraryView: View {
             }
         }
         .buttonStyle(.plain)
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .top)
         .matchedTransitionSource(id: entry.id, in: animation)
         .contextMenu {
             ForEach(collections.snapshot.categories) { category in
@@ -152,19 +169,43 @@ private struct LibraryCard: View {
     var layout: LibraryLayout = .compact
     var height: CGFloat? = nil
 
+    private var coverHeight: CGFloat {
+        height ?? (layout == .cover ? 180 : 210)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottomLeading) {
-                Image(item.image).resizable().aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity).frame(height: height ?? (layout == .cover ? 180 : 210)).clipped()
+                CatalogueCover(
+                    url: item.manga?.thumbnailURL,
+                    referer: item.manga?.url,
+                    asset: item.manga == nil ? item.image : nil
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: coverHeight)
                 if layout == .compact {
                     LinearGradient(colors: [.clear, .black.opacity(0.8)], startPoint: .top, endPoint: .bottom)
-                    Text(item.title).font(.system(size: 15)).foregroundStyle(.white).lineLimit(2).padding(12)
+                    Text(item.title)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
                 }
             }
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .frame(height: coverHeight)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            if layout == .comfortable { Text(item.title).font(.subheadline).lineLimit(2) }
+            if layout == .comfortable {
+                Text(item.title)
+                    .font(.subheadline)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
         .accessibilityLabel(item.title)
     }
 }

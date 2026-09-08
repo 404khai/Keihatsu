@@ -90,8 +90,13 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
-      where: { email },
+    return this.prisma.user.findFirst({
+      where: {
+        email: {
+          equals: email.trim().toLowerCase(),
+          mode: 'insensitive',
+        },
+      },
     });
   }
 
@@ -100,7 +105,8 @@ export class UsersService {
     email: string;
     displayName: string;
   }): Promise<User> {
-    const baseUsername = data.email.split('@')[0];
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const baseUsername = normalizedEmail.split('@')[0];
     let username = baseUsername;
     let counter = 1;
 
@@ -112,7 +118,7 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         googleId: data.googleId,
-        email: data.email,
+        email: normalizedEmail,
         username,
         isOnboarded: false,
       },
@@ -274,7 +280,9 @@ export class UsersService {
       } else {
         const hue = Number(updateDto.avatarHue);
         if (!Number.isFinite(hue) || hue < 0 || hue >= 360) {
-          throw new BadRequestException('Avatar hue must be between 0 and 359.');
+          throw new BadRequestException(
+            'Avatar hue must be between 0 and 359.',
+          );
         }
         updateData.avatarHue = hue;
       }

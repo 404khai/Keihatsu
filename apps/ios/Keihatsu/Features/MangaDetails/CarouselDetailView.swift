@@ -30,6 +30,7 @@ struct CarouselDetailView: View {
 }
 
 private struct MangaDetailsContentView: View {
+    @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var collections: CollectionStore
     @EnvironmentObject private var accountSession: AccountSessionStore
     @StateObject private var model: MangaDetailsViewModel
@@ -50,6 +51,10 @@ private struct MangaDetailsContentView: View {
 
     private var chapterListHeight: CGFloat {
         CGFloat(model.displayedChapters.count) * 88
+    }
+
+    private var libraryEntry: LibraryEntry? {
+        collections.libraryEntry(for: model.manga.id)
     }
 
     init(
@@ -85,7 +90,11 @@ private struct MangaDetailsContentView: View {
         .toolbarBackground(showCollapsedHeader ? .visible : .hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .onPreferenceChange(HeroHeaderVisibilityKey.self) { showCollapsedHeader = $0 < 50 }
-        .task(id: model.seed.manga.id) { await model.load() }
+        .task(id: model.seed.manga.id) {
+            async let details: Void = model.load()
+            async let accountCollections: Void = environment.accountData.refreshCollections()
+            _ = await (details, accountCollections)
+        }
         .refreshable { await model.refreshAll() }
         .toolbar { detailToolbar }
         .sheet(isPresented: $showCategorySheet) {
@@ -155,10 +164,16 @@ private struct MangaDetailsContentView: View {
 
                 HStack(spacing: 14) {
                     Button {
-                        if allowsFixtureLibraryActions || accountSession.isAuthenticated { showCategorySheet = true }
+                        if allowsFixtureLibraryActions || accountSession.isAuthenticated {
+                            selectedCategories = libraryEntry?.categoryIDs ?? []
+                            showCategorySheet = true
+                        }
                         else { showAccountRequired = true }
                     } label: {
-                        Label("Add to Library", systemImage: "book.closed.fill")
+                        Label(
+                            libraryEntry == nil ? "Add to Library" : "In Library",
+                            systemImage: libraryEntry == nil ? "book.closed.fill" : "checkmark.circle.fill"
+                        )
                             .font(.headline)
                             .foregroundStyle(.black)
                             .padding(.horizontal, 24)
@@ -359,21 +374,50 @@ private struct MangaDetailsContentView: View {
 
     private var categorySheet: some View {
         NavigationStack {
-            List(selection: $selectedCategories) {
-                Text("Default")
-                ForEach(collections.snapshot.categories) { category in Text(category.name).tag(category.id) }
+            List {
+                categoryRow("Default", isSelected: selectedCategories.isEmpty) {
+                    selectedCategories.removeAll()
+                }
+                ForEach(collections.snapshot.categories) { category in
+                    categoryRow(category.name, isSelected: selectedCategories.contains(category.id)) {
+                        if selectedCategories.contains(category.id) {
+                            selectedCategories.remove(category.id)
+                        } else {
+                            selectedCategories.insert(category.id)
+                        }
+                    }
+                }
             }
-            .environment(\.editMode, .constant(.active))
             .navigationTitle("Select Categories")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
-                Button("Add to Library") {
-                    _ = collections.addToLibrary(model.manga, categoryIDs: selectedCategories)
+                Button(libraryEntry == nil ? "Add to Library" : "Save Categories") {
+                    if let libraryEntry {
+                        collections.setCategories(selectedCategories, for: libraryEntry.id)
+                    } else {
+                        _ = collections.addToLibrary(model.manga, categoryIDs: selectedCategories)
+                    }
                     showCategorySheet = false
                 }
                     .buttonStyle(.borderedProminent).controlSize(.large).padding()
             }
         }
+    }
+
+    private func categoryRow(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                Text(title)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     private var filterSheet: some View {

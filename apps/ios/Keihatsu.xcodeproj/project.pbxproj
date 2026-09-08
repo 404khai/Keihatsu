@@ -305,9 +305,9 @@
 				INFOPLIST_FILE = "Keihatsu/Info-Debug.plist";
 				KEIHATSU_API_BASE_URL = "";
 				"KEIHATSU_API_BASE_URL[sdk=iphonesimulator*]" = "http://127.0.0.1:3000";
-				KEIHATSU_GOOGLE_CLIENT_ID = "";
-				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "";
-				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "";
+				KEIHATSU_GOOGLE_CLIENT_ID = "887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9.apps.googleusercontent.com";
+				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9";
+				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "887783028868-auatnr60j0neo58vhk6h72ngtok8hjn7.apps.googleusercontent.com";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -341,9 +341,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Keihatsu/Info.plist;
 				KEIHATSU_API_BASE_URL = "";
-				KEIHATSU_GOOGLE_CLIENT_ID = "";
-				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "";
-				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "";
+				KEIHATSU_GOOGLE_CLIENT_ID = "887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9.apps.googleusercontent.com";
+				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9";
+				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "887783028868-auatnr60j0neo58vhk6h72ngtok8hjn7.apps.googleusercontent.com";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

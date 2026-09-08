@@ -5,12 +5,18 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 describe('UsersService', () => {
   let service: UsersService;
+  const prismaService = {
+    user: {
+      findFirst: jest.fn(),
+    },
+  };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        { provide: PrismaService, useValue: {} },
+        { provide: PrismaService, useValue: prismaService },
         { provide: CloudinaryService, useValue: {} },
       ],
     }).compile();
@@ -20,5 +26,22 @@ describe('UsersService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('looks up Google account emails case-insensitively', async () => {
+    const user = { id: 'user-1', email: 'reader@example.com' };
+    prismaService.user.findFirst.mockResolvedValue(user);
+
+    await expect(service.findByEmail(' Reader@Example.com ')).resolves.toBe(
+      user,
+    );
+    expect(prismaService.user.findFirst).toHaveBeenCalledWith({
+      where: {
+        email: {
+          equals: 'reader@example.com',
+          mode: 'insensitive',
+        },
+      },
+    });
   });
 });

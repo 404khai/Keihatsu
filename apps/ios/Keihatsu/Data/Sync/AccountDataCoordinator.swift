@@ -86,6 +86,13 @@ final class AccountDataCoordinator: CollectionMutationHandling {
         await task.value
     }
 
+    func refreshCollections() async {
+        guard let userID = currentUserID, let token else { return }
+        let requestGeneration = generation
+        await refreshCollectionsSnapshot(userID: userID, token: token, generation: requestGeneration)
+        await processOutbox()
+    }
+
     func detach(userID: String?) async {
         generation = UUID()
         bootstrapTask?.cancel()
@@ -155,12 +162,32 @@ final class AccountDataCoordinator: CollectionMutationHandling {
     }
 
     private func bootstrap(userID: String, token: String, generation: UUID) async {
+        async let collectionsRefresh: Void = refreshCollectionsSnapshot(
+            userID: userID,
+            token: token,
+            generation: generation
+        )
+        async let historyRefresh: Void = refreshHistory(
+            userID: userID,
+            token: token,
+            generation: generation
+        )
+        async let preferencesRefresh: Void = refreshPreferences(
+            userID: userID,
+            token: token,
+            generation: generation
+        )
+        _ = await (collectionsRefresh, historyRefresh, preferencesRefresh)
+        guard generation == self.generation, currentUserID == userID else { return }
+        await readingHistory.refresh()
+        await processOutbox()
+    }
+
+    private func refreshCollectionsSnapshot(userID: String, token: String, generation: UUID) async {
         do {
             async let categories = categoriesAPI.all(token: token)
             async let library = libraryAPI.all(token: token)
-            async let history = historyAPI.all(token: token)
-            async let preferences = userAPI.preferences(token: token)
-            let values = try await (categories, library, history, preferences)
+            let values = try await (categories, library)
             guard generation == self.generation, currentUserID == userID else { return }
             let cached = await store.collections(ownerUserID: userID)
             let categoryRecords = values.0.map { remote -> AccountCategoryRecord in
@@ -181,8 +208,18 @@ final class AccountDataCoordinator: CollectionMutationHandling {
             }
             try await store.save(merged)
             collections.applyAccountSnapshot(merged.snapshot)
-            apply(values.3)
-            for remote in values.2 {
+        } catch is CancellationError {
+        } catch {
+            guard generation == self.generation else { return }
+            syncStatus.setError(error.localizedDescription)
+        }
+    }
+
+    private func refreshHistory(userID: String, token: String, generation: UUID) async {
+        do {
+            let history = try await historyAPI.all(token: token)
+            guard generation == self.generation, currentUserID == userID else { return }
+            for remote in history {
                 if let deleted = remote.deletedAt.flatMap(APIDate.parse) {
                     let manga = MangaIdentity(sourceID: remote.sourceId, mangaID: remote.mangaId)
                     if let local = await historyRepository.recentProgress().first(where: { $0.manga.id == manga }), local.updatedAt <= deleted {
@@ -195,8 +232,18 @@ final class AccountDataCoordinator: CollectionMutationHandling {
                     }
                 }
             }
-            await readingHistory.refresh()
-            await processOutbox()
+        } catch is CancellationError {
+        } catch {
+            guard generation == self.generation else { return }
+            syncStatus.setError(error.localizedDescription)
+        }
+    }
+
+    private func refreshPreferences(userID: String, token: String, generation: UUID) async {
+        do {
+            let preferences = try await userAPI.preferences(token: token)
+            guard generation == self.generation, currentUserID == userID else { return }
+            apply(preferences)
         } catch is CancellationError {
         } catch {
             guard generation == self.generation else { return }
