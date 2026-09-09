@@ -362,7 +362,7 @@ private struct MangaDetailsContentView: View {
                 Image(systemName: downloadSymbol(downloadStatus))
                     .font(.system(size: 30, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.white.opacity(state.isDownloaded ? 0.82 : 0.62))
+                    .foregroundStyle(state.isDownloaded ? Color.green : Color.white.opacity(0.62))
                     .frame(width: 52, height: 52)
             }
             .disabled(downloadStatus == .completed || downloadStatus?.isActive == true)

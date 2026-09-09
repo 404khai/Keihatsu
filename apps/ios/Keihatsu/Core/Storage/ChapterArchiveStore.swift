@@ -35,12 +35,18 @@ actor ChapterArchiveStore {
 
     nonisolated let downloadsRoot: URL
     nonisolated let stagingRoot: URL
+    nonisolated let documentsRoot: URL
 
     init(documentsRoot: URL? = nil, applicationSupportRoot: URL? = nil) {
         let documents = documentsRoot ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let support = applicationSupportRoot ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        downloadsRoot = documents.appending(path: "Keihatsu/downloads", directoryHint: .isDirectory)
+        self.documentsRoot = documents
+        downloadsRoot = documents.appending(path: "downloads", directoryHint: .isDirectory)
         stagingRoot = support.appending(path: "Keihatsu/DownloadStaging", directoryHint: .isDirectory)
+        Self.migrateLegacyDownloads(
+            from: documents.appending(path: "Keihatsu/downloads", directoryHint: .isDirectory),
+            to: downloadsRoot
+        )
     }
 
     func stagingDirectory(for recordID: UUID) throws -> URL {
@@ -189,16 +195,19 @@ actor ChapterArchiveStore {
     }
 
     func storageSnapshot() -> DownloadStorageSnapshot {
-        guard let enumerator = FileManager.default.enumerator(at: downloadsRoot, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { return .empty }
         var count = 0
         var bytes: Int64 = 0
-        for case let url as URL in enumerator where url.pathExtension.lowercased() == "cbz" {
-            let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-            guard values?.isRegularFile == true else { continue }
-            count += 1
-            bytes += Int64(values?.fileSize ?? 0)
+        if let enumerator = FileManager.default.enumerator(at: downloadsRoot, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) {
+            for case let url as URL in enumerator where url.pathExtension.lowercased() == "cbz" {
+                let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+                guard values?.isRegularFile == true else { continue }
+                count += 1
+                bytes += Int64(values?.fileSize ?? 0)
+            }
         }
-        return DownloadStorageSnapshot(archiveCount: count, byteCount: bytes)
+        let attributes = try? FileManager.default.attributesOfFileSystem(forPath: documentsRoot.path)
+        let available = (attributes?[.systemFreeSize] as? NSNumber)?.int64Value ?? 0
+        return DownloadStorageSnapshot(archiveCount: count, byteCount: bytes, availableByteCount: available)
     }
 
     private func entries(in url: URL) throws -> [Entry] {
@@ -322,6 +331,50 @@ actor ChapterArchiveStore {
             try? FileManager.default.removeItem(at: current)
             current.deleteLastPathComponent()
         }
+    }
+
+    nonisolated private static func migrateLegacyDownloads(from legacyRoot: URL, to downloadsRoot: URL) {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: legacyRoot.path) else { return }
+
+        do {
+            if !fileManager.fileExists(atPath: downloadsRoot.path) {
+                try fileManager.moveItem(at: legacyRoot, to: downloadsRoot)
+            } else {
+                try mergeDirectory(from: legacyRoot, to: downloadsRoot, fileManager: fileManager)
+            }
+            removeDirectoryIfEmpty(legacyRoot.deletingLastPathComponent(), fileManager: fileManager)
+        } catch {
+            // A future launch can retry any legacy files that remain.
+        }
+    }
+
+    nonisolated private static func mergeDirectory(from source: URL, to destination: URL, fileManager: FileManager) throws {
+        try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+        for item in try fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey]) {
+            let target = destination.appending(path: item.lastPathComponent)
+            if (try item.resourceValues(forKeys: [.isDirectoryKey])).isDirectory == true {
+                try mergeDirectory(from: item, to: target, fileManager: fileManager)
+                removeDirectoryIfEmpty(item, fileManager: fileManager)
+            } else if !fileManager.fileExists(atPath: target.path) {
+                try fileManager.moveItem(at: item, to: target)
+            } else {
+                let sourceDate = (try? item.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let targetDate = (try? target.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                if sourceDate > targetDate {
+                    try fileManager.removeItem(at: target)
+                    try fileManager.moveItem(at: item, to: target)
+                } else {
+                    try fileManager.removeItem(at: item)
+                }
+            }
+        }
+        removeDirectoryIfEmpty(source, fileManager: fileManager)
+    }
+
+    nonisolated private static func removeDirectoryIfEmpty(_ url: URL, fileManager: FileManager) {
+        guard let children = try? fileManager.contentsOfDirectory(atPath: url.path), children.isEmpty else { return }
+        try? fileManager.removeItem(at: url)
     }
 
     private static let crcTable: [UInt32] = (0..<256).map { value in

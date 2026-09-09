@@ -2,50 +2,70 @@ import SwiftUI
 
 struct DataStorageView: View {
     @EnvironmentObject private var downloads: DownloadCoordinator
-    @State private var pendingDeletion: ChapterDownloadRecord?
+    @EnvironmentObject private var preferencesStore: AppPreferencesStore
+
+    private var accent: Color { Color(hex: preferencesStore.preferences.theme.hex) }
+    private var mangaFraction: CGFloat {
+        let manga = max(downloads.storage.byteCount, 0)
+        let available = max(downloads.storage.availableByteCount, 0)
+        let represented = manga + available
+        guard represented > 0 else { return 0 }
+        return CGFloat(Double(manga) / Double(represented))
+    }
 
     var body: some View {
         List {
             Section("On this device") {
-                LabeledContent("Offline chapters", value: "\(downloads.storage.archiveCount)")
-                LabeledContent("Download storage", value: ByteCountFormatter.string(fromByteCount: downloads.storage.byteCount, countStyle: .file))
-                Text("CBZ files are stored under Keihatsu/downloads/extension/manga/chapter and are separate from disposable image cache.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-
-            Section("Saved chapters") {
-                if downloads.completedRecords.isEmpty {
-                    ContentUnavailableView("No offline chapters", systemImage: "books.vertical", description: Text("Completed chapter downloads will be listed here."))
-                }
-                ForEach(downloads.completedRecords) { record in
-                    VStack(alignment: .leading, spacing: 8) {
-                        DownloadRecordRow(record: record, pause: {}, resume: {})
-                        HStack {
-                            ShareLink(item: downloads.exportURL(for: record)) {
-                                Label("Export CBZ", systemImage: "square.and.arrow.up")
-                            }
-                            Spacer()
-                            Button("Delete", systemImage: "trash", role: .destructive) { pendingDeletion = record }
+                VStack(alignment: .leading, spacing: 18) {
+                    GeometryReader { proxy in
+                        HStack(spacing: 0) {
+                            accent
+                                .frame(width: proxy.size.width * mangaFraction)
+                            Color(.tertiarySystemFill)
                         }
-                        .font(.subheadline)
+                        .clipShape(Capsule())
                     }
+                    .frame(height: 16)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Device storage for manga downloads")
+                    .accessibilityValue("\(mangaStorageLabel) used by manga, \(availableStorageLabel) available")
+
+                    storageLegend
+
+                    Text("CBZ files are stored under Keihatsu/downloads/extension/manga/chapter.cbz and are separate from disposable image cache.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
+                .padding(.vertical, 8)
             }
         }
         .navigationTitle("Data & Storage")
+        .toolbar(.hidden, for: .tabBar)
         .task { await downloads.refreshStorage() }
         .refreshable { await downloads.refreshStorage() }
-        .confirmationDialog(
-            "Delete offline chapter?",
-            isPresented: Binding(
-                get: { pendingDeletion != nil },
-                set: { if !$0 { pendingDeletion = nil } }
-            ),
-            presenting: pendingDeletion
-        ) { record in
-            Button("Delete CBZ", role: .destructive) { Task { await downloads.remove(record.id) } }
-        } message: { record in
-            Text("\(record.request.chapterName) will no longer be available offline. Reading history is kept.")
+    }
+
+    private var storageLegend: some View {
+        VStack(spacing: 12) {
+            storageLegendRow(color: accent, title: "Manga", value: mangaStorageLabel)
+            storageLegendRow(color: Color(.tertiarySystemFill), title: "Available", value: availableStorageLabel)
         }
+    }
+
+    private func storageLegendRow(color: Color, title: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Circle().fill(color).frame(width: 10, height: 10)
+            Text(title)
+            Spacer()
+            Text(value).foregroundStyle(.secondary)
+        }
+    }
+
+    private var mangaStorageLabel: String {
+        ByteCountFormatter.string(fromByteCount: downloads.storage.byteCount, countStyle: .file)
+    }
+
+    private var availableStorageLabel: String {
+        ByteCountFormatter.string(fromByteCount: downloads.storage.availableByteCount, countStyle: .file)
     }
 }

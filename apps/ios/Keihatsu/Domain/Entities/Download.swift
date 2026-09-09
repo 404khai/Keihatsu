@@ -75,6 +75,7 @@ nonisolated struct ChapterDownloadRecord: Identifiable, Hashable, Codable, Senda
 nonisolated struct DownloadStorageSnapshot: Equatable, Sendable {
     var archiveCount: Int
     var byteCount: Int64
+    var availableByteCount: Int64
 
-    static let empty = DownloadStorageSnapshot(archiveCount: 0, byteCount: 0)
+    static let empty = DownloadStorageSnapshot(archiveCount: 0, byteCount: 0, availableByteCount: 0)
 }

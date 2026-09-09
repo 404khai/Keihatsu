@@ -59,6 +59,7 @@ struct DownloadQueueView: View {
             }
         }
         .navigationTitle("Download Queue")
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

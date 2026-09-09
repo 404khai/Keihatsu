@@ -56,6 +56,7 @@ struct AboutView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 

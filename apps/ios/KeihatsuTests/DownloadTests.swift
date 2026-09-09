@@ -37,7 +37,7 @@ final class DownloadTests: XCTestCase {
         let archive = try await store.package(record: record)
 
         XCTAssertEqual(archive.pathExtension, "cbz")
-        XCTAssertTrue(archive.path.hasSuffix("Keihatsu/downloads/manhuatop/solo-leveling/42.cbz"))
+        XCTAssertTrue(archive.path.hasSuffix("Documents/downloads/manhuatop/solo-leveling/42.cbz"))
         XCTAssertFalse(FileManager.default.fileExists(atPath: archive.deletingPathExtension().path), "Downloaded chapters must not remain as image directories")
         let archiveExists = await store.contains(identity)
         XCTAssertTrue(archiveExists)
