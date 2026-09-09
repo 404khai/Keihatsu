@@ -33,6 +33,7 @@ private struct MangaDetailsContentView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var collections: CollectionStore
     @EnvironmentObject private var accountSession: AccountSessionStore
+    @EnvironmentObject private var downloads: DownloadCoordinator
     @StateObject private var model: MangaDetailsViewModel
     let animation: Namespace.ID
     let allowsFixtureLibraryActions: Bool
@@ -94,6 +95,15 @@ private struct MangaDetailsContentView: View {
             async let details: Void = model.load()
             async let accountCollections: Void = environment.accountData.refreshCollections()
             _ = await (details, accountCollections)
+        }
+        .onReceive(downloads.$records) { records in
+            model.setDownloadedChapterIDs(Set(records.compactMap { record in
+                let identity = record.request.identity
+                return record.request.ownerID == (accountSession.account?.id ?? "guest")
+                    && identity.sourceID == model.manga.id.sourceID
+                    && identity.mangaID == model.manga.id.mangaID
+                    && record.status == .completed ? identity.chapterID : nil
+            }))
         }
         .refreshable { await model.refreshAll() }
         .toolbar { detailToolbar }
@@ -192,6 +202,31 @@ private struct MangaDetailsContentView: View {
                     .glassEffect(.regular.interactive(), in: .circle)
                     .accessibilityLabel(model.resumeChapter?.hasHistory == true ? "Resume reading" : "Read now")
                     .accessibilityIdentifier("manga.details.read")
+
+                    Menu {
+                        Button("Download latest chapter", systemImage: "arrow.down.to.line") {
+                            enqueue(Array(model.chapters.prefix(1)))
+                        }
+                        Button("Download next 5", systemImage: "text.badge.plus") {
+                            enqueue(nextChapters(limit: 5))
+                        }
+                        Button("Download next 10", systemImage: "text.badge.plus") {
+                            enqueue(nextChapters(limit: 10))
+                        }
+                        Button("Download unread", systemImage: "circle") {
+                            enqueue(model.chapters.filter { !model.state(for: $0).isRead })
+                        }
+                        Button("Download bookmarked", systemImage: "bookmark") {
+                            enqueue(model.chapters.filter { model.state(for: $0).isBookmarked })
+                        }
+                    } label: {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 52, height: 52)
+                    }
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .accessibilityLabel("Download chapters")
                 }
                 .padding(.top, 6)
             }
@@ -288,8 +323,10 @@ private struct MangaDetailsContentView: View {
 
     private func chapterRow(_ chapter: Chapter, showsDivider: Bool) -> some View {
         let state = model.state(for: chapter)
-        return Button { open(chapter) } label: {
-            HStack(spacing: 14) {
+        let downloadStatus = downloads.status(for: chapter.id)
+        return HStack(spacing: 8) {
+            Button { open(chapter) } label: {
+                HStack(spacing: 14) {
                 if state.isBookmarked {
                     Image(systemName: "bookmark.fill")
                         .font(.title3.weight(.semibold))
@@ -309,18 +346,31 @@ private struct MangaDetailsContentView: View {
                     .foregroundStyle(state.isRead ? .white.opacity(0.38) : .white.opacity(0.68))
                 }
                 Spacer()
-                Image(systemName: state.isDownloaded ? "arrow.down.circle.fill" : "arrow.down.to.line.circle")
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                if downloadStatus == .failed || downloadStatus == .paused || downloadStatus == .waitingForWiFi,
+                   let record = downloads.visibleRecords.first(where: { $0.request.identity == DownloadIdentity(chapter: chapter.id) }) {
+                    downloads.resume(record.id)
+                } else if downloadStatus == nil {
+                    enqueue([chapter])
+                }
+            } label: {
+                Image(systemName: downloadSymbol(downloadStatus))
                     .font(.system(size: 30, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.white.opacity(state.isDownloaded ? 0.78 : 0.58))
-                    .frame(width: 44, height: 52)
-                    .accessibilityLabel(state.isDownloaded ? "Downloaded" : "Download")
+                    .foregroundStyle(.white.opacity(state.isDownloaded ? 0.82 : 0.62))
+                    .frame(width: 52, height: 52)
             }
+            .disabled(downloadStatus == .completed || downloadStatus?.isActive == true)
+            .accessibilityLabel(downloadStatusLabel(downloadStatus))
+        }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
             .frame(minHeight: 88)
-            .contentShape(Rectangle())
-        }
         .overlay(alignment: .bottom) {
             if showsDivider {
                 Divider()
@@ -339,6 +389,37 @@ private struct MangaDetailsContentView: View {
             Button { Task { await model.toggleRead(chapter) } } label: {
                 Label(state.isRead ? "Mark Unread" : "Mark Read", systemImage: state.isRead ? "circle" : "checkmark.circle.fill")
             }.tint(state.isRead ? .gray : .green)
+        }
+    }
+
+    private func enqueue(_ chapters: [Chapter]) {
+        downloads.enqueue(manga: model.manga, chapters: chapters, extensionName: model.manga.id.sourceID)
+    }
+
+    private func nextChapters(limit: Int) -> [Chapter] {
+        Array(model.chapters.filter { !model.state(for: $0).isDownloaded }.prefix(limit))
+    }
+
+    private func downloadSymbol(_ status: DownloadStatus?) -> String {
+        switch status {
+        case .completed: "arrow.down.circle.fill"
+        case .downloading, .resolving, .packaging: "progress.indicator"
+        case .queued: "hourglass.circle"
+        case .paused, .waitingForWiFi: "play.circle"
+        case .failed: "arrow.clockwise.circle"
+        case nil: "arrow.down.to.line.circle"
+        }
+    }
+
+    private func downloadStatusLabel(_ status: DownloadStatus?) -> String {
+        switch status {
+        case .completed: "Downloaded"
+        case .downloading, .resolving, .packaging: "Downloading"
+        case .queued: "Queued"
+        case .paused: "Resume download"
+        case .waitingForWiFi: "Waiting for Wi-Fi"
+        case .failed: "Retry download"
+        case nil: "Download"
         }
     }
 

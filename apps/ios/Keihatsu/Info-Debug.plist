@@ -33,5 +33,9 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to your local Keihatsu development server.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

@@ -7,11 +7,13 @@ import UIKit
 final class ImagePipeline {
     private let configuration: APIConfiguration
     private let session: URLSession
+    private let archiveStore: ChapterArchiveStore?
     private var inFlight: [NSURL: Task<UIImage, Error>] = [:]
     private let decoded = NSCache<NSURL, UIImage>()
 
-    init(configuration: APIConfiguration, session: URLSession? = nil) {
+    init(configuration: APIConfiguration, session: URLSession? = nil, archiveStore: ChapterArchiveStore? = nil) {
         self.configuration = configuration
+        self.archiveStore = archiveStore
         let settings = URLSessionConfiguration.default
         settings.urlCache = URLCache(memoryCapacity: 32 * 1_024 * 1_024, diskCapacity: 150 * 1_024 * 1_024, directory: nil)
         settings.httpMaximumConnectionsPerHost = 2
@@ -49,7 +51,8 @@ final class ImagePipeline {
 
     private func image(url: URL, referer: URL?, maximumPixelSize: Int) async throws -> UIImage {
         try Task.checkCancellation()
-        let request = url.isFileURL ? nil : try Self.request(url: url, referer: referer, configuration: configuration)
+        let isArchivePage = url.scheme == "keihatsu-cbz"
+        let request = url.isFileURL || isArchivePage ? nil : try Self.request(url: url, referer: referer, configuration: configuration)
         let key = (request?.url ?? url) as NSURL
         if let image = decoded.object(forKey: key) { return image }
         if let pending = inFlight[key] {
@@ -57,9 +60,11 @@ final class ImagePipeline {
             try Task.checkCancellation()
             return image
         }
-        let task = Task { [session] in
+        let task = Task { [session, archiveStore] in
             let data: Data
-            if let request {
+            if isArchivePage, let archiveStore {
+                data = try await archiveStore.data(for: url)
+            } else if let request {
                 let result = try await session.data(for: request)
                 guard let response = result.1 as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
                     throw APIError.invalidResponse

@@ -222,7 +222,40 @@ struct DownloadsSettingsView: View {
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
             }
+
+            SettingsGroup(title: "Manage") {
+                NavigationLink { DownloadQueueView() } label: {
+                    SettingsNavigationInlineRow(icon: "arrow.down.circle", title: "Download Queue", subtitle: "Pause, resume, retry, and reorder chapters")
+                }
+                .buttonStyle(.plain)
+
+                SettingsDivider()
+
+                NavigationLink { DataStorageView() } label: {
+                    SettingsNavigationInlineRow(icon: "internaldrive", title: "Data & Storage", subtitle: "Review, export, or delete saved CBZ files")
+                }
+                .buttonStyle(.plain)
+            }
         }
+    }
+}
+
+private struct SettingsNavigationInlineRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon).font(.title3).frame(width: 30)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+        }
+        .padding(16)
     }
 }
 

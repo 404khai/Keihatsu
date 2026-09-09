@@ -17,7 +17,12 @@ struct ProfilePageContent: View {
             VStack(alignment: .leading, spacing: 24) {
                 profileHeader
                 statsCard
-                ProfileGroup { ProfileRow(icon: "icloud.and.arrow.down", title: "Download Queue", showsChevron: true) }
+                ProfileGroup {
+                    NavigationLink { DownloadQueueView() } label: {
+                        ProfileRow(icon: "icloud.and.arrow.down", title: "Download Queue", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                }
                 ProfileGroup {
                     NavigationLink { SettingsView() } label: { ProfileRow(icon: "gearshape", title: "Settings", showsChevron: true) }
                         .buttonStyle(.plain)
@@ -30,7 +35,10 @@ struct ProfilePageContent: View {
                 ProfileGroup {
                     ProfileRow(icon: "tag", title: "Categories", showsChevron: true)
                     ProfileDivider()
-                    ProfileRow(icon: "server.rack", title: "Data & Storage", showsChevron: true)
+                    NavigationLink { DataStorageView() } label: {
+                        ProfileRow(icon: "server.rack", title: "Data & Storage", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
                 }
                 ProfileGroup {
                     NavigationLink { HelpAndSupportView() } label: { ProfileRow(icon: "questionmark.circle", title: "Help & Support", showsChevron: true) }

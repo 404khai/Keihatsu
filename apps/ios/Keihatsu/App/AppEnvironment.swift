@@ -18,6 +18,7 @@ final class AppEnvironment: ObservableObject {
     let accountData: AccountDataCoordinator
     let accountSession: AccountSessionStore
     let commentsAPI: any CommentsServicing
+    let downloads: DownloadCoordinator
     private var cancellables = Set<AnyCancellable>()
 
     init(services: AppServices? = nil, defaults: UserDefaults = .standard) {
@@ -31,7 +32,7 @@ final class AppEnvironment: ObservableObject {
         self.sources = sources
         home = HomeViewModel(repository: services.catalogue)
         search = SearchViewModel(repository: services.catalogue, defaults: defaults)
-        imagePipeline = ImagePipeline(configuration: services.configuration)
+        imagePipeline = ImagePipeline(configuration: services.configuration, archiveStore: services.archiveStore)
         let readingHistory = ReadingHistoryModel(repository: services.history)
         self.readingHistory = readingHistory
         navigation = AppNavigation()
@@ -72,6 +73,24 @@ final class AppEnvironment: ObservableObject {
             accountData: accountData
         )
         commentsAPI = CommentsAPI(client: accountClient)
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        downloads = DownloadCoordinator(
+            catalogue: services.catalogue,
+            archiveStore: services.archiveStore,
+            recordStore: DownloadRecordStore(
+                namespace: services.configuration.baseURLString ?? "unconfigured",
+                persistToDisk: !services.isPreview
+            ),
+            transfer: BackgroundDownloadSession(
+                identifier: "\(Bundle.main.bundleIdentifier ?? "com.keihatsu.ios").chapter-downloads",
+                incomingRoot: support.appending(path: "Keihatsu/DownloadIncoming", directoryHint: .isDirectory),
+                usesBackgroundConfiguration: !services.isPreview
+            ),
+            configuration: services.configuration,
+            network: DownloadNetworkMonitor(),
+            preferences: preferencesStore,
+            defaults: defaults
+        )
         collections.mutationHandler = accountData
         readingHistory.syncCoordinator = accountData
 
@@ -84,6 +103,12 @@ final class AppEnvironment: ObservableObject {
                 value.sourcePreferences = sources.syncedPreferences
                 accountData.queuePreferences(value)
             }
+            .store(in: &cancellables)
+
+        accountSession.$account
+            .map { $0?.id }
+            .removeDuplicates()
+            .sink { [weak downloads] ownerID in downloads?.setOwner(ownerID) }
             .store(in: &cancellables)
     }
 
@@ -118,6 +143,7 @@ private struct AppEnvironmentModifier: ViewModifier {
             .environmentObject(environment.preferencesStore)
             .environmentObject(environment.syncQueueStore)
             .environmentObject(environment.accountSession)
+            .environmentObject(environment.downloads)
             .environment(\.keihatsuTheme, KeihatsuTheme.accented(Color(hex: preferences.preferences.theme.hex)))
             .preferredColorScheme(preferredColorScheme)
             .tint(Color(hex: preferences.preferences.theme.hex))
