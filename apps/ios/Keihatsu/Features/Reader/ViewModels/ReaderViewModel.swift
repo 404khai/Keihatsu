@@ -28,6 +28,7 @@ final class ReaderViewModel: ObservableObject {
     private let history: ReadingHistoryModel
     private let prefetcher: PagePrefetcher
     private let session = ReaderSession()
+    private let liveActivities: LiveActivityCoordinator?
     private let incognito: Bool
     private var saveTask: Task<Void, Never>?
     private var hasStarted = false
@@ -40,7 +41,8 @@ final class ReaderViewModel: ObservableObject {
         reader: any ReaderRepository,
         history: ReadingHistoryModel,
         imagePipeline: ImagePipeline,
-        incognito: Bool
+        incognito: Bool,
+        liveActivities: LiveActivityCoordinator? = nil
     ) {
         self.manga = manga
         self.context = context
@@ -49,6 +51,7 @@ final class ReaderViewModel: ObservableObject {
         self.history = history
         prefetcher = PagePrefetcher(pipeline: imagePipeline)
         self.incognito = incognito
+        self.liveActivities = liveActivities
     }
 
     var currentLoadedChapter: LoadedReaderChapter? {
@@ -86,6 +89,9 @@ final class ReaderViewModel: ObservableObject {
             session.start(chapter: initial.id)
             sessionEvent = session.latestEvent
             prefetcher.update(around: pages[index], in: pages)
+            if let snapshot = liveActivitySnapshot {
+                await liveActivities?.startReading(snapshot)
+            }
         } catch {
             loadError = error.localizedDescription
         }
@@ -103,6 +109,9 @@ final class ReaderViewModel: ObservableObject {
         currentAnchor = min(max(anchor, 0), 1)
         session.visible(page.id)
         sessionEvent = session.latestEvent
+        if let snapshot = liveActivitySnapshot {
+            liveActivities?.updateReading(snapshot)
+        }
         if changedChapter {
             isBookmarked = false
             Task { [weak self] in
@@ -128,6 +137,9 @@ final class ReaderViewModel: ObservableObject {
         scrollRequest = ReaderScrollRequest(page: page.id, anchor: 0)
         session.visible(page.id)
         sessionEvent = session.latestEvent
+        if let snapshot = liveActivitySnapshot {
+            liveActivities?.updateReading(snapshot)
+        }
         scheduleSave()
     }
 
@@ -157,10 +169,16 @@ final class ReaderViewModel: ObservableObject {
         session.suspend(chapter: chapter.id, pageIndex: currentPageIndex)
         sessionEvent = session.latestEvent
         await flush()
+        if let snapshot = liveActivitySnapshot {
+            await liveActivities?.pauseReading(snapshot)
+        }
     }
 
     func resume() {
         session.resume()
+        if let snapshot = liveActivitySnapshot {
+            Task { await liveActivities?.startReading(snapshot) }
+        }
     }
 
     func end() async {
@@ -168,6 +186,9 @@ final class ReaderViewModel: ObservableObject {
         session.end(chapter: chapter.id, pageIndex: currentPageIndex)
         sessionEvent = session.latestEvent
         await flush()
+        if let snapshot = liveActivitySnapshot {
+            await liveActivities?.pauseReading(snapshot)
+        }
         prefetcher.cancel()
     }
 
@@ -249,5 +270,16 @@ final class ReaderViewModel: ObservableObject {
             updatedAt: .now
         )
         try? await history.save(record, incognito: incognito)
+    }
+
+    private var liveActivitySnapshot: ReadingLiveActivitySnapshot? {
+        guard !incognito, let chapter = currentChapter else { return nil }
+        return ReadingLiveActivitySnapshot(
+            sessionID: session.id,
+            manga: manga,
+            chapter: chapter,
+            pageIndex: currentPageIndex,
+            totalPages: currentPages.count
+        )
     }
 }
