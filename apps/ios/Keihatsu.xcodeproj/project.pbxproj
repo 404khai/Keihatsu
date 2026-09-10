@@ -288,7 +288,7 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 84876FE62FC78D73003E68ED /* Products */;
 			packageReferences = (
-				D70000000000000000000002 /* XCLocalSwiftPackageReference "Blobatar" */,
+				D70000000000000000000002 /* XCRemoteSwiftPackageReference "blobatar" */,
 				B50000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			projectDirPath = "";
@@ -731,14 +731,15 @@
 				minimumVersion = 9.2.0;
 			};
 		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCLocalSwiftPackageReference section */
-		D70000000000000000000002 /* XCLocalSwiftPackageReference "Blobatar" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = /Users/admin/Developer/blobatar;
+		D70000000000000000000002 /* XCRemoteSwiftPackageReference "blobatar" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/404khai/blobatar.git";
+			requirement = {
+				kind = revision;
+				revision = bf52859375e955dec4ebbc2b53316bcef0ce7ad3;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		B50000000000000000000003 /* GoogleSignIn */ = {
@@ -748,12 +749,12 @@
 		};
 		D70000000000000000000003 /* BlobatarSwiftUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = D70000000000000000000002 /* XCLocalSwiftPackageReference "Blobatar" */;
+			package = D70000000000000000000002 /* XCRemoteSwiftPackageReference "blobatar" */;
 			productName = BlobatarSwiftUI;
 		};
 		D70000000000000000000005 /* BlobatarCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = D70000000000000000000002 /* XCLocalSwiftPackageReference "Blobatar" */;
+			package = D70000000000000000000002 /* XCRemoteSwiftPackageReference "blobatar" */;
 			productName = BlobatarCore;
 		};
 /* End XCSwiftPackageProductDependency section */

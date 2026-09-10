@@ -10,7 +10,7 @@ struct LiveActivityTests {
 
         let projection = try #require(DownloadLiveActivityProjection.make(
             records: [second, first],
-            trackedRecordIDs: [],
+            trackedRecordIDs: [first.id, second.id],
             batchID: UUID(),
             isGloballyPaused: false,
             showsDetails: false

@@ -1,5 +1,5 @@
 {
-  "originHash" : "68aa00e3cba36db2e0a76f54dbc84d1f079d8aa9a19bfa9fce02d6286bd620b7",
+  "originHash" : "6efed2d66a2df5a60dba22d8655fe60f197eae67cbdf36a11684d655d057eb2d",
   "pins" : [
     {
       "identity" : "app-check",
@@ -17,6 +17,14 @@
       "state" : {
         "revision" : "a7caeda164dc5108bf4649472b28a5af65dc6f33",
         "version" : "2.1.0"
+      }
+    },
+    {
+      "identity" : "blobatar",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/404khai/blobatar.git",
+      "state" : {
+        "revision" : "bf52859375e955dec4ebbc2b53316bcef0ce7ad3"
       }
     },
     {
