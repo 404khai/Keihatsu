@@ -57,12 +57,14 @@ final class LiveActivityCoordinator: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             if value.incognitoModeEnabled {
+                let activeReadingSnapshot = readingSnapshot
                 await endReading(immediate: true)
+                readingSnapshot = activeReadingSnapshot
                 if !wasIncognito, incognitoActivity == nil {
                     incognitoSessionID = UUID()
                     dismissedIncognitoSessionID = nil
                 }
-                await startIncognito()
+                await startIncognito(reading: activeReadingSnapshot)
             } else {
                 await endIncognito(immediate: true)
                 if !value.readingLiveActivitiesEnabled {
@@ -80,12 +82,15 @@ final class LiveActivityCoordinator: ObservableObject {
     }
 
     func startReading(_ snapshot: ReadingLiveActivitySnapshot) async {
+        readingSnapshot = snapshot
+        if preferences.incognitoModeEnabled {
+            await startIncognito(reading: snapshot)
+            return
+        }
         guard isAvailable,
               authorizationEnabled,
               preferences.readingLiveActivitiesEnabled,
-              !preferences.incognitoModeEnabled,
               !dismissedReadingSessionIDs.contains(snapshot.sessionID) else { return }
-        readingSnapshot = snapshot
         let state = readingState(snapshot, status: .reading)
 
         let systemActivities = Activity<ReadingActivityAttributes>.activities
@@ -126,6 +131,10 @@ final class LiveActivityCoordinator: ObservableObject {
 
     func updateReading(_ snapshot: ReadingLiveActivitySnapshot) {
         readingSnapshot = snapshot
+        if preferences.incognitoModeEnabled {
+            Task { [weak self] in await self?.startIncognito(reading: snapshot) }
+            return
+        }
         readingUpdateTask?.cancel()
         readingUpdateTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(750))
@@ -147,6 +156,10 @@ final class LiveActivityCoordinator: ObservableObject {
     func pauseReading(_ snapshot: ReadingLiveActivitySnapshot) async {
         readingUpdateTask?.cancel()
         readingSnapshot = snapshot
+        if preferences.incognitoModeEnabled {
+            await startIncognito(reading: snapshot)
+            return
+        }
         if readingActivity == nil {
             readingActivity = Activity<ReadingActivityAttributes>.activities.first {
                 $0.attributes.sessionID == snapshot.sessionID
@@ -158,6 +171,16 @@ final class LiveActivityCoordinator: ObservableObject {
         await activity.update(
             ActivityContent(state: state, staleDate: .now.addingTimeInterval(15 * 60), relevanceScore: 0.8)
         )
+    }
+
+    func stopReading(_ snapshot: ReadingLiveActivitySnapshot) async {
+        if preferences.incognitoModeEnabled {
+            readingUpdateTask?.cancel()
+            readingSnapshot = nil
+            await startIncognito()
+        } else {
+            await pauseReading(snapshot)
+        }
     }
 
     func endReading(immediate: Bool = false) async {
@@ -252,12 +275,20 @@ final class LiveActivityCoordinator: ObservableObject {
         dismissedDownloadBatchID = nil
     }
 
-    func startIncognito() async {
+    func startIncognito(reading snapshot: ReadingLiveActivitySnapshot? = nil) async {
         guard isAvailable,
               authorizationEnabled,
               preferences.incognitoModeEnabled,
               dismissedIncognitoSessionID != incognitoSessionID else { return }
-        let state = IncognitoActivityAttributes.ContentState(enabledAt: .now, updatedAt: .now)
+        let enabledAt = incognitoActivity?.content.state.enabledAt ?? .now
+        let hasValidPosition = snapshot.map { $0.totalPages > 0 } == true
+        let state = IncognitoActivityAttributes.ContentState(
+            enabledAt: enabledAt,
+            updatedAt: .now,
+            isReading: hasValidPosition,
+            currentPage: hasValidPosition ? snapshot?.displayedPage : nil,
+            totalPages: hasValidPosition ? snapshot?.totalPages : nil
+        )
         if let activity = incognitoActivity {
             await activity.update(ActivityContent(state: state, staleDate: nil, relevanceScore: 1))
             return

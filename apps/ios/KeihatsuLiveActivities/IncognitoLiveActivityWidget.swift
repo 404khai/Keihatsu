@@ -4,40 +4,35 @@ import WidgetKit
 
 struct IncognitoLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: IncognitoActivityAttributes.self) { _ in
-            IncognitoLockScreenView()
+        ActivityConfiguration(for: IncognitoActivityAttributes.self) { context in
+            IncognitoLockScreenView(state: context.state)
                 .activityBackgroundTint(Color.keihatsuActivityBackground)
                 .activitySystemActionForegroundColor(.white)
                 .widgetURL(LiveActivityLink.privacy())
-        } dynamicIsland: { _ in
+        } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    KeihatsuActivityMark()
+                    IncognitoActivityIcon()
+                        .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Image(systemName: "theatermasks")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Color.keihatsuActivityAccent)
-                        .accessibilityLabel("Incognito mode")
+                    if context.state.pagePosition != nil {
+                        IncognitoStatusText(state: context.state)
+                            .padding(.trailing, 4)
+                    }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    IncognitoActivityDetails()
-                        .padding(.top, 2)
+                    IncognitoActivityDetails(isReading: context.state.pagePosition != nil)
+                        .padding(.horizontal, 4)
                 }
             } compactLeading: {
-                KeihatsuActivityMark()
-                    .accessibilityLabel("Keihatsu")
+                IncognitoActivityIcon()
             } compactTrailing: {
-                Image(systemName: "theatermasks")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(Color.keihatsuActivityAccent)
-                    .accessibilityLabel("Incognito mode")
+                IncognitoStatusText(state: context.state)
             } minimal: {
-                Image(systemName: "theatermasks")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(Color.keihatsuActivityAccent)
-                    .accessibilityLabel("Keihatsu incognito mode")
+                IncognitoActivityIcon()
             }
+            .contentMargins(.horizontal, 12, for: .expanded)
             .keylineTint(Color.keihatsuActivityAccent)
             .widgetURL(LiveActivityLink.privacy())
         }
@@ -45,50 +40,112 @@ struct IncognitoLiveActivityWidget: Widget {
 }
 
 private struct IncognitoLockScreenView: View {
+    let state: IncognitoActivityAttributes.ContentState
+
     var body: some View {
-        HStack(spacing: 12) {
-            KeihatsuActivityMark(size: 34)
-            IncognitoActivityDetails()
+        HStack(alignment: .center, spacing: 12) {
+            IncognitoActivityIcon(size: 34)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(state.pagePosition == nil ? "Incognito mode is on" : "Private reading")
+                        .font(.headline.weight(.semibold))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    if state.pagePosition != nil {
+                        IncognitoStatusText(state: state)
+                    }
+                }
+
+                Text("History and progress won’t be saved")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .padding(14)
     }
 }
 
 private struct IncognitoActivityDetails: View {
+    let isReading: Bool
+
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Incognito mode is on")
-                    .font(.headline.weight(.semibold))
-                    .lineLimit(1)
-                Text("Reading history and progress won’t be saved")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 8)
-            Image(systemName: "theatermasks")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.keihatsuActivityAccent)
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 3) {
+            Text(isReading ? "Private reading" : "Incognito mode is on")
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+
+            Text("History and progress won’t be saved")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-private struct KeihatsuActivityMark: View {
+private struct IncognitoStatusText: View {
+    let state: IncognitoActivityAttributes.ContentState
+
+    var body: some View {
+        Text(state.pagePosition ?? "ON")
+            .font(.caption2.monospacedDigit().weight(.semibold))
+            .foregroundStyle(Color.keihatsuActivityAccent)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .accessibilityLabel(state.pagePosition.map { "Reading page \($0)" } ?? "Incognito mode on")
+    }
+}
+
+private struct IncognitoActivityIcon: View {
     var size: CGFloat = 22
 
     var body: some View {
-        Text("K")
-            .font(.system(size: size * 0.56, weight: .black, design: .rounded))
-            .foregroundStyle(.black)
+        Image(systemName: "eyeglasses")
+            .font(.system(size: size * 0.62, weight: .semibold))
+            .foregroundStyle(Color.keihatsuActivityAccent)
             .frame(width: size, height: size)
-            .background(Color.keihatsuActivityAccent, in: Circle())
+            .accessibilityLabel("Incognito mode")
     }
 }
 
-#Preview("Incognito", as: .content, using: IncognitoActivityAttributes(sessionID: UUID())) {
+#Preview("Incognito Lock Screen", as: .content, using: IncognitoActivityAttributes(sessionID: UUID())) {
     IncognitoLiveActivityWidget()
 } contentStates: {
-    IncognitoActivityAttributes.ContentState(enabledAt: .now, updatedAt: .now)
+    IncognitoActivityAttributes.ContentState(
+        enabledAt: .now, updatedAt: .now,
+        isReading: false, currentPage: nil, totalPages: nil
+    )
+    IncognitoActivityAttributes.ContentState(
+        enabledAt: .now, updatedAt: .now,
+        isReading: true, currentPage: 14, totalPages: 35
+    )
+}
+
+#Preview("Incognito Compact • Idle", as: .dynamicIsland(.compact), using: IncognitoActivityAttributes(sessionID: UUID())) {
+    IncognitoLiveActivityWidget()
+} contentStates: {
+    IncognitoActivityAttributes.ContentState(
+        enabledAt: .now, updatedAt: .now,
+        isReading: false, currentPage: nil, totalPages: nil
+    )
+}
+
+#Preview("Incognito Compact • Reading", as: .dynamicIsland(.compact), using: IncognitoActivityAttributes(sessionID: UUID())) {
+    IncognitoLiveActivityWidget()
+} contentStates: {
+    IncognitoActivityAttributes.ContentState(
+        enabledAt: .now, updatedAt: .now,
+        isReading: true, currentPage: 2, totalPages: 21
+    )
+}
+
+#Preview("Incognito Expanded • Reading", as: .dynamicIsland(.expanded), using: IncognitoActivityAttributes(sessionID: UUID())) {
+    IncognitoLiveActivityWidget()
+} contentStates: {
+    IncognitoActivityAttributes.ContentState(
+        enabledAt: .now, updatedAt: .now,
+        isReading: true, currentPage: 14, totalPages: 35
+    )
 }

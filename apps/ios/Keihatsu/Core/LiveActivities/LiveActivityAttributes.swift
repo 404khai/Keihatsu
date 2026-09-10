@@ -46,6 +46,17 @@ nonisolated struct IncognitoActivityAttributes: ActivityAttributes {
     nonisolated struct ContentState: Codable, Hashable, Sendable {
         let enabledAt: Date
         let updatedAt: Date
+        let isReading: Bool?
+        let currentPage: Int?
+        let totalPages: Int?
+
+        var pagePosition: String? {
+            guard isReading == true,
+                  let currentPage, let totalPages,
+                  currentPage > 0, totalPages > 0,
+                  currentPage <= totalPages else { return nil }
+            return "\(currentPage) of \(totalPages)"
+        }
     }
 
     let sessionID: UUID

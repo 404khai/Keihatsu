@@ -187,7 +187,7 @@ final class ReaderViewModel: ObservableObject {
         sessionEvent = session.latestEvent
         await flush()
         if let snapshot = liveActivitySnapshot {
-            await liveActivities?.pauseReading(snapshot)
+            await liveActivities?.stopReading(snapshot)
         }
         prefetcher.cancel()
     }
@@ -273,7 +273,7 @@ final class ReaderViewModel: ObservableObject {
     }
 
     private var liveActivitySnapshot: ReadingLiveActivitySnapshot? {
-        guard !incognito, let chapter = currentChapter else { return nil }
+        guard let chapter = currentChapter else { return nil }
         return ReadingLiveActivitySnapshot(
             sessionID: session.id,
             manga: manga,

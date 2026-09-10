@@ -24,13 +24,14 @@ struct DownloadLiveActivityWidget: Widget {
                         .padding(.horizontal, 4)
                 }
             } compactLeading: {
-                DownloadProgressIcon(state: context.state, size: 23)
+                DownloadProgressIcon(state: context.state, size: 20)
             } compactTrailing: {
                 DownloadPercentage(progress: context.state.progress, compact: true)
             } minimal: {
                 DownloadProgressIcon(state: context.state, size: 24)
                     .accessibilityLabel(downloadAccessibilityLabel(context.state.progress))
             }
+            .contentMargins(.horizontal, 12, for: .expanded)
             .keylineTint(Color.keihatsuActivityAccent)
             .widgetURL(LiveActivityLink.downloads())
         }
