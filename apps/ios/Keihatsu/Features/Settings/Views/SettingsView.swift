@@ -41,6 +41,7 @@ struct SettingsView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     @ViewBuilder
@@ -167,9 +168,9 @@ struct ReaderSettingsView: View {
                 SettingsPickerRow(
                     icon: "rectangle.portrait.on.rectangle.portrait",
                     title: "Reading Direction",
-                    subtitle: "Default flow for new chapters",
+                    subtitle: "Vertical continuous reading",
                     selection: $preferencesStore.preferences.readerDirection,
-                    options: ReaderDirectionPreference.allCases,
+                    options: [ReaderDirectionPreference.vertical],
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
 
@@ -191,6 +192,16 @@ struct ReaderSettingsView: View {
                     title: "Keep Screen Awake",
                     subtitle: "Prevent dimming while reading",
                     isOn: $preferencesStore.preferences.keepScreenAwake,
+                    accent: Color(hex: preferencesStore.preferences.theme.hex)
+                )
+            }
+
+            SettingsGroup(title: "Live Activity") {
+                SettingsToggleRow(
+                    icon: "book.pages",
+                    title: "Reading Progress",
+                    subtitle: "Keep your saved page available from the Lock Screen",
+                    isOn: $preferencesStore.preferences.readingLiveActivitiesEnabled,
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
             }
@@ -222,7 +233,50 @@ struct DownloadsSettingsView: View {
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
             }
+
+            SettingsGroup(title: "Live Activity") {
+                SettingsToggleRow(
+                    icon: "rectangle.inset.filled.and.person.filled",
+                    title: "Download Progress",
+                    subtitle: "Show the active chapter queue on the Lock Screen",
+                    isOn: $preferencesStore.preferences.downloadLiveActivitiesEnabled,
+                    accent: Color(hex: preferencesStore.preferences.theme.hex)
+                )
+            }
+
+            SettingsGroup(title: "Manage") {
+                NavigationLink { DownloadQueueView() } label: {
+                    SettingsNavigationInlineRow(icon: "arrow.down.circle", title: "Download Queue", subtitle: "Pause, resume, retry, and reorder chapters")
+                }
+                .buttonStyle(.plain)
+
+                SettingsDivider()
+
+                NavigationLink { DataStorageView() } label: {
+                    SettingsNavigationInlineRow(icon: "internaldrive", title: "Data & Storage", subtitle: "Review, export, or delete saved CBZ files")
+                }
+                .buttonStyle(.plain)
+            }
         }
+    }
+}
+
+private struct SettingsNavigationInlineRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon).font(.title3).frame(width: 30)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+        }
+        .padding(16)
     }
 }
 
@@ -269,6 +323,7 @@ struct TrackingSettingsView: View {
 
 struct PrivacySettingsView: View {
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
+    @EnvironmentObject private var accountSession: AccountSessionStore
 
     var body: some View {
         SettingsControlsPage(title: "Privacy") {
@@ -280,6 +335,28 @@ struct PrivacySettingsView: View {
                     isOn: $preferencesStore.preferences.incognitoModeEnabled,
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
+            }
+            SettingsGroup(title: "Live Activities") {
+                SettingsToggleRow(
+                    icon: "text.viewfinder",
+                    title: "Show Manga Details",
+                    subtitle: "Show manga and chapter names on system surfaces",
+                    isOn: $preferencesStore.preferences.showLiveActivityMangaDetails,
+                    accent: Color(hex: preferencesStore.preferences.theme.hex)
+                )
+            }
+            SettingsGroup(title: "Profile") {
+                SettingsToggleRow(
+                    icon: "books.vertical",
+                    title: "Public Library",
+                    subtitle: accountSession.isAuthenticated ? "Allow readers to view your library" : "Sign in to manage profile visibility",
+                    isOn: Binding(
+                        get: { accountSession.account?.isProfilePublic ?? false },
+                        set: { value in Task { try? await accountSession.updateVisibility(value) } }
+                    ),
+                    accent: Color(hex: preferencesStore.preferences.theme.hex)
+                )
+                .disabled(!accountSession.isAuthenticated)
             }
         }
     }

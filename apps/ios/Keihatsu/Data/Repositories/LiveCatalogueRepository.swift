@@ -29,15 +29,15 @@ actor LiveCatalogueRepository: CatalogueRepository {
     }
 
     func manga(_ id: MangaIdentity) async throws -> Manga {
-        try await client.send(APIRequest<MangaDTO>(path: ["sources", id.sourceID, "manga", id.mangaID])).domain()
+        try await client.send(MangaAPI.details(id)).domain()
     }
 
     func chapters(for manga: MangaIdentity) async throws -> [Chapter] {
-        try await client.send(APIRequest<[ChapterDTO]>(path: ["sources", manga.sourceID, "manga", manga.mangaID, "chapters"])).map { $0.domain(manga: manga) }
+        try await client.send(MangaAPI.chapters(manga)).map { $0.domain(manga: manga) }
     }
 
     func pages(for chapter: ChapterIdentity) async throws -> [ReaderPage] {
-        try await client.send(APIRequest<[ReaderPageDTO]>(path: ["sources", chapter.manga.sourceID, "chapters", chapter.chapterID, "pages"])).map { try $0.domain(chapter: chapter) }
+        try await client.send(MangaAPI.pages(chapter)).map { try $0.domain(chapter: chapter) }
     }
 
     private func key(_ source: String, _ listing: CatalogueListing, _ page: Int, _ query: String?) -> String {

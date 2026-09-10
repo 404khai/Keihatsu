@@ -91,13 +91,9 @@ export class CategoriesService {
 
     // 2. Find Library Entry (Manga must be in library first)
     // We assume mangaId is the external ID. We need the internal LibraryEntry ID.
-    const entry = await this.prisma.libraryEntry.findUnique({
-      where: {
-        userId_mangaId: {
-          userId,
-          mangaId,
-        },
-      },
+    const entry = await this.prisma.libraryEntry.findFirst({
+      where: { userId, mangaId },
+      orderBy: { dateAddedAt: 'asc' },
     });
 
     if (!entry) {

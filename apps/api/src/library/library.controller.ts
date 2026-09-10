@@ -13,6 +13,7 @@ import {
 import { LibraryService } from './library.service';
 import {
   CreateLibraryEntryDto,
+  SetLibraryCategoriesDto,
   UpdateLibraryEntryDto,
 } from './dto/library-entry.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -39,6 +40,19 @@ export class LibraryController {
     @Body() updateDto: UpdateLibraryEntryDto,
   ) {
     return this.libraryService.update(id, req.user.id, updateDto);
+  }
+
+  @Put(':id/categories')
+  setCategories(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: SetLibraryCategoriesDto,
+  ) {
+    return this.libraryService.setCategories(
+      id,
+      req.user.id,
+      body.categoryIds,
+    );
   }
 
   @Delete(':id')

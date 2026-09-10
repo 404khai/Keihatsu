@@ -44,6 +44,23 @@ final class SourcePreferencesStore: ObservableObject {
         revision += 1
     }
 
+
+    func apply(_ values: [String: SyncedSourcePreference]) {
+        for (id, value) in values {
+            enabled[id] = value.enabled
+            pinned[id] = value.pinned
+        }
+        defaults.set(enabled, forKey: "keihatsu.sources.enabled")
+        defaults.set(pinned, forKey: "keihatsu.sources.pinned")
+        revision += 1
+    }
+
+    var syncedPreferences: [String: SyncedSourcePreference] {
+        Dictionary(uniqueKeysWithValues: sources.map { source in
+            (source.id, SyncedSourcePreference(enabled: isEnabled(source), pinned: isPinned(source)))
+        })
+    }
+
     func load(force: Bool = false) async {
         guard !isLoading, force || !loaded else { return }
         isLoading = true
