@@ -10,11 +10,14 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>$(KEIHATSU_GOOGLE_REVERSED_CLIENT_ID)</string>
+				<string>keihatsu</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleIconFile</key>
 	<string>KeihatsuIcon</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>GIDClientID</key>
 	<string>$(KEIHATSU_GOOGLE_CLIENT_ID)</string>
 	<key>GIDServerClientID</key>
@@ -26,5 +29,9 @@
 	</array>
 	<key>KEIHATSU_API_BASE_URL</key>
 	<string>$(KEIHATSU_API_BASE_URL)</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

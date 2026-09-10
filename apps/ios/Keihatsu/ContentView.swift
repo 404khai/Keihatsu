@@ -72,6 +72,9 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.background)
         }
+        .fullScreenCover(item: $navigation.liveActivityDestination) { destination in
+            LiveActivityDestinationView(destination: destination)
+        }
     }
 
     @ViewBuilder

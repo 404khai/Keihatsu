@@ -15,38 +15,46 @@ class FloatingNav extends StatelessWidget {
   final int currentIndex;
   final Color brandColor;
 
-  static const double _barHeight = 56;
+  static const double _barHeight = 64;
   static const double _searchSize = 50;
   static const double _gap = 8;
 
   static const List<_NavDestination> _destinations = [
-    _NavDestination(
-      index: 0,
-      route: '/home',
-      icon: Icons.home_outlined,
-      selectedIcon: Icons.home_rounded,
-    ),
+    // Home is intentionally hidden while the library-first navigation is in
+    // use. Keep the destination here so it can be restored without rebuilding
+    // its route mapping.
+    // _NavDestination(
+    //   index: 0,
+    //   route: '/home',
+    //   label: 'Home',
+    //   icon: Icons.home_outlined,
+    //   selectedIcon: Icons.home_rounded,
+    // ),
     _NavDestination(
       index: 1,
       route: '/library',
+      label: 'Library',
       icon: Icons.library_books_outlined,
       selectedIcon: Icons.library_books_rounded,
     ),
     _NavDestination(
       index: 2,
       route: '/history',
+      label: 'History',
       icon: Icons.history_outlined,
       selectedIcon: Icons.history_rounded,
     ),
     _NavDestination(
       index: 3,
       route: '/extensions',
+      label: 'Extensions',
       icon: Icons.extension_outlined,
       selectedIcon: Icons.extension_rounded,
     ),
     _NavDestination(
       index: 4,
       route: '/profile',
+      label: 'Profile',
       icon: Icons.person_outline_rounded,
       selectedIcon: Icons.person_rounded,
     ),
@@ -143,12 +151,14 @@ class _NavDestination {
   const _NavDestination({
     required this.index,
     required this.route,
+    required this.label,
     required this.icon,
     required this.selectedIcon,
   });
 
   final int index;
   final String route;
+  final String label;
   final IconData icon;
   final IconData selectedIcon;
 }
@@ -170,19 +180,19 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color iconColor = selected ? brandColor : unselectedColor;
+    final Color itemColor = selected ? brandColor : unselectedColor;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           padding: EdgeInsets.symmetric(
             horizontal: selected ? 8 : 5,
-            vertical: selected ? 8 : 7,
+            vertical: 5,
           ),
           decoration: BoxDecoration(
             color: selected
@@ -190,10 +200,32 @@ class _NavItem extends StatelessWidget {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(24),
           ),
-          child: Icon(
-            selected ? destination.selectedIcon : destination.icon,
-            size: selected ? 30 : 25,
-            color: iconColor,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                selected ? destination.selectedIcon : destination.icon,
+                size: selected ? 25 : 23,
+                color: itemColor,
+              ),
+              const SizedBox(height: 1),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                  color: itemColor,
+                  fontSize: 10,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  height: 1,
+                ),
+                child: Text(
+                  destination.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                ),
+              ),
+            ],
           ),
         ),
       ),

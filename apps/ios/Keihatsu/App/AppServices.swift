@@ -6,6 +6,7 @@ nonisolated struct AppServices: Sendable {
     let mangaDetails: any MangaDetailsRepository
     let reader: any ReaderRepository
     let history: any HistoryRepository
+    let archiveStore: ChapterArchiveStore
     let contentLoader: BundledJSONLoader
     let configuration: APIConfiguration
     let isPreview: Bool
@@ -16,12 +17,14 @@ nonisolated struct AppServices: Sendable {
         let catalogue = LiveCatalogueRepository(client: client, cache: cache)
         let detailsStore = MangaDetailsStore(namespace: configuration.baseURLString ?? "unconfigured")
         let progressStore = ReaderProgressStore(namespace: configuration.baseURLString ?? "unconfigured")
+        let archiveStore = ChapterArchiveStore()
         return Self(
             apiClient: client,
             catalogue: catalogue,
             mangaDetails: DefaultMangaDetailsRepository(catalogue: catalogue, store: detailsStore),
-            reader: DefaultReaderRepository(catalogue: catalogue),
+            reader: DefaultReaderRepository(catalogue: catalogue, archiveStore: archiveStore),
             history: LocalHistoryRepository(progressStore: progressStore, detailsStore: detailsStore),
+            archiveStore: archiveStore,
             contentLoader: BundledJSONLoader(),
             configuration: configuration,
             isPreview: false
@@ -33,12 +36,15 @@ nonisolated struct AppServices: Sendable {
         let catalogue = FixtureCatalogueRepository(loader: loader)
         let detailsStore = MangaDetailsStore(namespace: "preview", persistToDisk: false)
         let progressStore = ReaderProgressStore(namespace: "preview", persistToDisk: false)
+        let previewRoot = FileManager.default.temporaryDirectory.appending(path: "KeihatsuPreview-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let archiveStore = ChapterArchiveStore(documentsRoot: previewRoot, applicationSupportRoot: previewRoot)
         return Self(
             apiClient: nil,
             catalogue: catalogue,
             mangaDetails: DefaultMangaDetailsRepository(catalogue: catalogue, store: detailsStore),
-            reader: DefaultReaderRepository(catalogue: catalogue, bundle: bundle),
+            reader: DefaultReaderRepository(catalogue: catalogue, bundle: bundle, archiveStore: archiveStore),
             history: LocalHistoryRepository(progressStore: progressStore, detailsStore: detailsStore),
+            archiveStore: archiveStore,
             contentLoader: loader,
             configuration: .application(),
             isPreview: true

@@ -3,6 +3,7 @@ import SwiftUI
 struct ProfilePageContent: View {
     @EnvironmentObject private var accountSession: AccountSessionStore
     @EnvironmentObject private var bootstrap: AppBootstrap
+    @EnvironmentObject private var downloads: DownloadCoordinator
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
     @State private var showsInbox = false
     @State private var showsSignIn = false
@@ -11,13 +12,25 @@ struct ProfilePageContent: View {
 
     private var account: UserAccount? { accountSession.account }
     private var accent: Color { Color(hex: preferencesStore.preferences.theme.hex) }
+    private var activeDownloadCount: Int { downloads.activeRecords.filter { $0.status.isActive }.count }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 profileHeader
                 statsCard
-                ProfileGroup { ProfileRow(icon: "icloud.and.arrow.down", title: "Download Queue", showsChevron: true) }
+                ProfileGroup {
+                    NavigationLink { DownloadQueueView() } label: {
+                        ProfileRow(
+                            icon: "icloud.and.arrow.down",
+                            title: "Download Queue",
+                            showsChevron: true,
+                            badgeCount: activeDownloadCount,
+                            badgeColor: accent
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
                 ProfileGroup {
                     NavigationLink { SettingsView() } label: { ProfileRow(icon: "gearshape", title: "Settings", showsChevron: true) }
                         .buttonStyle(.plain)
@@ -30,7 +43,10 @@ struct ProfilePageContent: View {
                 ProfileGroup {
                     ProfileRow(icon: "tag", title: "Categories", showsChevron: true)
                     ProfileDivider()
-                    ProfileRow(icon: "server.rack", title: "Data & Storage", showsChevron: true)
+                    NavigationLink { DataStorageView() } label: {
+                        ProfileRow(icon: "server.rack", title: "Data & Storage", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
                 }
                 ProfileGroup {
                     NavigationLink { HelpAndSupportView() } label: { ProfileRow(icon: "questionmark.circle", title: "Help & Support", showsChevron: true) }
@@ -148,11 +164,22 @@ struct ProfileRow: View {
     let icon: String
     let title: String
     var showsChevron = false
+    var badgeCount: Int = 0
+    var badgeColor: Color = .accentColor
     var body: some View {
         HStack(spacing: 18) {
             ProfileIcon(symbol: icon)
             Text(title).font(.title3.weight(.medium)).fontDesign(.rounded)
             Spacer()
+            if badgeCount > 0 {
+                Text(badgeCount > 99 ? "99+" : "\(badgeCount)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .frame(minWidth: 24, minHeight: 24)
+                    .background(badgeColor, in: Capsule())
+                    .accessibilityLabel("\(badgeCount) active downloads")
+            }
             if showsChevron { Image(systemName: "chevron.right").foregroundStyle(.tertiary) }
         }
         .padding(.horizontal, 18)

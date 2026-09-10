@@ -6,6 +6,7 @@ struct LibraryView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var collections: CollectionStore
     @EnvironmentObject private var options: LibraryOptionsStore
+    @EnvironmentObject private var downloads: DownloadCoordinator
     @State private var selectedCategory: UUID?
     @State private var searchText = ""
     @State private var showingControls = false
@@ -139,12 +140,13 @@ struct LibraryView: View {
     }
 
     private func badge(_ entry: LibraryEntry) -> some View {
-        HStack(spacing: 6) {
+        let localDownloaded = entry.item.manga.map { downloads.downloadedCount(for: $0.id) } ?? 0
+        return HStack(spacing: 6) {
             if options.options.displaysUnreadBadge {
                 Label("\(entry.unreadCount)", systemImage: "book.closed")
             }
             if options.options.displaysDownloadedBadge {
-                Label("\(entry.downloadedCount)", systemImage: "arrow.down")
+                Label("\(localDownloaded)", systemImage: "arrow.down")
             }
             if options.options.displaysLanguageBadge,
                let language = entry.item.manga?.language, !language.isEmpty {
@@ -154,7 +156,7 @@ struct LibraryView: View {
         .font(.caption2).monospacedDigit().lineLimit(1)
         .padding(5).background(.regularMaterial, in: Capsule())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(entry.unreadCount) unread chapters, \(entry.downloadedCount) downloaded chapters")
+        .accessibilityLabel("\(entry.unreadCount) unread chapters, \(localDownloaded) downloaded chapters on this device")
     }
 
     private func shouldShowBadges(for entry: LibraryEntry) -> Bool {
