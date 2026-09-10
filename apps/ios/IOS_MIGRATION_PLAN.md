@@ -8,7 +8,7 @@ The recommended path is to finish the existing native screens, introduce real AP
 
 `feat/ios-migration` tracks `main` and is the integration branch for this migration. Each phase is implemented on its own branch and reviewed through a pull request before it enters the integration branch. Dependent phases are stacked while their prerequisite PR is open, then retargeted to `feat/ios-migration` after the prerequisite merges. The integration branch is tested as a whole before it is proposed for `main`.
 
-This is a planning deliverable, not an implementation phase. It retains the eight phase numbers in [AGENTS.md](Keihatsu/AGENTS.md), adds live data work to the relevant phases, and inserts **Phase 6A** between Phases 6 and 7 for download and manga-reading Live Activities. Phase 0 is an existing foundation; it should not be regenerated. Backend changes described as **proposed** below do not exist yet. Live Activities were added to this plan on 6 September 2026; their implementation is pending.
+This is a planning deliverable, not an implementation phase. It retains the eight phase numbers in [AGENTS.md](Keihatsu/AGENTS.md), adds live data work to the relevant phases, and inserts **Phase 6A** between Phases 6 and 7 for download, manga-reading, and incognito Live Activities. Phase 0 is an existing foundation; it should not be regenerated. Backend changes described as **proposed** below do not exist yet. Phase 6A was implemented on 9 September 2026; its implementation record and remaining physical-device checks are below.
 
 **What actually exists today**
 
@@ -283,7 +283,7 @@ Exit checks:
 - Review all four presentations, including simultaneous reading/download activities and a device without Dynamic Island. Verify light/dark appearance, large text, VoiceOver, long localized strings, contrast, Reduce Motion/Transparency, Always-On reduced luminance, and StandBy/Night Mode. Check automatically adapted Apple Watch, paired Mac, and CarPlay presentations where available; no separate companion app is required. Confirm artwork dimensions, margins, clipping, and the system dismiss button on physical devices.
 - Add focused lifecycle/state-mapping and route/intent tests, extension previews, and physical-device background checks. Record any context not exercised. Both app and extension build/archive successfully; mockup similarity alone is not acceptance.
 
-Suggested commit: `feat(ios): add download and reading live activities`
+Suggested commit: `feat(ios): add download, reading & incognito live activities`
 
 **Phase 7 — Complete supporting flows and polish native interactions**
 
@@ -520,3 +520,25 @@ Final incremental simulator build after the badge/image-connection refinements: 
 - The API compiled after Prisma Client generation and passed **22 tests in 12 suites**, including idempotent history retry, source-scoped comments, source-aware history/library behavior, and multi-category replacement.
 - UI automation was stopped at the user's request and is not an acceptance claim for this phase. Google authentication requires real OAuth configuration and must be exercised by the tester; no credentials are committed.
 - `git diff --check` passed. The migration remains deployment-gated and was not applied to a live database.
+
+**Phase 6A implementation record**
+
+1. **Phase Goal** — Add bounded, privacy-aware system surfaces for real chapter downloads, manga-reading position, and incognito mode on `feat/ios-phase-6a-live-activities`, building directly on the Phase 6 queue rather than duplicating its work.
+2. **Flutter Files Inspected** — `screens/MangaReaderScreen.dart`, `providers/download_provider.dart`, and `screens/DownloadQueueScreen.dart` were compared with the native reader lifecycle, durable download records, settings, account isolation, and deep-link composition.
+3. **Flutter Architecture And Layout Findings** — Flutter's reader is vertically continuous and advances progress only from the visible page; its downloads are a durable grouped queue with pause, retry, connectivity, packaging, and completion states. Live Activities therefore consume snapshots from those owners and never poll, fetch artwork, or keep transfers alive.
+4. **SwiftUI Adaptation Strategy** — WidgetKit supplies Lock Screen, compact, minimal, and expanded presentations with the system-owned Dynamic Island background, 14-point Lock Screen margins, short status copy, semantic progress, VoiceOver labels, privacy redaction, and a single tap destination. The default system presentation uses generic manga text until the reader opts into names.
+5. **Planned Files** — The shared ActivityKit attributes, app-side coordinator/projections, reader/download wiring, URL routing and restoration view, local preferences/settings, both Info plists, WidgetKit extension, Xcode target/embed configuration, focused mapping tests, and this plan.
+6. **Architecture Decisions** — `LiveActivityCoordinator` is injected from `AppEnvironment` and permits at most one reading, download-batch, and incognito activity. It observes authorization and activity dismissal, reconciles existing activities on launch, coalesces page changes, consumes real background-download records, and ends all account-owned surfaces on owner changes. Reading identity lives in dynamic state so continuous chapter transitions keep one activity while its return route stays accurate.
+7. **SwiftUI Mapping Notes** — Reading shows the one-based visible page and exact chapter progress; downloads show verified aggregate chapter/progress state and the current queue item; incognito shows only Keihatsu branding and privacy status. Taps restore the exact reader page, current download queue, or Privacy settings. Stale download/reading states are labeled as last-known data.
+8. **Implementation** — Added all three `ActivityConfiguration` definitions and extension previews; enabled and embedded the extension; added `NSSupportsLiveActivities` and the `keihatsu` URL scheme; connected reader foreground/background and visible-page events; projected queued/resolving/downloading/packaging/completed/paused/Wi-Fi/failed download state; retained final summaries for bounded periods; and prevented a dismissed session from immediately recreating. Incognito immediately removes reading identity and creates a separate identity-free activity without changing the in-app profile or reader presentation.
+9. **Phase Summary** — Phase 6A is functional with the Phase 4 reader and Phase 6 download engine. Activity failures remain non-blocking, and the reader/download UI continues to work when system authorization is unavailable.
+10. **Files Created/Modified** — `Core/LiveActivities/{LiveActivityAttributes,LiveActivityProjection,LiveActivityCoordinator}.swift`; `KeihatsuLiveActivities/`; app environment/navigation/root URL handling; reader view model and entry composition; local preference/settings models; app Info plists; Xcode project; `KeihatsuTests/LiveActivityTests.swift`; and this plan.
+11. **Deferred Items** — Cover artwork and an App Group were omitted because every presentation is intentionally text/symbol based and the extension performs no network or file access. No App Intent is exposed; the activity opens the real queue for pause/resume and other controls. Physical-device background transfer, force-quit, Always-On, StandBy, Apple Watch/Mac/CarPlay adaptation, signing/archive, large-text, and full accessibility review remain release checks. Remote APNs updates are unnecessary while the device owns the tasks.
+12. **Commit Message** — `feat(ios): add download, reading and incognito live activities`
+13. **Review State** — Implementation is complete for review. Phase 7 has not started.
+
+**Phase 6A validation (9 September 2026)**
+
+- The `Keihatsu` scheme built successfully for the booted iPhone 17 / iOS 26.5 simulator with the embedded `KeihatsuLiveActivities.appex`. A normal simulator-signed build was installed and launched against the live local API at `http://127.0.0.1:3000`; `/` and `/sources` returned HTTP 200.
+- Focused source coverage was added for aggregate queue mapping, terminal/wait/pause states, privacy defaults, opaque reader deep links, duplicate query handling, legacy preference decoding, and representative payload size. Per the review request, automated tests were not run.
+- `git diff --check` and both Info plist syntax checks passed. Physical-device and signed-archive checks remain as recorded above.

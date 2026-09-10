@@ -16,7 +16,8 @@ struct ReaderEntryView: View {
             reader: environment.services.reader,
             history: history,
             imagePipeline: environment.imagePipeline,
-            incognito: preferencesStore.preferences.incognitoModeEnabled
+            incognito: preferencesStore.preferences.incognitoModeEnabled,
+            liveActivities: environment.liveActivities
         )
     }
 }

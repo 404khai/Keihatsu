@@ -15,7 +15,8 @@ struct ReaderView: View {
         reader: any ReaderRepository,
         history: ReadingHistoryModel,
         imagePipeline: ImagePipeline,
-        incognito: Bool
+        incognito: Bool,
+        liveActivities: LiveActivityCoordinator? = nil
     ) {
         self.imagePipeline = imagePipeline
         _model = StateObject(wrappedValue: ReaderViewModel(
@@ -25,7 +26,8 @@ struct ReaderView: View {
             reader: reader,
             history: history,
             imagePipeline: imagePipeline,
-            incognito: incognito
+            incognito: incognito,
+            liveActivities: liveActivities
         ))
     }
 

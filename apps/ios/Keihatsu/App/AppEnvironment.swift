@@ -19,6 +19,7 @@ final class AppEnvironment: ObservableObject {
     let accountSession: AccountSessionStore
     let commentsAPI: any CommentsServicing
     let downloads: DownloadCoordinator
+    let liveActivities: LiveActivityCoordinator
     private var cancellables = Set<AnyCancellable>()
 
     init(services: AppServices? = nil, defaults: UserDefaults = .standard) {
@@ -38,6 +39,8 @@ final class AppEnvironment: ObservableObject {
         navigation = AppNavigation()
         bootstrap = AppBootstrap(defaults: defaults)
         preferencesStore = AppPreferencesStore(userDefaults: defaults)
+        let liveActivities = LiveActivityCoordinator(isAvailable: !services.isPreview)
+        self.liveActivities = liveActivities
         let syncQueueStore = SyncQueueStore()
         self.syncQueueStore = syncQueueStore
 
@@ -108,7 +111,24 @@ final class AppEnvironment: ObservableObject {
         accountSession.$account
             .map { $0?.id }
             .removeDuplicates()
-            .sink { [weak downloads] ownerID in downloads?.setOwner(ownerID) }
+            .sink { [weak downloads, weak liveActivities] ownerID in
+                Task { await liveActivities?.endAll(immediate: true) }
+                downloads?.setOwner(ownerID)
+            }
+            .store(in: &cancellables)
+
+        preferencesStore.$preferences
+            .sink { [weak liveActivities] preferences in
+                liveActivities?.configure(preferences)
+            }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest3(downloads.$records, downloads.$isGloballyPaused, preferencesStore.$preferences)
+            .sink { [weak downloads, weak liveActivities] _, isGloballyPaused, _ in
+                guard let downloads, let liveActivities else { return }
+                let records = downloads.visibleRecords
+                Task { await liveActivities.syncDownloads(records: records, isGloballyPaused: isGloballyPaused) }
+            }
             .store(in: &cancellables)
     }
 
@@ -144,6 +164,7 @@ private struct AppEnvironmentModifier: ViewModifier {
             .environmentObject(environment.syncQueueStore)
             .environmentObject(environment.accountSession)
             .environmentObject(environment.downloads)
+            .environmentObject(environment.liveActivities)
             .environment(\.keihatsuTheme, KeihatsuTheme.accented(Color(hex: preferences.preferences.theme.hex)))
             .preferredColorScheme(preferredColorScheme)
             .tint(Color(hex: preferences.preferences.theme.hex))

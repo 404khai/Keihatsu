@@ -9,7 +9,11 @@ struct KeihatsuApp: App {
         WindowGroup {
             AppRootView()
                 .appEnvironment(environment)
-                .onOpenURL { _ = environment.accountSession.handleOpenURL($0) }
+                .onOpenURL { url in
+                    if !environment.navigation.handleLiveActivityURL(url) {
+                        _ = environment.accountSession.handleOpenURL(url)
+                    }
+                }
         }
     }
 }

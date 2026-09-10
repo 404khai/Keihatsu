@@ -195,6 +195,16 @@ struct ReaderSettingsView: View {
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
             }
+
+            SettingsGroup(title: "Live Activity") {
+                SettingsToggleRow(
+                    icon: "book.pages",
+                    title: "Reading Progress",
+                    subtitle: "Keep your saved page available from the Lock Screen",
+                    isOn: $preferencesStore.preferences.readingLiveActivitiesEnabled,
+                    accent: Color(hex: preferencesStore.preferences.theme.hex)
+                )
+            }
         }
     }
 }
@@ -220,6 +230,16 @@ struct DownloadsSettingsView: View {
                     title: "Save Chapters",
                     subtitle: "Keep downloaded chapters available offline",
                     isOn: $preferencesStore.preferences.saveChaptersForOffline,
+                    accent: Color(hex: preferencesStore.preferences.theme.hex)
+                )
+            }
+
+            SettingsGroup(title: "Live Activity") {
+                SettingsToggleRow(
+                    icon: "rectangle.inset.filled.and.person.filled",
+                    title: "Download Progress",
+                    subtitle: "Show the active chapter queue on the Lock Screen",
+                    isOn: $preferencesStore.preferences.downloadLiveActivitiesEnabled,
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
             }
@@ -313,6 +333,15 @@ struct PrivacySettingsView: View {
                     title: "Incognito Mode",
                     subtitle: "Read without saving history",
                     isOn: $preferencesStore.preferences.incognitoModeEnabled,
+                    accent: Color(hex: preferencesStore.preferences.theme.hex)
+                )
+            }
+            SettingsGroup(title: "Live Activities") {
+                SettingsToggleRow(
+                    icon: "text.viewfinder",
+                    title: "Show Manga Details",
+                    subtitle: "Show manga and chapter names on system surfaces",
+                    isOn: $preferencesStore.preferences.showLiveActivityMangaDetails,
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
             }
