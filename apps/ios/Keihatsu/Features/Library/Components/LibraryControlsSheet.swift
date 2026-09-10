@@ -25,7 +25,10 @@ struct LibraryControlsSheet: View {
                     }
                     .accessibilityIdentifier("library.layout")
                     Stepper("Columns: \(store.options.columns)", value: $store.options.columns, in: 2...4)
-                    Toggle("Chapter badges", isOn: $store.options.showBadges)
+                    Toggle("Downloaded badges", isOn: downloadedBadges)
+                    Toggle("Unread badges", isOn: unreadBadges)
+                    Toggle("Language badges", isOn: languageBadges)
+                    Toggle("Category tabs", isOn: categoryTabs)
                     Toggle("Category counts", isOn: $store.options.showCounts)
                 }
             }
@@ -33,6 +36,22 @@ struct LibraryControlsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
+    }
+
+    private var downloadedBadges: Binding<Bool> {
+        Binding(get: { store.options.displaysDownloadedBadge }, set: { store.options.showDownloadedBadge = $0 })
+    }
+
+    private var unreadBadges: Binding<Bool> {
+        Binding(get: { store.options.displaysUnreadBadge }, set: { store.options.showUnreadBadge = $0 })
+    }
+
+    private var languageBadges: Binding<Bool> {
+        Binding(get: { store.options.displaysLanguageBadge }, set: { store.options.showLanguageBadge = $0 })
+    }
+
+    private var categoryTabs: Binding<Bool> {
+        Binding(get: { store.options.displaysCategories }, set: { store.options.showCategories = $0 })
     }
 }
 
@@ -69,7 +88,9 @@ struct LibraryCategoriesSheet: View {
                         }
                     }
                 }
-                Section { Text("Sample categories. Account sync is coming soon.").font(.footnote).foregroundStyle(.secondary) }
+                if !collections.isAccountScoped {
+                    Section { Text("Guest categories stay on this device. Sign in to sync them.").font(.footnote).foregroundStyle(.secondary) }
+                }
             }
             .navigationTitle("Categories")
             .navigationBarTitleDisplayMode(.inline)

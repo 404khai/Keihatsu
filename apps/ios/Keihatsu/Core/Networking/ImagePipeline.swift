@@ -7,11 +7,13 @@ import UIKit
 final class ImagePipeline {
     private let configuration: APIConfiguration
     private let session: URLSession
+    private let archiveStore: ChapterArchiveStore?
     private var inFlight: [NSURL: Task<UIImage, Error>] = [:]
     private let decoded = NSCache<NSURL, UIImage>()
 
-    init(configuration: APIConfiguration, session: URLSession? = nil) {
+    init(configuration: APIConfiguration, session: URLSession? = nil, archiveStore: ChapterArchiveStore? = nil) {
         self.configuration = configuration
+        self.archiveStore = archiveStore
         let settings = URLSessionConfiguration.default
         settings.urlCache = URLCache(memoryCapacity: 32 * 1_024 * 1_024, diskCapacity: 150 * 1_024 * 1_024, directory: nil)
         settings.httpMaximumConnectionsPerHost = 2
@@ -40,24 +42,44 @@ final class ImagePipeline {
     }
 
     func image(url: URL, referer: URL?) async throws -> UIImage {
+        try await image(url: url, referer: referer, maximumPixelSize: 1_200)
+    }
+
+    func readerImage(url: URL, referer: URL?) async throws -> UIImage {
+        try await image(url: url, referer: referer, maximumPixelSize: 2_000)
+    }
+
+    private func image(url: URL, referer: URL?, maximumPixelSize: Int) async throws -> UIImage {
         try Task.checkCancellation()
-        let request = try Self.request(url: url, referer: referer, configuration: configuration)
-        let key = (request.url ?? url) as NSURL
+        let isArchivePage = url.scheme == "keihatsu-cbz"
+        let request = url.isFileURL || isArchivePage ? nil : try Self.request(url: url, referer: referer, configuration: configuration)
+        let key = (request?.url ?? url) as NSURL
         if let image = decoded.object(forKey: key) { return image }
         if let pending = inFlight[key] {
             let image = try await pending.value
             try Task.checkCancellation()
             return image
         }
-        let task = Task { [session] in
-            let (data, response) = try await session.data(for: request)
+        let task = Task { [session, archiveStore] in
+            let data: Data
+            if isArchivePage, let archiveStore {
+                data = try await archiveStore.data(for: url)
+            } else if let request {
+                let result = try await session.data(for: request)
+                guard let response = result.1 as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+                    throw APIError.invalidResponse
+                }
+                data = result.0
+            } else {
+                data = try await Task.detached { try Data(contentsOf: url, options: .mappedIfSafe) }.value
+            }
             try Task.checkCancellation()
-            guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode), data.count <= 12 * 1_024 * 1_024,
+            guard data.count <= 20 * 1_024 * 1_024,
                   let source = CGImageSourceCreateWithData(data as CFData, nil),
                   let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
                     kCGImageSourceCreateThumbnailWithTransform: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 1_200
+                    kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize
                   ] as CFDictionary) else { throw APIError.invalidResponse }
             let image = UIImage(cgImage: thumbnail)
             decoded.setObject(image, forKey: key, cost: thumbnail.bytesPerRow * thumbnail.height)

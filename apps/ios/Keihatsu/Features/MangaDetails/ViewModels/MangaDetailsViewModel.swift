@@ -11,6 +11,7 @@ final class MangaDetailsViewModel: ObservableObject {
     @Published private(set) var chapters: [Chapter]
     @Published private(set) var states: [String: ChapterReadingState] = [:]
     @Published private(set) var recommendations: [Manga] = []
+    @Published private(set) var downloadedChapterIDs = Set<String>()
     @Published private(set) var metadataLoading = false
     @Published private(set) var chaptersLoading = false
     @Published private(set) var recommendationsLoading = false
@@ -46,7 +47,13 @@ final class MangaDetailsViewModel: ObservableObject {
     }
 
     func state(for chapter: Chapter) -> ChapterReadingState {
-        states[chapter.id.chapterID] ?? ChapterReadingState()
+        var value = states[chapter.id.chapterID] ?? ChapterReadingState()
+        value.isDownloaded = downloadedChapterIDs.contains(chapter.id.chapterID)
+        return value
+    }
+
+    func setDownloadedChapterIDs(_ values: Set<String>) {
+        downloadedChapterIDs = values
     }
 
     func load() async {
@@ -106,10 +113,6 @@ final class MangaDetailsViewModel: ObservableObject {
 
     func readerContext(for chapter: Chapter, pageIndex: Int? = nil) async -> ReaderLaunchContext {
         let pageIndex = pageIndex ?? state(for: chapter).pageIndex
-        await update(chapter) { value in
-            value.lastReadAt = .now
-            value.pageIndex = pageIndex
-        }
         return ReaderLaunchContext(chapter: chapter.id, origin: origin, pageIndex: pageIndex)
     }
 

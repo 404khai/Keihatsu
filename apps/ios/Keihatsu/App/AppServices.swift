@@ -4,6 +4,9 @@ nonisolated struct AppServices: Sendable {
     let apiClient: APIClient?
     let catalogue: any CatalogueRepository
     let mangaDetails: any MangaDetailsRepository
+    let reader: any ReaderRepository
+    let history: any HistoryRepository
+    let archiveStore: ChapterArchiveStore
     let contentLoader: BundledJSONLoader
     let configuration: APIConfiguration
     let isPreview: Bool
@@ -13,13 +16,38 @@ nonisolated struct AppServices: Sendable {
         let cache = CatalogueCache(namespace: configuration.baseURLString ?? "unconfigured")
         let catalogue = LiveCatalogueRepository(client: client, cache: cache)
         let detailsStore = MangaDetailsStore(namespace: configuration.baseURLString ?? "unconfigured")
-        return Self(apiClient: client, catalogue: catalogue, mangaDetails: DefaultMangaDetailsRepository(catalogue: catalogue, store: detailsStore), contentLoader: BundledJSONLoader(), configuration: configuration, isPreview: false)
+        let progressStore = ReaderProgressStore(namespace: configuration.baseURLString ?? "unconfigured")
+        let archiveStore = ChapterArchiveStore()
+        return Self(
+            apiClient: client,
+            catalogue: catalogue,
+            mangaDetails: DefaultMangaDetailsRepository(catalogue: catalogue, store: detailsStore),
+            reader: DefaultReaderRepository(catalogue: catalogue, archiveStore: archiveStore),
+            history: LocalHistoryRepository(progressStore: progressStore, detailsStore: detailsStore),
+            archiveStore: archiveStore,
+            contentLoader: BundledJSONLoader(),
+            configuration: configuration,
+            isPreview: false
+        )
     }
 
     @MainActor static func preview(bundle: Bundle = .main) -> Self {
         let loader = BundledJSONLoader(bundle: bundle)
         let catalogue = FixtureCatalogueRepository(loader: loader)
         let detailsStore = MangaDetailsStore(namespace: "preview", persistToDisk: false)
-        return Self(apiClient: nil, catalogue: catalogue, mangaDetails: DefaultMangaDetailsRepository(catalogue: catalogue, store: detailsStore), contentLoader: loader, configuration: .application(), isPreview: true)
+        let progressStore = ReaderProgressStore(namespace: "preview", persistToDisk: false)
+        let previewRoot = FileManager.default.temporaryDirectory.appending(path: "KeihatsuPreview-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let archiveStore = ChapterArchiveStore(documentsRoot: previewRoot, applicationSupportRoot: previewRoot)
+        return Self(
+            apiClient: nil,
+            catalogue: catalogue,
+            mangaDetails: DefaultMangaDetailsRepository(catalogue: catalogue, store: detailsStore),
+            reader: DefaultReaderRepository(catalogue: catalogue, bundle: bundle, archiveStore: archiveStore),
+            history: LocalHistoryRepository(progressStore: progressStore, detailsStore: detailsStore),
+            archiveStore: archiveStore,
+            contentLoader: loader,
+            configuration: .application(),
+            isPreview: true
+        )
     }
 }

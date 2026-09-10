@@ -30,7 +30,10 @@ struct CarouselDetailView: View {
 }
 
 private struct MangaDetailsContentView: View {
+    @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var collections: CollectionStore
+    @EnvironmentObject private var accountSession: AccountSessionStore
+    @EnvironmentObject private var downloads: DownloadCoordinator
     @StateObject private var model: MangaDetailsViewModel
     let animation: Namespace.ID
     let allowsFixtureLibraryActions: Bool
@@ -41,6 +44,7 @@ private struct MangaDetailsContentView: View {
     @State private var selectedCategories = Set<UUID>()
     @State private var selectedReader: ReaderLaunchContext?
     @State private var showAccountRequired = false
+    @State private var pendingDownloadDeletion: ChapterDownloadRecord?
 
     private var sourceURL: URL? {
         guard let url = model.manga.url, ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
@@ -48,7 +52,11 @@ private struct MangaDetailsContentView: View {
     }
 
     private var chapterListHeight: CGFloat {
-        CGFloat(model.displayedChapters.count) * 96
+        CGFloat(model.displayedChapters.count) * 88
+    }
+
+    private var libraryEntry: LibraryEntry? {
+        collections.libraryEntry(for: model.manga.id)
     }
 
     init(
@@ -84,7 +92,20 @@ private struct MangaDetailsContentView: View {
         .toolbarBackground(showCollapsedHeader ? .visible : .hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .onPreferenceChange(HeroHeaderVisibilityKey.self) { showCollapsedHeader = $0 < 50 }
-        .task(id: model.seed.manga.id) { await model.load() }
+        .task(id: model.seed.manga.id) {
+            async let details: Void = model.load()
+            async let accountCollections: Void = environment.accountData.refreshCollections()
+            _ = await (details, accountCollections)
+        }
+        .onReceive(downloads.$records) { records in
+            model.setDownloadedChapterIDs(Set(records.compactMap { record in
+                let identity = record.request.identity
+                return record.request.ownerID == (accountSession.account?.id ?? "guest")
+                    && identity.sourceID == model.manga.id.sourceID
+                    && identity.mangaID == model.manga.id.mangaID
+                    && record.status == .completed ? identity.chapterID : nil
+            }))
+        }
         .refreshable { await model.refreshAll() }
         .toolbar { detailToolbar }
         .sheet(isPresented: $showCategorySheet) {
@@ -96,7 +117,21 @@ private struct MangaDetailsContentView: View {
         .alert("Account required", isPresented: $showAccountRequired) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Sign in when account support is available to add titles to your library and categories.")
+            Text("Sign in with Google to sync this title and its categories across devices.")
+        }
+        .confirmationDialog(
+            "Delete downloaded chapter?",
+            isPresented: Binding(
+                get: { pendingDownloadDeletion != nil },
+                set: { if !$0 { pendingDownloadDeletion = nil } }
+            ),
+            presenting: pendingDownloadDeletion
+        ) { record in
+            Button("Delete \(record.request.chapterName)", role: .destructive) {
+                Task { await downloads.remove(record.id) }
+            }
+        } message: { record in
+            Text("The downloaded CBZ for \(record.request.chapterName) will be removed from this device. Reading history is kept.")
         }
         .navigationDestination(item: $selectedReader) { context in
             ReaderEntryView(manga: model.manga, chapters: model.chapters, context: context)
@@ -154,10 +189,16 @@ private struct MangaDetailsContentView: View {
 
                 HStack(spacing: 14) {
                     Button {
-                        if allowsFixtureLibraryActions { showCategorySheet = true }
+                        if allowsFixtureLibraryActions || accountSession.isAuthenticated {
+                            selectedCategories = libraryEntry?.categoryIDs ?? []
+                            showCategorySheet = true
+                        }
                         else { showAccountRequired = true }
                     } label: {
-                        Label("Add to Library", systemImage: "book.closed.fill")
+                        Label(
+                            libraryEntry == nil ? "Add to Library" : "In Library",
+                            systemImage: libraryEntry == nil ? "book.closed.fill" : "checkmark.circle.fill"
+                        )
                             .font(.headline)
                             .foregroundStyle(.black)
                             .padding(.horizontal, 24)
@@ -176,6 +217,31 @@ private struct MangaDetailsContentView: View {
                     .glassEffect(.regular.interactive(), in: .circle)
                     .accessibilityLabel(model.resumeChapter?.hasHistory == true ? "Resume reading" : "Read now")
                     .accessibilityIdentifier("manga.details.read")
+
+                    Menu {
+                        Button("Download latest chapter", systemImage: "arrow.down.to.line") {
+                            enqueue(Array(model.chapters.prefix(1)))
+                        }
+                        Button("Download next 5", systemImage: "text.badge.plus") {
+                            enqueue(nextChapters(limit: 5))
+                        }
+                        Button("Download next 10", systemImage: "text.badge.plus") {
+                            enqueue(nextChapters(limit: 10))
+                        }
+                        Button("Download unread", systemImage: "circle") {
+                            enqueue(model.chapters.filter { !model.state(for: $0).isRead })
+                        }
+                        Button("Download bookmarked", systemImage: "bookmark") {
+                            enqueue(model.chapters.filter { model.state(for: $0).isBookmarked })
+                        }
+                    } label: {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 52, height: 52)
+                    }
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .accessibilityLabel("Download chapters")
                 }
                 .padding(.top, 6)
             }
@@ -254,7 +320,7 @@ private struct MangaDetailsContentView: View {
                 .listStyle(.plain)
                 .scrollDisabled(true)
                 .scrollContentBackground(.hidden)
-                .environment(\.defaultMinListRowHeight, 96)
+                .environment(\.defaultMinListRowHeight, 88)
                 .frame(height: chapterListHeight)
                 .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1) }
@@ -272,8 +338,10 @@ private struct MangaDetailsContentView: View {
 
     private func chapterRow(_ chapter: Chapter, showsDivider: Bool) -> some View {
         let state = model.state(for: chapter)
-        return Button { open(chapter) } label: {
-            HStack(spacing: 14) {
+        let downloadStatus = downloads.status(for: chapter.id)
+        return HStack(spacing: 8) {
+            Button { open(chapter) } label: {
+                HStack(spacing: 14) {
                 if state.isBookmarked {
                     Image(systemName: "bookmark.fill")
                         .font(.title3.weight(.semibold))
@@ -293,18 +361,34 @@ private struct MangaDetailsContentView: View {
                     .foregroundStyle(state.isRead ? .white.opacity(0.38) : .white.opacity(0.68))
                 }
                 Spacer()
-                Image(systemName: state.isDownloaded ? "arrow.down.circle.fill" : "arrow.down.to.line.circle")
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                let record = downloads.visibleRecords.first(where: { $0.request.identity == DownloadIdentity(chapter: chapter.id) })
+                if downloadStatus == .completed {
+                    pendingDownloadDeletion = record
+                } else if downloadStatus == .failed || downloadStatus == .paused || downloadStatus == .waitingForWiFi,
+                          let record {
+                    downloads.resume(record.id)
+                } else if downloadStatus == nil {
+                    enqueue([chapter])
+                }
+            } label: {
+                Image(systemName: downloadSymbol(downloadStatus))
                     .font(.system(size: 30, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.white.opacity(state.isDownloaded ? 0.78 : 0.58))
-                    .frame(width: 44, height: 52)
-                    .accessibilityLabel(state.isDownloaded ? "Downloaded" : "Download")
+                    .foregroundStyle(state.isDownloaded ? Color(hex: "B7FF3C") : Color.white.opacity(0.62))
+                    .frame(width: 52, height: 52)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 20)
-            .frame(minHeight: 96)
-            .contentShape(Rectangle())
+            .disabled(downloadStatus?.isActive == true)
+            .accessibilityLabel(downloadStatusLabel(downloadStatus))
         }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .frame(minHeight: 88)
         .overlay(alignment: .bottom) {
             if showsDivider {
                 Divider()
@@ -323,6 +407,37 @@ private struct MangaDetailsContentView: View {
             Button { Task { await model.toggleRead(chapter) } } label: {
                 Label(state.isRead ? "Mark Unread" : "Mark Read", systemImage: state.isRead ? "circle" : "checkmark.circle.fill")
             }.tint(state.isRead ? .gray : .green)
+        }
+    }
+
+    private func enqueue(_ chapters: [Chapter]) {
+        downloads.enqueue(manga: model.manga, chapters: chapters, extensionName: model.manga.id.sourceID)
+    }
+
+    private func nextChapters(limit: Int) -> [Chapter] {
+        Array(model.chapters.filter { !model.state(for: $0).isDownloaded }.prefix(limit))
+    }
+
+    private func downloadSymbol(_ status: DownloadStatus?) -> String {
+        switch status {
+        case .completed: "arrow.down.circle.fill"
+        case .downloading, .resolving, .packaging: "progress.indicator"
+        case .queued: "hourglass.circle"
+        case .paused, .waitingForWiFi: "play.circle"
+        case .failed: "arrow.clockwise.circle"
+        case nil: "arrow.down.to.line.circle"
+        }
+    }
+
+    private func downloadStatusLabel(_ status: DownloadStatus?) -> String {
+        switch status {
+        case .completed: "Downloaded"
+        case .downloading, .resolving, .packaging: "Downloading"
+        case .queued: "Queued"
+        case .paused: "Resume download"
+        case .waitingForWiFi: "Waiting for Wi-Fi"
+        case .failed: "Retry download"
+        case nil: "Download"
         }
     }
 
@@ -358,18 +473,50 @@ private struct MangaDetailsContentView: View {
 
     private var categorySheet: some View {
         NavigationStack {
-            List(selection: $selectedCategories) {
-                Text("Default")
-                ForEach(collections.snapshot.categories) { category in Text(category.name).tag(category.id) }
+            List {
+                categoryRow("Default", isSelected: selectedCategories.isEmpty) {
+                    selectedCategories.removeAll()
+                }
+                ForEach(collections.snapshot.categories) { category in
+                    categoryRow(category.name, isSelected: selectedCategories.contains(category.id)) {
+                        if selectedCategories.contains(category.id) {
+                            selectedCategories.remove(category.id)
+                        } else {
+                            selectedCategories.insert(category.id)
+                        }
+                    }
+                }
             }
-            .environment(\.editMode, .constant(.active))
             .navigationTitle("Select Categories")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
-                Button("Add to Library") { showCategorySheet = false }
+                Button(libraryEntry == nil ? "Add to Library" : "Save Categories") {
+                    if let libraryEntry {
+                        collections.setCategories(selectedCategories, for: libraryEntry.id)
+                    } else {
+                        _ = collections.addToLibrary(model.manga, categoryIDs: selectedCategories)
+                    }
+                    showCategorySheet = false
+                }
                     .buttonStyle(.borderedProminent).controlSize(.large).padding()
             }
         }
+    }
+
+    private func categoryRow(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                Text(title)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     private var filterSheet: some View {
