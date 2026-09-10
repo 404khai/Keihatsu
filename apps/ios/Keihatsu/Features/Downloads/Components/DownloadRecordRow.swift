@@ -44,7 +44,7 @@ struct DownloadRecordRow: View {
             Button(action: resume) { Image(systemName: record.status == .failed ? "arrow.clockwise.circle.fill" : "play.circle.fill") }
                 .font(.title2).accessibilityLabel(record.status == .failed ? "Retry download" : "Resume download")
         case .completed:
-            Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(.green)
+            Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(Color(hex: "B7FF3C"))
         }
     }
 

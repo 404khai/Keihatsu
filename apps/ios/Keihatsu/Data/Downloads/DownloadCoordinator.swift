@@ -96,7 +96,13 @@ final class DownloadCoordinator: ObservableObject {
     func enqueue(manga: Manga, chapters: [Chapter], extensionName: String? = nil) {
         guard !chapters.isEmpty else { return }
         var nextPriority = (records.map(\.priority).max() ?? -1) + 1
-        for chapter in chapters {
+        let orderedChapters = chapters.sorted {
+            if $0.number == $1.number {
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+            return $0.number < $1.number
+        }
+        for chapter in orderedChapters {
             let identity = DownloadIdentity(chapter: chapter.id)
             if let index = records.firstIndex(where: { $0.request.ownerID == ownerID && $0.request.identity == identity }) {
                 if records[index].status == .failed || records[index].status == .paused || records[index].status == .waitingForWiFi {
@@ -166,16 +172,39 @@ final class DownloadCoordinator: ObservableObject {
         schedule()
     }
 
-    func move(from offsets: IndexSet, to destination: Int) {
-        var values = activeRecords
+    func move(in extensionName: String, from offsets: IndexSet, to destination: Int) {
+        var values = activeRecords.filter { $0.request.extensionName == extensionName }
+        let prioritySlots = values.map(\.priority).sorted()
+        guard offsets.allSatisfy(values.indices.contains) else { return }
         let moving = offsets.sorted().map { values[$0] }
         for offset in offsets.sorted(by: >) { values.remove(at: offset) }
         let adjustedDestination = destination - offsets.filter { $0 < destination }.count
         values.insert(contentsOf: moving, at: min(max(adjustedDestination, 0), values.count))
-        for (priority, value) in values.enumerated() {
-            if let index = records.firstIndex(where: { $0.id == value.id }) { records[index].priority = priority }
+        for (offset, value) in values.enumerated() {
+            if let index = records.firstIndex(where: { $0.id == value.id }) {
+                records[index].priority = prioritySlots[offset]
+            }
         }
         persist()
+        schedule()
+    }
+
+    func cancelDownloads(for manga: MangaIdentity) async {
+        let matches = records.filter {
+            $0.request.ownerID == ownerID
+                && $0.status != .completed
+                && $0.request.identity.sourceID == manga.sourceID
+                && $0.request.identity.mangaID == manga.mangaID
+        }
+        guard !matches.isEmpty else { return }
+        let ids = Set(matches.map(\.id))
+        for record in matches {
+            if let task = record.activeTaskIdentifier { transfer.cancel(taskIdentifier: task) }
+            try? await archiveStore.discardStaging(recordID: record.id)
+        }
+        records.removeAll { ids.contains($0.id) }
+        persist()
+        await refreshStorage()
         schedule()
     }
 
@@ -215,8 +244,13 @@ final class DownloadCoordinator: ObservableObject {
         storage = await archiveStore.storageSnapshot()
     }
 
-    func exportURL(for record: ChapterDownloadRecord) -> URL {
-        archiveStore.archiveURL(for: record.request.identity)
+    func exportURL(for record: ChapterDownloadRecord) async -> URL {
+        await archiveStore.archiveURL(for: record.request.identity)
+    }
+
+    func changeDownloadDirectory(to url: URL) async throws {
+        try await archiveStore.changeDownloadsRoot(to: url)
+        await refreshStorage()
     }
 
     private func restore() async {
