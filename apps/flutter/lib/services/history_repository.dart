@@ -20,15 +20,19 @@ class HistoryRepository {
   String get _currentUserId => getCurrentUserId();
 
   String _chapterScopedKey(
-      String chapterId,
-      String mangaId,
-      String sourceId,
-      String ownerUserId,
-      ) {
+    String chapterId,
+    String mangaId,
+    String sourceId,
+    String ownerUserId,
+  ) {
     return '$ownerUserId::$sourceId::$mangaId::$chapterId';
   }
 
-  Future<void> refreshHistoryFromServer(String token) async {
+  Future<void> refreshHistoryFromServer(
+    String token, {
+    String? ownerUserId,
+  }) async {
+    final scopedUserId = ownerUserId ?? _currentUserId;
     final connectivity = await Connectivity().checkConnectivity();
     if (connectivity.contains(ConnectivityResult.none)) return;
 
@@ -46,7 +50,7 @@ class HistoryRepository {
         break;
       }
 
-      await _upsertHistoryEntries(entries);
+      await _upsertHistoryEntries(entries, scopedUserId);
 
       if (entries.length < pageSize) {
         break;
@@ -56,9 +60,10 @@ class HistoryRepository {
     }
   }
 
-  Future<void> _upsertHistoryEntries(List<dynamic> entries) async {
-    final ownerUserId = _currentUserId;
-
+  Future<void> _upsertHistoryEntries(
+    List<dynamic> entries,
+    String ownerUserId,
+  ) async {
     await isar.writeTxn(() async {
       for (final rawEntry in entries) {
         final entry = rawEntry as Map<String, dynamic>;
@@ -74,17 +79,17 @@ class HistoryRepository {
 
         final localManga =
             await isar
-                .collection<LocalManga>()
-                .filter()
-                .mangaIdEqualTo(mangaId)
-                .sourceIdEqualTo(sourceId)
-                .ownerUserIdEqualTo(ownerUserId)
-                .findFirst() ??
-                LocalManga()
-                  ..mangaId = mangaId
-                  ..sourceId = sourceId
-                  ..ownerUserId = ownerUserId
-                  ..title = title?.isNotEmpty == true ? title! : mangaId;
+                      .collection<LocalManga>()
+                      .filter()
+                      .mangaIdEqualTo(mangaId)
+                      .sourceIdEqualTo(sourceId)
+                      .ownerUserIdEqualTo(ownerUserId)
+                      .findFirst() ??
+                  LocalManga()
+              ..mangaId = mangaId
+              ..sourceId = sourceId
+              ..ownerUserId = ownerUserId
+              ..title = title?.isNotEmpty == true ? title! : mangaId;
 
         localManga.ownerUserId = ownerUserId;
         if (title != null && title.isNotEmpty) {
@@ -101,30 +106,31 @@ class HistoryRepository {
 
         final localChapter =
             await isar
-                .collection<LocalChapter>()
-                .filter()
-                .chapterIdEqualTo(chapterId)
-                .mangaIdEqualTo(mangaId)
-                .sourceIdEqualTo(sourceId)
-                .ownerUserIdEqualTo(ownerUserId)
-                .findFirst() ??
-                LocalChapter()
-                  ..chapterId = chapterId
-                  ..mangaId = mangaId
-                  ..sourceId = sourceId
-                  ..ownerUserId = ownerUserId
-                  ..scopedChapterKey = _chapterScopedKey(
-                    chapterId,
-                    mangaId,
-                    sourceId,
-                    ownerUserId,
-                  )
-                  ..name = (entry['chapterName'] as String?)?.trim().isNotEmpty ==
-                      true
-                      ? (entry['chapterName'] as String).trim()
-                      : 'Chapter'
-                  ..chapterNumber = (entry['chapterNumber'] as num?)?.toDouble() ?? 0
-                  ..dateUpload = 0;
+                      .collection<LocalChapter>()
+                      .filter()
+                      .chapterIdEqualTo(chapterId)
+                      .mangaIdEqualTo(mangaId)
+                      .sourceIdEqualTo(sourceId)
+                      .ownerUserIdEqualTo(ownerUserId)
+                      .findFirst() ??
+                  LocalChapter()
+              ..chapterId = chapterId
+              ..mangaId = mangaId
+              ..sourceId = sourceId
+              ..ownerUserId = ownerUserId
+              ..scopedChapterKey = _chapterScopedKey(
+                chapterId,
+                mangaId,
+                sourceId,
+                ownerUserId,
+              )
+              ..name =
+                  (entry['chapterName'] as String?)?.trim().isNotEmpty == true
+                  ? (entry['chapterName'] as String).trim()
+                  : 'Chapter'
+              ..chapterNumber =
+                  (entry['chapterNumber'] as num?)?.toDouble() ?? 0
+              ..dateUpload = 0;
 
         localChapter.ownerUserId = ownerUserId;
         localChapter.scopedChapterKey = _chapterScopedKey(
@@ -137,8 +143,8 @@ class HistoryRepository {
           localChapter.name = (entry['chapterName'] as String).trim();
         }
         if (entry['chapterNumber'] != null) {
-          localChapter.chapterNumber =
-              (entry['chapterNumber'] as num).toDouble();
+          localChapter.chapterNumber = (entry['chapterNumber'] as num)
+              .toDouble();
         }
         localChapter.lastReadAt = lastReadAt;
         localChapter.lastPageRead = entry['pageNumber'] ?? 0;

@@ -1,6 +1,15 @@
-import { IsString, IsNumber, IsOptional, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  IsUUID,
+} from 'class-validator';
 
 export class SyncHistoryDto {
+  @IsUUID()
+  operationId: string;
+
   @IsString()
   mangaId: string;
 

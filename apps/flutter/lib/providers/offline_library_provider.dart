@@ -135,24 +135,35 @@ class OfflineLibraryProvider with ChangeNotifier {
   Future<void> refresh(bool force) async {
     final token = getToken();
     if (token == null) return;
+    final ownerUserId = _currentUserId;
 
     _isLoading = true;
     notifyListeners();
 
-    await libraryRepo.refreshLibrary(
-      token: token,
-      filterDownloaded: _filterState.filterDownloaded,
-      filterUnread: _filterState.filterUnread,
-      filterStarted: _filterState.filterStarted,
-      filterBookmarked: _filterState.filterBookmarked,
-      filterCompleted: _filterState.filterCompleted,
-      sortBy: _filterState.sortBy,
-      order: _filterState.order,
-      search: _filterState.search,
-    );
-
-    _isLoading = false;
-    notifyListeners();
+    try {
+      if (force) {
+        await libraryRepo.refreshCategories(
+          token: token,
+          ownerUserId: ownerUserId,
+          reconcileSnapshot: true,
+        );
+      }
+      await libraryRepo.refreshLibrary(
+        token: token,
+        ownerUserId: ownerUserId,
+        filterDownloaded: _filterState.filterDownloaded,
+        filterUnread: _filterState.filterUnread,
+        filterStarted: _filterState.filterStarted,
+        filterBookmarked: _filterState.filterBookmarked,
+        filterCompleted: _filterState.filterCompleted,
+        sortBy: _filterState.sortBy,
+        order: _filterState.order,
+        search: _filterState.search,
+      );
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> toggleLibrary(Manga manga, {List<String>? categories}) async {
@@ -160,7 +171,7 @@ class OfflineLibraryProvider with ChangeNotifier {
     if (token == null) return;
 
     final inLibrary = _library.any(
-          (e) => e.mangaId == manga.id && e.sourceId == manga.sourceId,
+      (e) => e.mangaId == manga.id && e.sourceId == manga.sourceId,
     );
 
     if (inLibrary) {
@@ -177,10 +188,10 @@ class OfflineLibraryProvider with ChangeNotifier {
   }
 
   Future<void> toggleCategoryAssignment(
-      String mangaId,
-      String sourceId,
-      int localCategoryId,
-      ) async {
+    String mangaId,
+    String sourceId,
+    int localCategoryId,
+  ) async {
     await libraryRepo.toggleCategoryAssignment(
       mangaId,
       sourceId,
@@ -194,8 +205,8 @@ class OfflineLibraryProvider with ChangeNotifier {
 
   bool isMangaInCategory(String mangaId, String sourceId, int localCategoryId) {
     return _categoryAssignments.any(
-          (a) =>
-      a.mangaId == mangaId &&
+      (a) =>
+          a.mangaId == mangaId &&
           a.sourceId == sourceId &&
           a.localCategoryId == localCategoryId,
     );
@@ -210,15 +221,15 @@ class OfflineLibraryProvider with ChangeNotifier {
       // Default = Items with NO category assignments
       filtered = _library.where((entry) {
         return !_categoryAssignments.any(
-              (assignment) =>
-          assignment.mangaId == entry.mangaId &&
+          (assignment) =>
+              assignment.mangaId == entry.mangaId &&
               assignment.sourceId == entry.sourceId,
         );
       }).toList();
     } else {
       // Find the category ID
       final category = _categories.firstWhere(
-            (c) => c.name == categoryName,
+        (c) => c.name == categoryName,
         orElse: () => LocalCategory()..id = -1,
       );
 
@@ -226,8 +237,8 @@ class OfflineLibraryProvider with ChangeNotifier {
 
       filtered = _library.where((entry) {
         return _categoryAssignments.any(
-              (assignment) =>
-          assignment.mangaId == entry.mangaId &&
+          (assignment) =>
+              assignment.mangaId == entry.mangaId &&
               assignment.sourceId == entry.sourceId &&
               assignment.localCategoryId == category.id,
         );
@@ -255,9 +266,9 @@ class OfflineLibraryProvider with ChangeNotifier {
       filtered = filtered
           .where(
             (e) =>
-        e.title.toLowerCase().contains(query) ||
-            (e.author?.toLowerCase().contains(query) ?? false),
-      )
+                e.title.toLowerCase().contains(query) ||
+                (e.author?.toLowerCase().contains(query) ?? false),
+          )
           .toList();
     }
 
@@ -325,10 +336,10 @@ class OfflineLibraryProvider with ChangeNotifier {
   Set<String> get downloadingIds => _downloadingIds;
 
   Future<void> downloadChapter(
-      String sourceId,
-      String mangaId,
-      String chapterId,
-      ) async {
+    String sourceId,
+    String mangaId,
+    String chapterId,
+  ) async {
     final token = getToken();
     if (token == null) return;
 

@@ -25,12 +25,14 @@ struct FoundationTests {
         navigation.homePath.append("home-detail")
         navigation.selectedTab = .library
         navigation.libraryPath.append("library-detail")
+        navigation.profilePath.append("profile-detail")
         #expect(navigation.homePath.count == 1)
         #expect(navigation.libraryPath.count == 1)
+        #expect(navigation.profilePath.count == 1)
         #expect(navigation.searchPath.isEmpty)
         navigation.reset()
-        #expect(navigation.homePath.isEmpty && navigation.libraryPath.isEmpty)
-        #expect(navigation.selectedTab == .home)
+        #expect(navigation.homePath.isEmpty && navigation.libraryPath.isEmpty && navigation.profilePath.isEmpty)
+        #expect(navigation.selectedTab == .library)
     }
 
     @Test func fixtureDecodingPreservesSourceAndChapterIdentity() async throws {
@@ -60,7 +62,7 @@ struct FoundationTests {
     @Test func liveCompositionDoesNotFallBackToPreviewOrSimulateSync() {
         let services = AppServices.live()
         #expect(services.apiClient != nil)
-        #expect(services.catalogue == nil)
+        #expect(services.catalogue is LiveCatalogueRepository)
         #expect(AppServices.preview().apiClient == nil)
         let sync = SyncQueueStore()
         #expect(sync.operations.isEmpty)

@@ -1,0 +1,350 @@
+{
+  "library": [
+    {
+      "item": {
+        "image": "Image1",
+        "title": "The Regressed Mercenary's Machinations",
+        "category": "Manhwa",
+        "metadataLine": "Action \u2022 School \u2022 Thriller",
+        "summary": "A former child soldier returns to civilian life and tries to protect the only family he has left.",
+        "id": "d155f74c-b057-5e4f-a7ed-c2af05c3453d"
+      },
+      "categoryIDs": [],
+      "downloadedCount": 0,
+      "unreadCount": 0,
+      "totalChapters": 50,
+      "isStarted": true,
+      "isBookmarked": true,
+      "isCompleted": true,
+      "lastReadAt": 810345600.0,
+      "lastUpdatedAt": 810345600.0,
+      "dateAddedAt": 810345600.0
+    },
+    {
+      "item": {
+        "image": "Image2",
+        "title": "Latna Saga",
+        "category": "Fantasy",
+        "metadataLine": "Adventure \u2022 Action \u2022 Isekai",
+        "summary": "A reluctant hero is pulled into a harsh world where survival, leveling, and fate are tightly linked.",
+        "id": "0fe1c000-7b87-5f4a-a6c6-8138b677e97a"
+      },
+      "categoryIDs": [],
+      "downloadedCount": 1,
+      "unreadCount": 6,
+      "totalChapters": 58,
+      "isStarted": false,
+      "isBookmarked": false,
+      "isCompleted": false,
+      "lastReadAt": null,
+      "lastUpdatedAt": 810259200.0,
+      "dateAddedAt": 810172800.0
+    },
+    {
+      "item": {
+        "image": "Image3",
+        "title": "The World After the Fall",
+        "category": "Sci-Fi",
+        "metadataLine": "Fantasy \u2022 Survival \u2022 Mystery",
+        "summary": "After the tower collapses, one man chooses to keep climbing and uncover what the world really is.",
+        "id": "2752720f-240f-5e9d-ae6d-3c58b823deb3"
+      },
+      "categoryIDs": [],
+      "downloadedCount": 2,
+      "unreadCount": 7,
+      "totalChapters": 66,
+      "isStarted": true,
+      "isBookmarked": false,
+      "isCompleted": false,
+      "lastReadAt": 810331200.0,
+      "lastUpdatedAt": 810172800.0,
+      "dateAddedAt": 810000000.0
+    },
+    {
+      "item": {
+        "image": "Image4",
+        "title": "Player",
+        "category": "Action",
+        "metadataLine": "Fantasy \u2022 Game \u2022 Adventure",
+        "summary": "A normal student is thrown into a game-like world and forced to grow stronger with every battle.",
+        "id": "bdf967f4-a01c-545a-9ab8-fa1710bb39cd"
+      },
+      "categoryIDs": [],
+      "downloadedCount": 0,
+      "unreadCount": 8,
+      "totalChapters": 74,
+      "isStarted": false,
+      "isBookmarked": true,
+      "isCompleted": false,
+      "lastReadAt": null,
+      "lastUpdatedAt": 810086400.0,
+      "dateAddedAt": 809827200.0
+    },
+    {
+      "item": {
+        "image": "Image5",
+        "title": "Ordeal",
+        "category": "Superhero",
+        "metadataLine": "Action \u2022 Drama \u2022 Fantasy",
+        "summary": "Gifted fighters and powerful bloodlines collide in a world where strength comes with a heavy cost.",
+        "id": "976e822e-ae1e-5a1a-9211-9482658fb96a"
+      },
+      "categoryIDs": [
+        "c92c8e19-418f-5f83-8273-edf380872044"
+      ],
+      "downloadedCount": 1,
+      "unreadCount": 0,
+      "totalChapters": 82,
+      "isStarted": true,
+      "isBookmarked": false,
+      "isCompleted": true,
+      "lastReadAt": 810316800.0,
+      "lastUpdatedAt": 810000000.0,
+      "dateAddedAt": 809654400.0
+    },
+    {
+      "item": {
+        "image": "Image6",
+        "title": "Superhuman Battlefield",
+        "category": "Thriller",
+        "metadataLine": "Action \u2022 Dark Fantasy \u2022 Survival",
+        "summary": "Each choice has consequences as the protagonist faces escalating dangers in a brutal world.",
+        "id": "62d5be45-a86d-5a93-ab19-3be970dd6bba"
+      },
+      "categoryIDs": [
+        "c92c8e19-418f-5f83-8273-edf380872044"
+      ],
+      "downloadedCount": 2,
+      "unreadCount": 10,
+      "totalChapters": 90,
+      "isStarted": false,
+      "isBookmarked": false,
+      "isCompleted": false,
+      "lastReadAt": null,
+      "lastUpdatedAt": 809913600.0,
+      "dateAddedAt": 809481600.0
+    },
+    {
+      "item": {
+        "image": "Image7",
+        "title": "Return of the SSS Class Ranker",
+        "category": "Action",
+        "metadataLine": "Action \u2022 Mythology \u2022 Survival",
+        "summary": "Each choice has consequences as the protagonist faces escalating dangers in a brutal world.",
+        "id": "74fd3c9f-18a0-5163-a934-7af4cd64fdda"
+      },
+      "categoryIDs": [],
+      "downloadedCount": 0,
+      "unreadCount": 11,
+      "totalChapters": 98,
+      "isStarted": true,
+      "isBookmarked": true,
+      "isCompleted": false,
+      "lastReadAt": 810302400.0,
+      "lastUpdatedAt": 809827200.0,
+      "dateAddedAt": 809308800.0
+    },
+    {
+      "item": {
+        "image": "Image8",
+        "title": "Legend of the Northern Blade",
+        "category": "Thriller",
+        "metadataLine": "Action \u2022 Murim \u2022 Survival",
+        "summary": "Jin Muwon must take revenge for his father's murder while rebuilding the lost Northern Blade Sect.",
+        "id": "ff385aa1-2a01-556d-97a4-cd8c16766c23"
+      },
+      "categoryIDs": [
+        "c92c8e19-418f-5f83-8273-edf380872044"
+      ],
+      "downloadedCount": 1,
+      "unreadCount": 12,
+      "totalChapters": 106,
+      "isStarted": false,
+      "isBookmarked": false,
+      "isCompleted": false,
+      "lastReadAt": null,
+      "lastUpdatedAt": 809740800.0,
+      "dateAddedAt": 809136000.0
+    },
+    {
+      "item": {
+        "image": "Image9",
+        "title": "Pick Me Up Infinite Gacha",
+        "category": "Superhero",
+        "metadataLine": "Action \u2022 Drama \u2022 Fantasy",
+        "summary": "Gifted fighters and powerful bloodlines collide in a world where strength comes with a heavy cost.",
+        "id": "194105b4-15e5-57de-bad4-d0f767a1e720"
+      },
+      "categoryIDs": [],
+      "downloadedCount": 2,
+      "unreadCount": 0,
+      "totalChapters": 114,
+      "isStarted": true,
+      "isBookmarked": false,
+      "isCompleted": true,
+      "lastReadAt": 810288000.0,
+      "lastUpdatedAt": 809654400.0,
+      "dateAddedAt": 808963200.0
+    },
+    {
+      "item": {
+        "image": "Image10",
+        "title": "Regressed Bastard of the Sword Clan",
+        "category": "Action",
+        "metadataLine": "Action \u2022 Mythology \u2022 Survival",
+        "summary": "Theo Ragnar has regressed back in time, to correct those wrongs and take revenge, he must get stronger.",
+        "id": "70793e90-ab71-5748-ac2c-3946a93c9f48"
+      },
+      "categoryIDs": [
+        "eb526a0d-a046-5dff-9881-6977f5053b47"
+      ],
+      "downloadedCount": 0,
+      "unreadCount": 14,
+      "totalChapters": 122,
+      "isStarted": false,
+      "isBookmarked": true,
+      "isCompleted": false,
+      "lastReadAt": null,
+      "lastUpdatedAt": 809568000.0,
+      "dateAddedAt": 808790400.0
+    },
+    {
+      "item": {
+        "image": "Image11",
+        "title": "Graymark",
+        "category": "Thriller",
+        "metadataLine": "Action \u2022 Murim \u2022 Survival",
+        "summary": "Jin Muwon must take revenge for his father's murder while rebuilding the lost Northern Blade Sect.",
+        "id": "fcc35b99-ce5f-5ae5-8334-5c426e6d2962"
+      },
+      "categoryIDs": [],
+      "downloadedCount": 1,
+      "unreadCount": 15,
+      "totalChapters": 130,
+      "isStarted": true,
+      "isBookmarked": false,
+      "isCompleted": false,
+      "lastReadAt": 810273600.0,
+      "lastUpdatedAt": 809481600.0,
+      "dateAddedAt": 808617600.0
+    },
+    {
+      "item": {
+        "image": "Image12",
+        "title": "My Bias on the Last Train",
+        "category": "Romance",
+        "metadataLine": "Action \u2022 Mythology \u2022 Survival",
+        "summary": "Theo Ragnar has regressed back in time, to correct those wrongs and take revenge, he must get stronger.",
+        "id": "704e6b2b-5c42-5ea0-a3f7-09afef0540a9"
+      },
+      "categoryIDs": [
+        "eb526a0d-a046-5dff-9881-6977f5053b47"
+      ],
+      "downloadedCount": 2,
+      "unreadCount": 16,
+      "totalChapters": 138,
+      "isStarted": false,
+      "isBookmarked": false,
+      "isCompleted": false,
+      "lastReadAt": null,
+      "lastUpdatedAt": 809395200.0,
+      "dateAddedAt": 808444800.0
+    }
+  ],
+  "categories": [
+    {
+      "id": "c92c8e19-418f-5f83-8273-edf380872044",
+      "name": "Thriller"
+    },
+    {
+      "id": "eb526a0d-a046-5dff-9881-6977f5053b47",
+      "name": "Romance"
+    }
+  ],
+  "history": [
+    {
+      "id": "54dba6ba-71b6-566f-95f8-25164843ae80",
+      "image": "Image1",
+      "title": "The Regressed Mercenary's Machinations",
+      "chapter": "Chapter 38",
+      "readAt": 810345600.0
+    },
+    {
+      "id": "2dbd1346-fbaa-5d37-80df-6d9dd5c87a62",
+      "image": "Image2",
+      "title": "Latna Saga",
+      "chapter": "Chapter 47",
+      "readAt": 810349200.0
+    },
+    {
+      "id": "42504535-fa0f-5fff-879a-15e8f2fe3871",
+      "image": "Image3",
+      "title": "The World After the Fall",
+      "chapter": "Chapter 56",
+      "readAt": 810259200.0
+    },
+    {
+      "id": "7f280810-89ac-5e65-ab0e-1b065c58bf55",
+      "image": "Image4",
+      "title": "Player",
+      "chapter": "Chapter 65",
+      "readAt": 810262800.0
+    },
+    {
+      "id": "4c4fe6c6-da5d-5196-873d-d0254bc1b389",
+      "image": "Image5",
+      "title": "Ordeal",
+      "chapter": "Chapter 74",
+      "readAt": 810172800.0
+    },
+    {
+      "id": "94bf6049-fc81-5836-b0e4-f53921c008ad",
+      "image": "Image6",
+      "title": "Superhuman Battlefield",
+      "chapter": "Chapter 83",
+      "readAt": 810176400.0
+    },
+    {
+      "id": "f5d61b7f-9618-5e0d-a015-8e34a64cd60b",
+      "image": "Image7",
+      "title": "Return of the SSS Class Ranker",
+      "chapter": "Chapter 92",
+      "readAt": 810086400.0
+    },
+    {
+      "id": "a888293c-cc3b-55a3-88bb-09927643abcd",
+      "image": "Image8",
+      "title": "Legend of the Northern Blade",
+      "chapter": "Chapter 101",
+      "readAt": 810090000.0
+    },
+    {
+      "id": "071105db-b679-507b-9035-77940d3c6054",
+      "image": "Image9",
+      "title": "Pick Me Up Infinite Gacha",
+      "chapter": "Chapter 110",
+      "readAt": 810000000.0
+    },
+    {
+      "id": "08eeb343-ce2c-5e7c-92de-28771ebf225a",
+      "image": "Image10",
+      "title": "Regressed Bastard of the Sword Clan",
+      "chapter": "Chapter 119",
+      "readAt": 810003600.0
+    },
+    {
+      "id": "6ab69d7f-3b92-5e1d-b3dc-981d01a654ed",
+      "image": "Image11",
+      "title": "Graymark",
+      "chapter": "Chapter 128",
+      "readAt": 809913600.0
+    },
+    {
+      "id": "4fdc62d0-cd2d-57cb-9967-823ac58cf6f7",
+      "image": "Image12",
+      "title": "My Bias on the Last Train",
+      "chapter": "Chapter 137",
+      "readAt": 809917200.0
+    }
+  ]
+}
