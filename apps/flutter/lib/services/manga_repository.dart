@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/local_models.dart';
@@ -8,6 +8,7 @@ import '../models/manga.dart';
 import 'sources_api.dart';
 import 'file_service.dart';
 import 'library_api.dart';
+import 'operation_id.dart';
 import 'sync_manager.dart';
 
 class MangaRepository {
@@ -130,9 +131,11 @@ class MangaRepository {
 
     // 4. Sync with Backend
     if (syncManager != null) {
+      final operationId = createOperationId();
       final chapterName = chapter?.name;
       final chapterNumber = chapter?.chapterNumber;
       final payload = {
+        'operationId': operationId,
         'mangaId': manga.mangaId,
         'sourceId': manga.sourceId,
         'chapterId': chapterId,
@@ -150,8 +153,9 @@ class MangaRepository {
       final connectivity = await Connectivity().checkConnectivity();
       if (token != null && !connectivity.contains(ConnectivityResult.none)) {
         try {
-          await libraryApi.syncHistory(
+          final response = await libraryApi.syncHistory(
             token: token,
+            operationId: operationId,
             mangaId: manga.mangaId,
             sourceId: manga.sourceId,
             chapterId: chapterId,
@@ -165,6 +169,9 @@ class MangaRepository {
             isRead: isRead,
             readingTimeMs: readingTimeMs,
           );
+          if (response.statusCode != 200 && response.statusCode != 201) {
+            throw Exception('Failed to sync history (${response.statusCode})');
+          }
         } catch (e) {
           // If direct sync fails, queue it
           await syncManager!.addToQueue('UPDATE_HISTORY', payload);
@@ -184,7 +191,7 @@ class MangaRepository {
         final remote = await api.getMangaDetails(sourceId, mangaId);
         return await _cacheManga(remote);
       } catch (e) {
-        print('Error fetching remote manga details: $e');
+        debugPrint('Error fetching remote manga details: $e');
       }
     }
 
@@ -276,7 +283,7 @@ class MangaRepository {
           }
         });
       } catch (e) {
-        print('Error fetching chapters: $e');
+        debugPrint('Error fetching chapters: $e');
       }
     }
 
@@ -420,7 +427,7 @@ class MangaRepository {
         chapterId: chapterId,
       );
     } catch (e) {
-      print('Failed to notify server of download: $e');
+      debugPrint('Failed to notify server of download: $e');
     }
   }
 
@@ -463,31 +470,38 @@ class MangaRepository {
     });
 
     if (syncManager != null) {
+      final operationId = createOperationId();
+      final changedAt = DateTime.now();
       final payload = {
+        'operationId': operationId,
         'mangaId': chapter.mangaId,
         'sourceId': chapter.sourceId,
         'chapterId': chapter.chapterId,
         'chapterName': chapter.name,
         'chapterNumber': chapter.chapterNumber,
         'pageNumber': chapter.lastPageRead ?? 0,
-        'lastReadAt': DateTime.now().toIso8601String(),
+        'lastReadAt': changedAt.toIso8601String(),
         'isBookmarked': value,
       };
 
       final connectivity = await Connectivity().checkConnectivity();
       if (token != null && !connectivity.contains(ConnectivityResult.none)) {
         try {
-          await libraryApi.syncHistory(
+          final response = await libraryApi.syncHistory(
             token: token,
+            operationId: operationId,
             mangaId: chapter.mangaId,
             sourceId: chapter.sourceId,
             chapterId: chapter.chapterId,
             pageNumber: chapter.lastPageRead ?? 0,
-            lastReadAt: DateTime.now(),
+            lastReadAt: changedAt,
             chapterName: chapter.name,
             chapterNumber: chapter.chapterNumber,
             isBookmarked: value,
           );
+          if (response.statusCode != 200 && response.statusCode != 201) {
+            throw Exception('Failed to sync bookmark (${response.statusCode})');
+          }
         } catch (e) {
           await syncManager!.addToQueue('UPDATE_HISTORY', payload);
         }
@@ -514,31 +528,40 @@ class MangaRepository {
     });
 
     if (syncManager != null) {
+      final operationId = createOperationId();
+      final changedAt = DateTime.now();
       final payload = {
+        'operationId': operationId,
         'mangaId': chapter.mangaId,
         'sourceId': chapter.sourceId,
         'chapterId': chapter.chapterId,
         'chapterName': chapter.name,
         'chapterNumber': chapter.chapterNumber,
         'pageNumber': chapter.lastPageRead ?? 0,
-        'lastReadAt': DateTime.now().toIso8601String(),
+        'lastReadAt': changedAt.toIso8601String(),
         'isRead': value,
       };
 
       final connectivity = await Connectivity().checkConnectivity();
       if (token != null && !connectivity.contains(ConnectivityResult.none)) {
         try {
-          await libraryApi.syncHistory(
+          final response = await libraryApi.syncHistory(
             token: token,
+            operationId: operationId,
             mangaId: chapter.mangaId,
             sourceId: chapter.sourceId,
             chapterId: chapter.chapterId,
             pageNumber: chapter.lastPageRead ?? 0,
-            lastReadAt: DateTime.now(),
+            lastReadAt: changedAt,
             chapterName: chapter.name,
             chapterNumber: chapter.chapterNumber,
             isRead: value,
           );
+          if (response.statusCode != 200 && response.statusCode != 201) {
+            throw Exception(
+              'Failed to sync read state (${response.statusCode})',
+            );
+          }
         } catch (e) {
           await syncManager!.addToQueue('UPDATE_HISTORY', payload);
         }

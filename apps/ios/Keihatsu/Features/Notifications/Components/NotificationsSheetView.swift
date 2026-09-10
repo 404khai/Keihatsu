@@ -1,10 +1,12 @@
 import SwiftUI
 
 struct NotificationsSheetView: View {
+    var title = "Notifications"
+    @EnvironmentObject private var environment: AppEnvironment
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
     @State private var selectedTab: NotificationTab = .all
-    @State private var notifications: [KeihatsuNotification] = KeihatsuNotification.samples
+    @State private var notifications: [KeihatsuNotification] = []
     @State private var selectionMode = false
     @State private var selectedIDs: Set<UUID> = []
 
@@ -80,13 +82,16 @@ struct NotificationsSheetView: View {
                         ContentUnavailableView(
                             "You're All Caught Up",
                             systemImage: "bell.badge.slash",
-                            description: Text("No notifications to show right now.")
+                            description: Text("Notifications will appear here when updates are available.")
                         )
                     }
                 }
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("Notifications")
+            .task {
+                if environment.services.isPreview && notifications.isEmpty { notifications = KeihatsuNotification.samples }
+            }
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -288,6 +293,5 @@ private struct KeihatsuNotification: Identifiable {
 }
 
 #Preview {
-    NotificationsSheetView()
-        .environmentObject(AppPreferencesStore(userDefaults: .standard))
+    NotificationsSheetView().appEnvironment(.preview())
 }

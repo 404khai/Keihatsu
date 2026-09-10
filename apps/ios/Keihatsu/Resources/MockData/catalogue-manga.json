@@ -1,0 +1,29 @@
+{
+  "mangas": [
+    {
+      "id": "manga/player",
+      "sourceId": "manhuatop",
+      "title": "Player",
+      "url": "https://example.invalid/manga/player",
+      "thumbnailUrl": "",
+      "genres": [
+        "Fantasy",
+        "Adventure"
+      ],
+      "description": "A normal student is thrown into a game-like world."
+    },
+    {
+      "id": "manga/ordeal",
+      "sourceId": "manhuatop",
+      "title": "Ordeal",
+      "url": "https://example.invalid/manga/ordeal",
+      "thumbnailUrl": "",
+      "genres": [
+        "Action",
+        "Drama"
+      ],
+      "description": "Gifted fighters and powerful bloodlines collide."
+    }
+  ],
+  "hasNextPage": false
+}

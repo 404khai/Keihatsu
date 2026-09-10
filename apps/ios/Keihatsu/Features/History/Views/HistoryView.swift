@@ -1,32 +1,70 @@
 import SwiftUI
 
 struct HistoryView: View {
-    @State private var sections: [HistorySection] = HistorySection.sampleData
+    @EnvironmentObject private var collections: CollectionStore
+    @EnvironmentObject private var readingHistory: ReadingHistoryModel
+    @Namespace private var animation
     @State private var selectionMode: Bool = false
     @State private var selectedItemIDs: Set<UUID> = []
     @State private var deletePrompt: DeletePrompt?
     @State private var searchText = ""
 
     private var filteredSections: [HistorySection] {
+        collections.historySections(query: searchText.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private var filteredReadingSections: [ReadingHistorySection] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return sections }
-
-        return sections.compactMap { section in
-            let items = section.items.filter { item in
-                item.title.localizedCaseInsensitiveContains(query)
-                || item.chapter.localizedCaseInsensitiveContains(query)
-                || item.time.localizedCaseInsensitiveContains(query)
-                || section.date.localizedCaseInsensitiveContains(query)
-            }
-
-            guard !items.isEmpty else { return nil }
-            return HistorySection(id: section.id, date: section.date, items: items)
+        let calendar = Calendar.current
+        let entries = readingHistory.entries.filter { entry in
+            query.isEmpty
+                || entry.manga.title.localizedCaseInsensitiveContains(query)
+                || entry.chapter.name.localizedCaseInsensitiveContains(query)
+                || entry.updatedAt.formatted(date: .abbreviated, time: .shortened).localizedCaseInsensitiveContains(query)
+                || readingDateTitle(for: entry.updatedAt, calendar: calendar).localizedCaseInsensitiveContains(query)
         }
+
+        return Dictionary(grouping: entries) { calendar.startOfDay(for: $0.updatedAt) }
+            .map { day, entries in
+                ReadingHistorySection(
+                    date: day,
+                    title: readingDateTitle(for: day, calendar: calendar),
+                    entries: entries.sorted { $0.updatedAt > $1.updatedAt }
+                )
+            }
+            .sorted { $0.date > $1.date }
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 28) {
+                ForEach(filteredReadingSections) { section in
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text(section.title)
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(.primary.opacity(0.8))
+
+                        VStack(spacing: 18) {
+                            ForEach(section.entries) { entry in
+                                NavigationLink(value: MangaDetailsSeed(manga: entry.manga, fallbackChapters: [entry.chapter])) {
+                                    ReadingHistoryRow(entry: entry)
+                                }
+                                .buttonStyle(.plain)
+                                .swipeActions {
+                                    Button("Delete", role: .destructive) {
+                                        Task { await readingHistory.delete(entry.manga.id) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if !collections.isAccountScoped {
+                    Text("Sample history • Sign in to sync across devices")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let error = collections.error { CatalogueMessage(message: error) { collections.reload() } }
                 ForEach(filteredSections) { section in
                     VStack(alignment: .leading, spacing: 18) {
                         Text(section.date)
@@ -63,9 +101,13 @@ struct HistoryView: View {
             .padding(.vertical, 16)
         }
         .navigationTitle("History")
+        .task { await readingHistory.refresh() }
+        .navigationDestination(for: MangaDetailsSeed.self) { seed in
+            CarouselDetailView(seed: seed, animation: animation, origin: .history)
+        }
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search history"))
         .overlay {
-            if filteredSections.isEmpty {
+            if filteredSections.isEmpty && filteredReadingSections.isEmpty {
                 ContentUnavailableView(
                     "No History Found",
                     systemImage: "clock.badge.questionmark",
@@ -128,17 +170,68 @@ struct HistoryView: View {
     }
 
     private func deleteItems(withIDs ids: Set<UUID>) {
-        sections = sections.compactMap { section in
-            let remainingItems = section.items.filter { !ids.contains($0.id) }
-            guard !remainingItems.isEmpty else { return nil }
-            return HistorySection(id: section.id, date: section.date, items: remainingItems)
-        }
+        collections.deleteHistory(ids)
 
         selectedItemIDs.subtract(ids)
 
         if selectedItemIDs.isEmpty {
             selectionMode = false
         }
+    }
+
+    private func readingDateTitle(for date: Date, calendar: Calendar) -> String {
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "dd MMM yyyy"
+        return formatter.string(from: date)
+    }
+}
+
+private struct ReadingHistorySection: Identifiable {
+    let date: Date
+    let title: String
+    let entries: [ReaderProgressRecord]
+    var id: Date { date }
+}
+
+private struct ReadingHistoryRow: View {
+    let entry: ReaderProgressRecord
+
+    var body: some View {
+        HStack(spacing: 18) {
+            CatalogueCover(url: entry.manga.thumbnailURL, referer: entry.manga.url)
+                .frame(width: 78, height: 116)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(entry.manga.title)
+                    .font(.system(size: 18, weight: .medium))
+                    .lineLimit(1)
+
+                Text(entry.chapter.name)
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+
+                Text("Page \(entry.displayedPage) of \(max(entry.totalPages, 1)) • \(entry.updatedAt.formatted(date: .omitted, time: .shortened))")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "book.closed")
+                .font(.title2)
+                .foregroundStyle(.primary)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
     }
 }
 
@@ -185,9 +278,9 @@ private struct HistoryRow: View {
             if !showCheckboxes {
                 HStack(spacing: 24) {
                     Button {
-                    } label: {
-                        Image(systemName: "book.closed")
-                    }
+                    } label: { Image(systemName: "book.closed") }
+                    .disabled(true)
+                    .accessibilityLabel("Reading coming soon")
 
                     Button(role: .destructive, action: onDelete) {
                         Image(systemName: "trash.fill")
@@ -208,49 +301,6 @@ private struct HistoryRow: View {
                 .stroke(isSelected ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
         }
     }
-}
-
-private struct HistorySection: Identifiable {
-    let id: UUID
-    let date: String
-    let items: [HistoryItem]
-
-    static let sampleData: [HistorySection] = [
-        HistorySection(date: "Today", items: [
-            HistoryItem(image: "Image1", title: "The Regressed Mercenary's Machinations", chapter: "Chapter 110", time: "02:28"),
-            HistoryItem(image: "Image11", title: "Graymark", chapter: "Chapter 84", time: "08:42")
-        ]),
-        HistorySection(date: "27 May, 2026", items: [
-            HistoryItem(image: "Image12", title: "My Bias on the Last Train", chapter: "Chapter 57", time: "11:16"),
-            HistoryItem(image: "Image7", title: "Return of the SSS Class Ranker", chapter: "Chapter 139", time: "19:04")
-        ]),
-        HistorySection(date: "26 May, 2026", items: [
-            HistoryItem(image: "Image9", title: "Pick Me Up Infinite Gacha", chapter: "Chapter 112", time: "17:31"),
-            HistoryItem(image: "Image6", title: "Superhuman Battlefield", chapter: "Chapter 91", time: "22:12")
-        ]),
-        HistorySection(date: "25 May, 2026", items: [
-            HistoryItem(image: "Image8", title: "Legend of the Northern Blade", chapter: "Chapter 112", time: "17:31"),
-            HistoryItem(image: "Image10", title: "Regressed Bastard of the Sword Clan", chapter: "Chapter 57", time: "11:16"),
-        ]),
-        HistorySection(date: "24 May, 2026", items: [
-            HistoryItem(image: "Image4", title: "Player", chapter: "Chapter 38", time: "09:18"),
-            HistoryItem(image: "Image5", title: "Ordeal", chapter: "Chapter 71", time: "21:47")
-        ])
-    ]
-
-    init(id: UUID = UUID(), date: String, items: [HistoryItem]) {
-        self.id = id
-        self.date = date
-        self.items = items
-    }
-}
-
-private struct HistoryItem: Identifiable {
-    let id = UUID()
-    let image: String
-    let title: String
-    let chapter: String
-    let time: String
 }
 
 private struct DeletePrompt: Identifiable {
@@ -281,6 +331,6 @@ private struct DeletePrompt: Identifiable {
 #Preview {
     NavigationStack {
         HistoryView()
+            .appEnvironment(.preview())
     }
 }
-
