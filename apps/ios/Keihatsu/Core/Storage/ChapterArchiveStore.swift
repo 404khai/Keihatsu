@@ -7,6 +7,7 @@ actor ChapterArchiveStore {
         case missingPage(Int)
         case invalidArchive
         case unsupportedCompression
+        case invalidDirectory
 
         var errorDescription: String? {
             switch self {
@@ -14,6 +15,7 @@ actor ChapterArchiveStore {
             case .missingPage(let page): "Downloaded page \(page) is missing or empty."
             case .invalidArchive: "The CBZ archive is incomplete or corrupt."
             case .unsupportedCompression: "This CBZ uses an unsupported compression method."
+            case .invalidDirectory: "Choose a folder outside the current download directory."
             }
         }
     }
@@ -33,20 +35,35 @@ actor ChapterArchiveStore {
         let localOffset: UInt32
     }
 
-    nonisolated let downloadsRoot: URL
+    private var downloadsRoot: URL
     nonisolated let stagingRoot: URL
     nonisolated let documentsRoot: URL
+    private let defaultDownloadsRoot: URL
+    private let directoryDefaults: UserDefaults?
+    private var securityScopedRoot: URL?
+
+    private static let directoryBookmarkKey = "keihatsu.downloads.directoryBookmark"
 
     init(documentsRoot: URL? = nil, applicationSupportRoot: URL? = nil) {
         let documents = documentsRoot ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let support = applicationSupportRoot ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let defaultRoot = documents.appending(path: "downloads", directoryHint: .isDirectory)
         self.documentsRoot = documents
-        downloadsRoot = documents.appending(path: "downloads", directoryHint: .isDirectory)
+        defaultDownloadsRoot = defaultRoot
+        directoryDefaults = documentsRoot == nil ? .standard : nil
+        downloadsRoot = defaultRoot
         stagingRoot = support.appending(path: "Keihatsu/DownloadStaging", directoryHint: .isDirectory)
+        securityScopedRoot = nil
         Self.migrateLegacyDownloads(
             from: documents.appending(path: "Keihatsu/downloads", directoryHint: .isDirectory),
-            to: downloadsRoot
+            to: defaultRoot
         )
+        if documentsRoot == nil,
+           let bookmark = UserDefaults.standard.data(forKey: Self.directoryBookmarkKey),
+           let restored = Self.restoreDirectory(from: bookmark) {
+            downloadsRoot = restored
+            securityScopedRoot = restored
+        }
     }
 
     func stagingDirectory(for recordID: UUID) throws -> URL {
@@ -73,7 +90,7 @@ actor ChapterArchiveStore {
         return destination
     }
 
-    nonisolated func archiveURL(for identity: DownloadIdentity) -> URL {
+    func archiveURL(for identity: DownloadIdentity) -> URL {
         downloadsRoot
             .appending(path: safe(identity.sourceID), directoryHint: .isDirectory)
             .appending(path: safe(identity.mangaID), directoryHint: .isDirectory)
@@ -205,9 +222,39 @@ actor ChapterArchiveStore {
                 bytes += Int64(values?.fileSize ?? 0)
             }
         }
-        let attributes = try? FileManager.default.attributesOfFileSystem(forPath: documentsRoot.path)
+        let capacityRoot = FileManager.default.fileExists(atPath: downloadsRoot.path) ? downloadsRoot : documentsRoot
+        let attributes = try? FileManager.default.attributesOfFileSystem(forPath: capacityRoot.path)
         let available = (attributes?[.systemFreeSize] as? NSNumber)?.int64Value ?? 0
-        return DownloadStorageSnapshot(archiveCount: count, byteCount: bytes, availableByteCount: available)
+        return DownloadStorageSnapshot(
+            archiveCount: count,
+            byteCount: bytes,
+            availableByteCount: available,
+            directoryPath: displayPath(for: downloadsRoot)
+        )
+    }
+
+    func changeDownloadsRoot(to selectedURL: URL) throws {
+        let target = selectedURL.standardizedFileURL
+        let current = downloadsRoot.standardizedFileURL
+        guard target != current else { return }
+        guard !target.path.hasPrefix(current.path + "/") else { throw ArchiveError.invalidDirectory }
+
+        let isSecurityScoped = target.startAccessingSecurityScopedResource()
+        do {
+            let bookmark = try target.bookmarkData(options: .minimalBookmark)
+            try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: current.path) {
+                try Self.copyDirectory(from: current, to: target, fileManager: .default)
+                try? FileManager.default.removeItem(at: current)
+            }
+            directoryDefaults?.set(bookmark, forKey: Self.directoryBookmarkKey)
+            securityScopedRoot?.stopAccessingSecurityScopedResource()
+            securityScopedRoot = isSecurityScoped ? target : nil
+            downloadsRoot = target
+        } catch {
+            if isSecurityScoped { target.stopAccessingSecurityScopedResource() }
+            throw error
+        }
     }
 
     private func entries(in url: URL) throws -> [Entry] {
@@ -333,6 +380,29 @@ actor ChapterArchiveStore {
         }
     }
 
+    private func displayPath(for url: URL) -> String {
+        if url.standardizedFileURL == defaultDownloadsRoot.standardizedFileURL {
+            return "Keihatsu/downloads"
+        }
+        return url.path(percentEncoded: false)
+    }
+
+    nonisolated private static func restoreDirectory(from bookmark: Data) -> URL? {
+        var isStale = false
+        guard let url = try? URL(
+            resolvingBookmarkData: bookmark,
+            options: .withoutUI,
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        ), url.startAccessingSecurityScopedResource() else {
+            return nil
+        }
+        if isStale, let refreshed = try? url.bookmarkData(options: .minimalBookmark) {
+            UserDefaults.standard.set(refreshed, forKey: directoryBookmarkKey)
+        }
+        return url.standardizedFileURL
+    }
+
     nonisolated private static func migrateLegacyDownloads(from legacyRoot: URL, to downloadsRoot: URL) {
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: legacyRoot.path) else { return }
@@ -370,6 +440,25 @@ actor ChapterArchiveStore {
             }
         }
         removeDirectoryIfEmpty(source, fileManager: fileManager)
+    }
+
+    nonisolated private static func copyDirectory(from source: URL, to destination: URL, fileManager: FileManager) throws {
+        try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+        for item in try fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey]) {
+            let target = destination.appending(path: item.lastPathComponent)
+            if (try item.resourceValues(forKeys: [.isDirectoryKey])).isDirectory == true {
+                try copyDirectory(from: item, to: target, fileManager: fileManager)
+            } else if !fileManager.fileExists(atPath: target.path) {
+                try fileManager.copyItem(at: item, to: target)
+            } else {
+                let sourceDate = (try? item.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let targetDate = (try? target.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                if sourceDate > targetDate {
+                    try fileManager.removeItem(at: target)
+                    try fileManager.copyItem(at: item, to: target)
+                }
+            }
+        }
     }
 
     nonisolated private static func removeDirectoryIfEmpty(_ url: URL, fileManager: FileManager) {

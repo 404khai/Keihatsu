@@ -44,6 +44,7 @@ private struct MangaDetailsContentView: View {
     @State private var selectedCategories = Set<UUID>()
     @State private var selectedReader: ReaderLaunchContext?
     @State private var showAccountRequired = false
+    @State private var pendingDownloadDeletion: ChapterDownloadRecord?
 
     private var sourceURL: URL? {
         guard let url = model.manga.url, ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
@@ -117,6 +118,20 @@ private struct MangaDetailsContentView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Sign in with Google to sync this title and its categories across devices.")
+        }
+        .confirmationDialog(
+            "Delete downloaded chapter?",
+            isPresented: Binding(
+                get: { pendingDownloadDeletion != nil },
+                set: { if !$0 { pendingDownloadDeletion = nil } }
+            ),
+            presenting: pendingDownloadDeletion
+        ) { record in
+            Button("Delete \(record.request.chapterName)", role: .destructive) {
+                Task { await downloads.remove(record.id) }
+            }
+        } message: { record in
+            Text("The downloaded CBZ for \(record.request.chapterName) will be removed from this device. Reading history is kept.")
         }
         .navigationDestination(item: $selectedReader) { context in
             ReaderEntryView(manga: model.manga, chapters: model.chapters, context: context)
@@ -352,8 +367,11 @@ private struct MangaDetailsContentView: View {
             .buttonStyle(.plain)
 
             Button {
-                if downloadStatus == .failed || downloadStatus == .paused || downloadStatus == .waitingForWiFi,
-                   let record = downloads.visibleRecords.first(where: { $0.request.identity == DownloadIdentity(chapter: chapter.id) }) {
+                let record = downloads.visibleRecords.first(where: { $0.request.identity == DownloadIdentity(chapter: chapter.id) })
+                if downloadStatus == .completed {
+                    pendingDownloadDeletion = record
+                } else if downloadStatus == .failed || downloadStatus == .paused || downloadStatus == .waitingForWiFi,
+                          let record {
                     downloads.resume(record.id)
                 } else if downloadStatus == nil {
                     enqueue([chapter])
@@ -362,10 +380,10 @@ private struct MangaDetailsContentView: View {
                 Image(systemName: downloadSymbol(downloadStatus))
                     .font(.system(size: 30, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(state.isDownloaded ? Color.green : Color.white.opacity(0.62))
+                    .foregroundStyle(state.isDownloaded ? Color(hex: "B7FF3C") : Color.white.opacity(0.62))
                     .frame(width: 52, height: 52)
             }
-            .disabled(downloadStatus == .completed || downloadStatus?.isActive == true)
+            .disabled(downloadStatus?.isActive == true)
             .accessibilityLabel(downloadStatusLabel(downloadStatus))
         }
             .padding(.horizontal, 20)
