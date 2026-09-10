@@ -6,9 +6,15 @@ describe('HistoryService', () => {
   let service: HistoryService;
   const prismaService = {
     historyEntry: {
-      upsert: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
       findMany: jest.fn(),
-      deleteMany: jest.fn(),
+    },
+    historySyncEvent: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
     },
     libraryEntry: {
       findUnique: jest.fn(),
@@ -19,6 +25,7 @@ describe('HistoryService', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    $transaction: jest.fn(async (callback) => callback(prismaService)),
   };
 
   beforeEach(async () => {
@@ -53,10 +60,14 @@ describe('HistoryService', () => {
         lastReadAt: new Date('2026-04-24T00:00:00.000Z'),
         isBookmarked: false,
         isRead: true,
+        title: null,
+        thumbnailUrl: null,
+        author: null,
       },
     ]);
     prismaService.libraryEntry.findMany.mockResolvedValue([
       {
+        sourceId: 'weebcentral',
         mangaId: 'manga-1',
         title: 'Solo Leveling',
         thumbnailUrl: 'https://cdn.example.com/cover.jpg',
@@ -78,11 +89,18 @@ describe('HistoryService', () => {
 
   it('refreshes library snapshot data during history sync', async () => {
     const lastReadAt = '2026-04-24T00:00:00.000Z';
-    prismaService.historyEntry.upsert.mockResolvedValue({ id: 'history-1' });
-    prismaService.libraryEntry.findUnique.mockResolvedValue({ id: 'library-1' });
+    prismaService.historySyncEvent.findUnique.mockResolvedValue(null);
+    prismaService.historySyncEvent.create.mockResolvedValue({ id: 'event-1' });
+    prismaService.historyEntry.findUnique.mockResolvedValue(null);
+    prismaService.historyEntry.create.mockResolvedValue({ id: 'history-1' });
+    prismaService.libraryEntry.findUnique.mockResolvedValue({
+      id: 'library-1',
+      lastReadAt: null,
+    });
     prismaService.libraryEntry.update.mockResolvedValue({ id: 'library-1' });
 
     await service.syncHistory('user-1', {
+      operationId: '428d294c-113f-4eca-8cd2-30aa8e60b314',
       mangaId: 'manga-1',
       sourceId: 'weebcentral',
       chapterId: 'chapter-1',
@@ -96,11 +114,33 @@ describe('HistoryService', () => {
       where: { id: 'library-1' },
       data: {
         lastReadAt: new Date(lastReadAt),
-        sourceId: 'weebcentral',
         title: 'Solo Leveling',
         thumbnailUrl: 'https://cdn.example.com/cover.jpg',
         author: 'Chugong',
       },
     });
+  });
+
+  it('acknowledges a repeated operation without adding reading time twice', async () => {
+    const existing = {
+      id: 'history-1',
+      lastReadAt: new Date('2026-04-24T00:00:00.000Z'),
+    };
+    prismaService.historySyncEvent.findUnique.mockResolvedValue({
+      id: 'event-1',
+    });
+    prismaService.historyEntry.findUnique.mockResolvedValue(existing);
+
+    const result = await service.syncHistory('user-1', {
+      operationId: '428d294c-113f-4eca-8cd2-30aa8e60b314',
+      mangaId: 'manga-1',
+      sourceId: 'weebcentral',
+      chapterId: 'chapter-1',
+      readingTimeMs: 5000,
+    });
+
+    expect(result).toEqual(existing);
+    expect(prismaService.user.update).not.toHaveBeenCalled();
+    expect(prismaService.historySyncEvent.create).not.toHaveBeenCalled();
   });
 });

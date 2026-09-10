@@ -9,4 +9,5 @@ protocol HistoryRepository: Sendable {
     nonisolated func recentProgress() async -> [ReaderProgressRecord]
     nonisolated func saveProgress(_ progress: ReaderProgressRecord) async throws
     nonisolated func toggleBookmark(manga: Manga, chapter: Chapter) async throws -> Bool
+    nonisolated func deleteProgress(for manga: MangaIdentity) async throws
 }

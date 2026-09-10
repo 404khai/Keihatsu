@@ -2,6 +2,8 @@ import SwiftUI
 
 struct AccountEntryView: View {
     @Environment(\.keihatsuTheme) private var theme
+    @EnvironmentObject private var session: AccountSessionStore
+    let onSignedIn: () -> Void
     let onContinueAsGuest: () -> Void
 
     var body: some View {
@@ -17,11 +19,27 @@ struct AccountEntryView: View {
                     Text("Discover stories and make time to read.")
                         .font(theme.typography.body)
                         .foregroundStyle(theme.colors.textSecondary)
-                    Label("Google sign-in is coming soon", systemImage: "person.crop.circle")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.textSecondary)
+                    if let error = session.error {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                            .font(theme.typography.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Button {
+                        Task { if await session.signIn() { onSignedIn() } }
+                    } label: {
+                        HStack {
+                            if session.isAuthenticating { ProgressView().tint(.white) }
+                            Image(systemName: "person.crop.circle.badge.checkmark")
+                            Text("Continue with Google")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(ShellPrimaryButtonStyle())
+                    .disabled(session.isAuthenticating)
+                    .accessibilityIdentifier("account.continueWithGoogle")
                     Button("Continue as Guest", action: onContinueAsGuest)
-                        .buttonStyle(ShellPrimaryButtonStyle())
+                        .buttonStyle(.plain)
+                        .foregroundStyle(theme.colors.textSecondary)
                         .accessibilityIdentifier("account.continueAsGuest")
                 }
                 .multilineTextAlignment(.center)

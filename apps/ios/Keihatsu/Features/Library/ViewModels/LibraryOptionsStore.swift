@@ -13,6 +13,10 @@ nonisolated struct LibraryOptions: Codable {
     var layout: LibraryLayout = .compact
     var columns = 3
     var showBadges = true
+    var showDownloadedBadge: Bool?
+    var showUnreadBadge: Bool?
+    var showLanguageBadge: Bool?
+    var showCategories: Bool?
     var showCounts = true
     var downloaded = false
     var unread = false
@@ -21,6 +25,11 @@ nonisolated struct LibraryOptions: Codable {
     var completed = false
     var sort: LibrarySort = .lastRead
     var ascending = false
+
+    var displaysDownloadedBadge: Bool { showDownloadedBadge ?? showBadges }
+    var displaysUnreadBadge: Bool { showUnreadBadge ?? showBadges }
+    var displaysLanguageBadge: Bool { showLanguageBadge ?? showBadges }
+    var displaysCategories: Bool { showCategories ?? true }
 
     func filtered(_ entries: [LibraryEntry], category: UUID?, query: String) -> [LibraryEntry] {
         let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -53,5 +62,32 @@ final class LibraryOptionsStore: ObservableObject {
         self.defaults = defaults
         options = defaults.data(forKey: "keihatsu.library.options").flatMap { try? JSONDecoder().decode(LibraryOptions.self, from: $0) } ?? LibraryOptions()
         options.columns = min(4, max(2, options.columns))
+    }
+
+
+    func apply(_ synced: SyncedUserPreferences) {
+        options.layout = LibraryLayout.allCases.first {
+            $0.rawValue.compare(synced.categoriesDisplayMode, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        } ?? options.layout
+        options.columns = min(4, max(2, synced.libraryItemsPerRow))
+        options.showBadges = synced.overlayShowDownloaded || synced.overlayShowUnread || synced.overlayShowLanguage
+        options.showDownloadedBadge = synced.overlayShowDownloaded
+        options.showUnreadBadge = synced.overlayShowUnread
+        options.showLanguageBadge = synced.overlayShowLanguage
+        options.showCategories = synced.tabsShowCategories
+        options.showCounts = synced.tabsShowItemCount
+    }
+
+    var syncedPreferences: SyncedUserPreferences {
+        var value = SyncedUserPreferences.default
+        value.libraryDisplayStyle = options.layout == .list ? "list" : "grid"
+        value.libraryItemsPerRow = options.columns
+        value.overlayShowDownloaded = options.displaysDownloadedBadge
+        value.overlayShowUnread = options.displaysUnreadBadge
+        value.overlayShowLanguage = options.displaysLanguageBadge
+        value.tabsShowCategories = options.displaysCategories
+        value.tabsShowItemCount = options.showCounts
+        value.categoriesDisplayMode = options.layout.rawValue.lowercased()
+        return value
     }
 }

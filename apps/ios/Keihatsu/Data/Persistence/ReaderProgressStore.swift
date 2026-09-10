@@ -66,6 +66,12 @@ actor ReaderProgressStore {
         try persist()
     }
 
+    func delete(for manga: MangaIdentity) throws {
+        loadIfNeeded()
+        records = records.filter { $0.key.manga != manga }
+        try persist()
+    }
+
     private func loadIfNeeded() {
         guard !hasLoaded else { return }
         hasLoaded = true
