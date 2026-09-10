@@ -5,15 +5,24 @@ actor DefaultReaderRepository: ReaderRepository {
     private let catalogue: any CatalogueRepository
     private let bundle: Bundle
     private let localRoot: URL?
+    private let archiveStore: ChapterArchiveStore?
 
-    init(catalogue: any CatalogueRepository, bundle: Bundle = .main, localRoot: URL? = nil) {
+    init(
+        catalogue: any CatalogueRepository,
+        bundle: Bundle = .main,
+        localRoot: URL? = nil,
+        archiveStore: ChapterArchiveStore? = nil
+    ) {
         self.catalogue = catalogue
         self.bundle = bundle
+        self.archiveStore = archiveStore
         self.localRoot = localRoot ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
             .appending(path: "Keihatsu/Chapters", directoryHint: .isDirectory)
     }
 
     func pages(for chapter: Chapter, manga: Manga) async throws -> [ReaderPage] {
+        if let archived = try await archiveStore?.readerPages(for: chapter.id), !archived.isEmpty { return archived }
+
         let local = localPages(for: chapter)
         if !local.isEmpty { return local }
 

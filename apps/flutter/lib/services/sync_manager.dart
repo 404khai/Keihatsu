@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:isar/isar.dart';
 import '../models/local_models.dart';
 import 'library_api.dart';
+import 'operation_id.dart';
 
 class SyncManager {
   final Isar isar;
@@ -22,8 +23,8 @@ class SyncManager {
     required this.getCurrentUserId,
   }) {
     Connectivity().onConnectivityChanged.listen((
-        List<ConnectivityResult> results,
-        ) {
+      List<ConnectivityResult> results,
+    ) {
       if (results.isNotEmpty && !results.contains(ConnectivityResult.none)) {
         processSyncQueue();
       }
@@ -31,7 +32,7 @@ class SyncManager {
 
     _syncTimer = Timer.periodic(
       const Duration(minutes: 5),
-          (_) => processSyncQueue(),
+      (_) => processSyncQueue(),
     );
   }
 
@@ -40,9 +41,14 @@ class SyncManager {
   }
 
   Future<void> addToQueue(String type, Map<String, dynamic> payload) async {
+    final queuedPayload = Map<String, dynamic>.from(payload);
+    if (type == 'UPDATE_HISTORY') {
+      queuedPayload.putIfAbsent('operationId', createOperationId);
+    }
+
     final op = SyncOperation()
       ..type = type
-      ..payload = json.encode(payload)
+      ..payload = json.encode(queuedPayload)
       ..timestamp = DateTime.now()
       ..ownerUserId = getCurrentUserId()
       ..completed = false;
@@ -54,11 +60,86 @@ class SyncManager {
     processSyncQueue();
   }
 
-  Future<void> processSyncQueue() async {
+  Future<int> recoverUnsyncedLibraryEntries({
+    required String ownerUserId,
+  }) async {
+    final localEntries = await isar
+        .collection<LocalLibraryEntry>()
+        .filter()
+        .ownerUserIdEqualTo(ownerUserId)
+        .findAll();
+    final unsyncedEntries = localEntries
+        .where((entry) => entry.serverId?.trim().isEmpty ?? true)
+        .toList();
+    if (unsyncedEntries.isEmpty) return 0;
+
+    final existingOperations = await isar
+        .collection<SyncOperation>()
+        .filter()
+        .ownerUserIdEqualTo(ownerUserId)
+        .completedEqualTo(false)
+        .findAll();
+    final queuedByManga = <String, SyncOperation>{};
+    for (final operation in existingOperations) {
+      if (operation.type != 'ADD_LIBRARY') continue;
+      try {
+        final payload = json.decode(operation.payload) as Map<String, dynamic>;
+        queuedByManga['${payload['sourceId']}::${payload['mangaId']}'] =
+            operation;
+      } catch (_) {
+        // A malformed legacy operation cannot safely suppress recovery.
+      }
+    }
+
+    final operationsToSave = <SyncOperation>[];
+    for (final entry in unsyncedEntries) {
+      final key = '${entry.sourceId}::${entry.mangaId}';
+      final existing = queuedByManga[key];
+      if (existing != null) {
+        if (existing.retryCount >= 5) {
+          existing
+            ..retryCount = 0
+            ..errorMessage = null;
+          operationsToSave.add(existing);
+        }
+        continue;
+      }
+
+      operationsToSave.add(
+        SyncOperation()
+          ..type = 'ADD_LIBRARY'
+          ..payload = json.encode({
+            'mangaId': entry.mangaId,
+            'sourceId': entry.sourceId,
+            'title': entry.title,
+            'thumbnailUrl': entry.thumbnailUrl,
+            'author': entry.author,
+            'language': entry.language,
+          })
+          ..timestamp = entry.dateAddedAt ?? DateTime.now()
+          ..ownerUserId = ownerUserId
+          ..completed = false,
+      );
+    }
+
+    if (operationsToSave.isNotEmpty) {
+      await isar.writeTxn(
+        () => isar.collection<SyncOperation>().putAll(operationsToSave),
+      );
+      debugPrint(
+        '[SyncManager] Recovered ${operationsToSave.length} unsynced library operations',
+      );
+    }
+    await processSyncQueue(ownerUserId: ownerUserId);
+    return operationsToSave.length;
+  }
+
+  Future<void> processSyncQueue({String? ownerUserId}) async {
     if (_isProcessing) return;
     _isProcessing = true;
 
     try {
+      final scopedUserId = ownerUserId ?? getCurrentUserId();
       final token = getToken();
       if (token == null) {
         debugPrint('[SyncManager] No token available, skipping sync');
@@ -72,7 +153,7 @@ class SyncManager {
       final pendingOps = await isar
           .collection<SyncOperation>()
           .filter()
-          .ownerUserIdEqualTo(getCurrentUserId())
+          .ownerUserIdEqualTo(scopedUserId)
           .completedEqualTo(false)
           .sortByTimestamp()
           .findAll();
@@ -86,7 +167,7 @@ class SyncManager {
         debugPrint(
           '[SyncManager] Executing: ${op.type} (retry: ${op.retryCount})',
         );
-        bool success = await _executeOperation(op, token);
+        bool success = await _executeOperation(op, token, scopedUserId);
         if (success) {
           debugPrint('[SyncManager] ✅ ${op.type} succeeded');
           op.completed = true;
@@ -107,7 +188,11 @@ class SyncManager {
     }
   }
 
-  Future<bool> _executeOperation(SyncOperation op, String token) async {
+  Future<bool> _executeOperation(
+    SyncOperation op,
+    String token,
+    String ownerUserId,
+  ) async {
     final Map<String, dynamic> payload = json.decode(op.payload);
 
     try {
@@ -127,7 +212,7 @@ class SyncManager {
                   .filter()
                   .mangaIdEqualTo(payload['mangaId'])
                   .sourceIdEqualTo(payload['sourceId'])
-                  .ownerUserIdEqualTo(getCurrentUserId())
+                  .ownerUserIdEqualTo(ownerUserId)
                   .findFirst();
               if (entry != null) {
                 entry.serverId = serverId;
@@ -149,7 +234,7 @@ class SyncManager {
                       .filter()
                       .mangaIdEqualTo(payload['mangaId'])
                       .sourceIdEqualTo(payload['sourceId'])
-                      .ownerUserIdEqualTo(getCurrentUserId())
+                      .ownerUserIdEqualTo(ownerUserId)
                       .findFirst();
                   if (entry != null) {
                     entry.serverId = serverId;
@@ -178,7 +263,7 @@ class SyncManager {
                   .collection<LocalCategory>()
                   .filter()
                   .idEqualTo(payload['localId'])
-                  .ownerUserIdEqualTo(getCurrentUserId())
+                  .ownerUserIdEqualTo(ownerUserId)
                   .findFirst();
               if (cat != null) {
                 if (serverId != null) cat.serverId = serverId;
@@ -200,7 +285,7 @@ class SyncManager {
               .collection<LocalCategory>()
               .filter()
               .idEqualTo(localCategoryId)
-              .ownerUserIdEqualTo(getCurrentUserId())
+              .ownerUserIdEqualTo(ownerUserId)
               .findFirst();
           final String? serverCategoryId = cat?.serverId;
 
@@ -210,7 +295,7 @@ class SyncManager {
               .filter()
               .mangaIdEqualTo(mangaId)
               .sourceIdEqualTo(sourceId)
-              .ownerUserIdEqualTo(getCurrentUserId())
+              .ownerUserIdEqualTo(ownerUserId)
               .findFirst();
 
           if (serverCategoryId == null || entry?.serverId == null) {
@@ -256,13 +341,31 @@ class SyncManager {
           return response.statusCode == 200 || response.statusCode == 204;
 
         case 'UPDATE_HISTORY':
+          var operationId = payload['operationId'] as String?;
+          if (operationId == null) {
+            // Upgrade operations queued by older app builds in-place so every
+            // retry keeps the same idempotency key.
+            operationId = createOperationId();
+            payload['operationId'] = operationId;
+            op.payload = json.encode(payload);
+            await isar.writeTxn(() => isar.collection<SyncOperation>().put(op));
+          }
           final response = await libraryApi.syncHistory(
             token: token,
+            operationId: operationId,
             mangaId: payload['mangaId'],
             sourceId: payload['sourceId'],
             chapterId: payload['chapterId'],
             pageNumber: payload['pageNumber'],
             lastReadAt: DateTime.parse(payload['lastReadAt']),
+            title: payload['title'],
+            thumbnailUrl: payload['thumbnailUrl'],
+            author: payload['author'],
+            chapterName: payload['chapterName'],
+            chapterNumber: (payload['chapterNumber'] as num?)?.toDouble(),
+            isBookmarked: payload['isBookmarked'],
+            isRead: payload['isRead'],
+            readingTimeMs: payload['readingTimeMs'],
           );
           return response.statusCode == 200 || response.statusCode == 201;
       }
@@ -275,29 +378,5 @@ class SyncManager {
       });
     }
     return false;
-  }
-
-  Future<void> _updateLocalServerId<T>({
-    required QueryBuilder<T, T, QAfterFilterCondition> Function(
-        QueryBuilder<T, T, QFilterCondition> q,
-        )
-    filter,
-    required String serverId,
-  }) async {
-    await isar.writeTxn(() async {
-      final item = await filter(isar.collection<T>().filter()).findFirst();
-      if (item != null) {
-        if (item is LocalLibraryEntry) {
-          (item as LocalLibraryEntry).serverId = serverId;
-          await isar.collection<LocalLibraryEntry>().put(
-            item as LocalLibraryEntry,
-          );
-        } else if (item is LocalCategory) {
-          (item as LocalCategory).serverId = serverId;
-          (item as LocalCategory).isSynced = true;
-          await isar.collection<LocalCategory>().put(item as LocalCategory);
-        }
-      }
-    });
   }
 }

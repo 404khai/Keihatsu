@@ -15,7 +15,8 @@ struct ReaderView: View {
         reader: any ReaderRepository,
         history: ReadingHistoryModel,
         imagePipeline: ImagePipeline,
-        incognito: Bool
+        incognito: Bool,
+        liveActivities: LiveActivityCoordinator? = nil
     ) {
         self.imagePipeline = imagePipeline
         _model = StateObject(wrappedValue: ReaderViewModel(
@@ -25,7 +26,8 @@ struct ReaderView: View {
             reader: reader,
             history: history,
             imagePipeline: imagePipeline,
-            incognito: incognito
+            incognito: incognito,
+            liveActivities: liveActivities
         ))
     }
 
@@ -82,19 +84,13 @@ struct ReaderView: View {
                 }
             }
 
-            if preferencesStore.preferences.incognitoModeEnabled {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Image(systemName: "eye.slash.fill")
-                        .accessibilityLabel("Incognito reading")
-                }
-            }
         }
         .toolbar(model.controlsVisible ? .visible : .hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .statusBarHidden(!model.controlsVisible)
         .persistentSystemOverlays(model.controlsVisible ? .automatic : .hidden)
         .sheet(isPresented: $showsComments) {
-            ReaderCommentsSheet(chapterName: model.currentChapter?.name ?? "Chapter")
+            ReaderCommentsSheet(manga: model.manga, chapter: model.currentChapter)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }

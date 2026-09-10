@@ -14,8 +14,9 @@ export class LibraryService {
     // Check if already exists
     const existing = await this.prisma.libraryEntry.findUnique({
       where: {
-        userId_mangaId: {
+        userId_sourceId_mangaId: {
           userId,
+          sourceId: createDto.sourceId,
           mangaId: createDto.mangaId,
         },
       },
@@ -146,6 +147,29 @@ export class LibraryService {
 
     return this.prisma.libraryEntry.delete({
       where: { id },
+    });
+  }
+
+  async setCategories(id: string, userId: string, categoryIds: string[]) {
+    const [entry, ownedCategories] = await Promise.all([
+      this.prisma.libraryEntry.findUnique({ where: { id } }),
+      this.prisma.category.findMany({
+        where: { userId, id: { in: categoryIds } },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!entry || entry.userId !== userId) {
+      throw new NotFoundException('Library entry not found');
+    }
+    if (ownedCategories.length !== categoryIds.length) {
+      throw new NotFoundException('One or more categories were not found');
+    }
+
+    return this.prisma.libraryEntry.update({
+      where: { id },
+      data: { categories: { set: ownedCategories } },
+      include: { categories: true },
     });
   }
 

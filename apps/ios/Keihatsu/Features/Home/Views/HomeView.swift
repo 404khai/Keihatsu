@@ -222,8 +222,10 @@ struct HomeView: View {
                 .matchedTransitionSource(id: "Account", in: animation)
             }
             .sheet(isPresented: $showMenu) {
-                AccountSheetView()
-                    .navigationTransition(.zoom(sourceID: "Account", in: animation))
+                NavigationStack {
+                    ProfileView()
+                }
+                .navigationTransition(.zoom(sourceID: "Account", in: animation))
             }
             .sheet(isPresented: $showNotifications) {
                 NotificationsSheetView()
