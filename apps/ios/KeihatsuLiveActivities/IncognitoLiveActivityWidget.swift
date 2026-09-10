@@ -13,17 +13,17 @@ struct IncognitoLiveActivityWidget: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     IncognitoActivityIcon()
-                        .padding(.leading, 4)
+                        .padding(.leading, 10)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     if context.state.pagePosition != nil {
                         IncognitoStatusText(state: context.state)
-                            .padding(.trailing, 4)
+                            .padding(.trailing, 10)
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     IncognitoActivityDetails(isReading: context.state.pagePosition != nil)
-                        .padding(.horizontal, 4)
+                        .padding(.horizontal, 10)
                 }
             } compactLeading: {
                 IncognitoActivityIcon()
@@ -32,7 +32,7 @@ struct IncognitoLiveActivityWidget: Widget {
             } minimal: {
                 IncognitoActivityIcon()
             }
-            .contentMargins(.horizontal, 12, for: .expanded)
+            .contentMargins(.horizontal, 18, for: .expanded)
             .keylineTint(Color.keihatsuActivityAccent)
             .widgetURL(LiveActivityLink.privacy())
         }
@@ -93,6 +93,7 @@ private struct IncognitoStatusText: View {
             .font(.caption2.monospacedDigit().weight(.semibold))
             .foregroundStyle(Color.keihatsuActivityAccent)
             .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .minimumScaleFactor(0.8)
             .accessibilityLabel(state.pagePosition.map { "Reading page \($0)" } ?? "Incognito mode on")
     }

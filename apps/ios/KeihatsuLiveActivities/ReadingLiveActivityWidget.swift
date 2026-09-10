@@ -13,15 +13,15 @@ struct ReadingLiveActivityWidget: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     ReadingActivityIcon()
-                        .padding(.leading, 4)
+                        .padding(.leading, 8)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     ReadingPageCount(state: context.state)
-                        .padding(.trailing, 4)
+                        .padding(.trailing, 8)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     ReadingActivityDetails(state: context.state, isStale: context.isStale, isExpanded: true)
-                        .padding(.horizontal, 4)
+                        .padding(.horizontal, 8)
                 }
             } compactLeading: {
                 ReadingActivityIcon()
@@ -33,6 +33,7 @@ struct ReadingLiveActivityWidget: Widget {
                         "Reading page \(context.state.currentPage) of \(context.state.totalPages)"
                     )
             }
+            .contentMargins(.horizontal, 16, for: .expanded)
             .keylineTint(Color.keihatsuActivityAccent)
             .widgetURL(LiveActivityLink.reader(attributes: context.attributes, state: context.state))
         }
@@ -140,6 +141,7 @@ private struct ReadingPageCount: View {
             .font((compact ? Font.caption2 : Font.caption).monospacedDigit().weight(.semibold))
             .foregroundStyle(Color.keihatsuActivityAccent)
             .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .minimumScaleFactor(0.8)
             .accessibilityLabel("Page \(state.currentPage) of \(state.totalPages)")
     }

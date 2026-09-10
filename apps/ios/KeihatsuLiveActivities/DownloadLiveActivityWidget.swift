@@ -13,25 +13,25 @@ struct DownloadLiveActivityWidget: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     DownloadProgressIcon(state: context.state)
-                        .padding(.leading, 4)
+                        .padding(.leading, 8)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     DownloadPercentage(progress: context.state.progress)
-                        .padding(.trailing, 4)
+                        .padding(.trailing, 8)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     DownloadExpandedDetails(state: context.state, isStale: context.isStale)
-                        .padding(.horizontal, 4)
+                        .padding(.horizontal, 8)
                 }
             } compactLeading: {
-                DownloadProgressIcon(state: context.state, size: 20)
+                DownloadProgressIcon(state: context.state, size: 23)
             } compactTrailing: {
                 DownloadPercentage(progress: context.state.progress, compact: true)
             } minimal: {
                 DownloadProgressIcon(state: context.state, size: 24)
                     .accessibilityLabel(downloadAccessibilityLabel(context.state.progress))
             }
-            .contentMargins(.horizontal, 12, for: .expanded)
+            .contentMargins(.horizontal, 16, for: .expanded)
             .keylineTint(Color.keihatsuActivityAccent)
             .widgetURL(LiveActivityLink.downloads())
         }
@@ -174,6 +174,7 @@ private struct DownloadPercentage: View {
             .font((compact ? Font.caption2 : Font.caption).monospacedDigit().weight(.semibold))
             .foregroundStyle(Color.keihatsuActivityAccent)
             .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .minimumScaleFactor(0.8)
     }
 }
