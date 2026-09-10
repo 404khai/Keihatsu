@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/local_models.dart';
@@ -22,11 +23,11 @@ class LibraryRepository {
   String get _currentUserId => getCurrentUserId();
 
   String _assignmentScopedKey(
-      String mangaId,
-      String sourceId,
-      int localCategoryId,
-      String ownerUserId,
-      ) {
+    String mangaId,
+    String sourceId,
+    int localCategoryId,
+    String ownerUserId,
+  ) {
     return '$ownerUserId::$sourceId::$mangaId::$localCategoryId';
   }
 
@@ -81,8 +82,14 @@ class LibraryRepository {
         .findAll();
   }
 
+  Future<int> recoverUnsyncedEntries({required String ownerUserId}) {
+    return syncManager.recoverUnsyncedLibraryEntries(ownerUserId: ownerUserId);
+  }
+
   Future<void> refreshLibrary({
     required String token,
+    String? ownerUserId,
+    bool reconcileSnapshot = false,
     bool? filterDownloaded,
     bool? filterUnread,
     bool? filterStarted,
@@ -92,6 +99,11 @@ class LibraryRepository {
     String? order,
     String? search,
   }) async {
+    // Capture the owner before making the request. Auth state can change while
+    // the network call is in flight; using the live getter afterwards could
+    // otherwise write account A's response into account B's local scope.
+    final scopedUserId = ownerUserId ?? _currentUserId;
+
     try {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) return;
@@ -122,15 +134,15 @@ class LibraryRepository {
                     .filter()
                     .mangaIdEqualTo(mangaId)
                     .sourceIdEqualTo(sourceId)
-                    .ownerUserIdEqualTo(_currentUserId)
+                    .ownerUserIdEqualTo(scopedUserId)
                     .findFirst() ??
-                    LocalLibraryEntry();
+                LocalLibraryEntry();
 
             entry
               ..serverId = item['id']
               ..mangaId = mangaId
               ..sourceId = sourceId
-              ..ownerUserId = _currentUserId
+              ..ownerUserId = scopedUserId
               ..title = item['title']
               ..thumbnailUrl = item['thumbnailUrl']
               ..author = item['author']
@@ -161,7 +173,7 @@ class LibraryRepository {
                   .filter()
                   .mangaIdEqualTo(mangaId)
                   .sourceIdEqualTo(sourceId)
-                  .ownerUserIdEqualTo(_currentUserId)
+                  .ownerUserIdEqualTo(scopedUserId)
                   .deleteAll();
 
               for (var catData in categories) {
@@ -170,14 +182,14 @@ class LibraryRepository {
                     .collection<LocalCategory>()
                     .filter()
                     .serverIdEqualTo(serverCatId)
-                    .ownerUserIdEqualTo(_currentUserId)
+                    .ownerUserIdEqualTo(scopedUserId)
                     .findFirst();
 
                 if (localCat == null) {
                   localCat = LocalCategory()
                     ..serverId = serverCatId
                     ..name = catData['name']
-                    ..ownerUserId = _currentUserId
+                    ..ownerUserId = scopedUserId
                     ..isSynced = true;
                   await isar.collection<LocalCategory>().put(localCat);
                 }
@@ -185,12 +197,12 @@ class LibraryRepository {
                 final assignment = LocalCategoryAssignment()
                   ..mangaId = mangaId
                   ..sourceId = sourceId
-                  ..ownerUserId = _currentUserId
+                  ..ownerUserId = scopedUserId
                   ..scopedAssignmentKey = _assignmentScopedKey(
                     mangaId,
                     sourceId,
                     localCat.id,
-                    _currentUserId,
+                    scopedUserId,
                   )
                   ..localCategoryId = localCat.id;
                 await isar.collection<LocalCategoryAssignment>().put(
@@ -199,18 +211,47 @@ class LibraryRepository {
               }
             }
           }
+
+          if (reconcileSnapshot) {
+            final remoteServerIds = remoteData
+                .map((item) => item['id'] as String?)
+                .whereType<String>()
+                .toSet();
+            final localEntries = await isar
+                .collection<LocalLibraryEntry>()
+                .filter()
+                .ownerUserIdEqualTo(scopedUserId)
+                .findAll();
+
+            // A server ID means the row has previously synced. Rows without
+            // one are local pending additions and must survive bootstrap.
+            for (final localEntry in localEntries) {
+              final serverId = localEntry.serverId;
+              if (serverId == null || remoteServerIds.contains(serverId)) {
+                continue;
+              }
+              await isar
+                  .collection<LocalCategoryAssignment>()
+                  .filter()
+                  .mangaIdEqualTo(localEntry.mangaId)
+                  .sourceIdEqualTo(localEntry.sourceId)
+                  .ownerUserIdEqualTo(scopedUserId)
+                  .deleteAll();
+              await isar.collection<LocalLibraryEntry>().delete(localEntry.id);
+            }
+          }
         });
       }
     } catch (e) {
-      print('Failed to refresh library: $e');
+      debugPrint('Failed to refresh library: $e');
     }
   }
 
   Future<void> addToLibrary(
-      String token,
-      Manga manga, {
-        List<String>? categories,
-      }) async {
+    String token,
+    Manga manga, {
+    List<String>? categories,
+  }) async {
     // We try to get total chapters if possible from local or basic info
     // However, manga object passed here might be minimal.
     // Ideally, we fetch details first or rely on next refresh.
@@ -273,10 +314,10 @@ class LibraryRepository {
   }
 
   Future<void> toggleCategoryAssignment(
-      String mangaId,
-      String sourceId,
-      int localCategoryId,
-      ) async {
+    String mangaId,
+    String sourceId,
+    int localCategoryId,
+  ) async {
     final existing = await isar
         .collection<LocalCategoryAssignment>()
         .filter()
@@ -295,7 +336,7 @@ class LibraryRepository {
 
     if (existing != null) {
       await isar.writeTxn(
-            () => isar.collection<LocalCategoryAssignment>().delete(existing.id),
+        () => isar.collection<LocalCategoryAssignment>().delete(existing.id),
       );
       // Note: Backend API currently only supports "set", so "removal" would be
       // assigning to a different category or clearing.
@@ -313,7 +354,7 @@ class LibraryRepository {
         ..localCategoryId = localCategoryId;
 
       await isar.writeTxn(
-            () => isar.collection<LocalCategoryAssignment>().put(assignment),
+        () => isar.collection<LocalCategoryAssignment>().put(assignment),
       );
 
       await syncManager.addToQueue('ASSIGN_CATEGORY', {
@@ -325,10 +366,10 @@ class LibraryRepository {
   }
 
   Future<void> updateLibraryEntry(
-      String token,
-      String mangaId,
-      Map<String, dynamic> updates,
-      ) async {
+    String token,
+    String mangaId,
+    Map<String, dynamic> updates,
+  ) async {
     final entry = await isar
         .collection<LocalLibraryEntry>()
         .filter()
@@ -336,16 +377,21 @@ class LibraryRepository {
         .ownerUserIdEqualTo(_currentUserId)
         .findFirst();
     if (entry != null) {
-      if (updates.containsKey('isBookmarked'))
+      if (updates.containsKey('isBookmarked')) {
         entry.isBookmarked = updates['isBookmarked'];
-      if (updates.containsKey('isUnread')) entry.isUnread = updates['isUnread'];
-      if (updates.containsKey('isStarted'))
+      }
+      if (updates.containsKey('isUnread')) {
+        entry.isUnread = updates['isUnread'];
+      }
+      if (updates.containsKey('isStarted')) {
         entry.isStarted = updates['isStarted'];
-      if (updates.containsKey('isCompleted'))
+      }
+      if (updates.containsKey('isCompleted')) {
         entry.isCompleted = updates['isCompleted'];
+      }
 
       await isar.writeTxn(
-            () => isar.collection<LocalLibraryEntry>().put(entry),
+        () => isar.collection<LocalLibraryEntry>().put(entry),
       );
 
       if (entry.serverId != null) {
@@ -358,10 +404,10 @@ class LibraryRepository {
   }
 
   Future<void> removeFromLibrary(
-      String token,
-      String mangaId,
-      String sourceId,
-      ) async {
+    String token,
+    String mangaId,
+    String sourceId,
+  ) async {
     final entry = await isar
         .collection<LocalLibraryEntry>()
         .filter()
@@ -396,6 +442,82 @@ class LibraryRepository {
   }
 
   // --- Category methods ---
+
+  Future<void> refreshCategories({
+    required String token,
+    String? ownerUserId,
+    bool reconcileSnapshot = false,
+  }) async {
+    final scopedUserId = ownerUserId ?? _currentUserId;
+
+    try {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) return;
+
+      final response = await api.getCategories(token);
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to refresh categories (${response.statusCode})',
+        );
+      }
+
+      final List<dynamic> remoteData = json.decode(response.body);
+      await isar.writeTxn(() async {
+        final remoteServerIds = <String>{};
+
+        for (final rawItem in remoteData) {
+          final item = rawItem as Map<String, dynamic>;
+          final serverId = item['id'] as String;
+          final name = item['name'] as String;
+          remoteServerIds.add(serverId);
+
+          var localCategory = await isar
+              .collection<LocalCategory>()
+              .filter()
+              .serverIdEqualTo(serverId)
+              .ownerUserIdEqualTo(scopedUserId)
+              .findFirst();
+          localCategory ??= await isar
+              .collection<LocalCategory>()
+              .filter()
+              .nameEqualTo(name)
+              .ownerUserIdEqualTo(scopedUserId)
+              .findFirst();
+          localCategory ??= LocalCategory();
+
+          localCategory
+            ..serverId = serverId
+            ..name = name
+            ..ownerUserId = scopedUserId
+            ..isSynced = true;
+          await isar.collection<LocalCategory>().put(localCategory);
+        }
+
+        if (!reconcileSnapshot) return;
+
+        final localCategories = await isar
+            .collection<LocalCategory>()
+            .filter()
+            .ownerUserIdEqualTo(scopedUserId)
+            .findAll();
+        for (final localCategory in localCategories) {
+          if (!localCategory.isSynced ||
+              remoteServerIds.contains(localCategory.serverId)) {
+            continue;
+          }
+          await isar
+              .collection<LocalCategoryAssignment>()
+              .filter()
+              .localCategoryIdEqualTo(localCategory.id)
+              .ownerUserIdEqualTo(scopedUserId)
+              .deleteAll();
+          await isar.collection<LocalCategory>().delete(localCategory.id);
+        }
+      });
+    } catch (e) {
+      debugPrint('Failed to refresh categories: $e');
+    }
+  }
 
   Future<List<LocalCategory>> getCategories() async {
     return await isar

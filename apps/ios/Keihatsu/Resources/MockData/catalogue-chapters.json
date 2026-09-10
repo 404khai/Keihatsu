@@ -1,0 +1,16 @@
+[
+  {
+    "id": "chapter/263",
+    "name": "Chapter 263",
+    "chapterNumber": 263,
+    "dateUpload": 0,
+    "url": "https://example.invalid/chapter/263"
+  },
+  {
+    "id": "chapter/263.5",
+    "name": "Chapter 263.5",
+    "chapterNumber": 263.5,
+    "dateUpload": 1788566400000,
+    "url": "https://example.invalid/chapter/263.5"
+  }
+]

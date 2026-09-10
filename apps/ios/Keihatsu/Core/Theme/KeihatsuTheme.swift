@@ -16,6 +16,12 @@ struct KeihatsuTheme {
         elevation: KeihatsuElevation(),
         motion: KeihatsuMotion()
     )
+
+    static func accented(_ accent: Color) -> KeihatsuTheme {
+        KeihatsuTheme(colors: KeihatsuColors(accent: accent), spacing: KeihatsuSpacing(),
+                      typography: KeihatsuTypography(), radius: KeihatsuRadius(),
+                      elevation: KeihatsuElevation(), motion: KeihatsuMotion())
+    }
 }
 
 private struct KeihatsuThemeKey: EnvironmentKey {

@@ -9,6 +9,9 @@ struct LocalUserPreferences: Codable, Equatable {
     var readerBackground: ReaderBackgroundPreference
     var keepScreenAwake: Bool
     var incognitoModeEnabled: Bool
+    var readingLiveActivitiesEnabled: Bool
+    var downloadLiveActivitiesEnabled: Bool
+    var showLiveActivityMangaDetails: Bool
     var autoSyncEnabled: Bool
     var downloadOnWiFiOnly: Bool
     var saveChaptersForOffline: Bool
@@ -27,6 +30,9 @@ struct LocalUserPreferences: Codable, Equatable {
         readerBackground: ReaderBackgroundPreference,
         keepScreenAwake: Bool,
         incognitoModeEnabled: Bool,
+        readingLiveActivitiesEnabled: Bool,
+        downloadLiveActivitiesEnabled: Bool,
+        showLiveActivityMangaDetails: Bool,
         autoSyncEnabled: Bool,
         downloadOnWiFiOnly: Bool,
         saveChaptersForOffline: Bool,
@@ -44,6 +50,9 @@ struct LocalUserPreferences: Codable, Equatable {
         self.readerBackground = readerBackground
         self.keepScreenAwake = keepScreenAwake
         self.incognitoModeEnabled = incognitoModeEnabled
+        self.readingLiveActivitiesEnabled = readingLiveActivitiesEnabled
+        self.downloadLiveActivitiesEnabled = downloadLiveActivitiesEnabled
+        self.showLiveActivityMangaDetails = showLiveActivityMangaDetails
         self.autoSyncEnabled = autoSyncEnabled
         self.downloadOnWiFiOnly = downloadOnWiFiOnly
         self.saveChaptersForOffline = saveChaptersForOffline
@@ -66,6 +75,9 @@ struct LocalUserPreferences: Codable, Equatable {
         readerBackground = try container.decodeIfPresent(ReaderBackgroundPreference.self, forKey: .readerBackground) ?? defaults.readerBackground
         keepScreenAwake = try container.decodeIfPresent(Bool.self, forKey: .keepScreenAwake) ?? defaults.keepScreenAwake
         incognitoModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .incognitoModeEnabled) ?? defaults.incognitoModeEnabled
+        readingLiveActivitiesEnabled = try container.decodeIfPresent(Bool.self, forKey: .readingLiveActivitiesEnabled) ?? defaults.readingLiveActivitiesEnabled
+        downloadLiveActivitiesEnabled = try container.decodeIfPresent(Bool.self, forKey: .downloadLiveActivitiesEnabled) ?? defaults.downloadLiveActivitiesEnabled
+        showLiveActivityMangaDetails = try container.decodeIfPresent(Bool.self, forKey: .showLiveActivityMangaDetails) ?? defaults.showLiveActivityMangaDetails
         autoSyncEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoSyncEnabled) ?? defaults.autoSyncEnabled
         downloadOnWiFiOnly = try container.decodeIfPresent(Bool.self, forKey: .downloadOnWiFiOnly) ?? defaults.downloadOnWiFiOnly
         saveChaptersForOffline = try container.decodeIfPresent(Bool.self, forKey: .saveChaptersForOffline) ?? defaults.saveChaptersForOffline
@@ -85,6 +97,9 @@ struct LocalUserPreferences: Codable, Equatable {
         readerBackground: .system,
         keepScreenAwake: true,
         incognitoModeEnabled: false,
+        readingLiveActivitiesEnabled: true,
+        downloadLiveActivitiesEnabled: true,
+        showLiveActivityMangaDetails: false,
         autoSyncEnabled: true,
         downloadOnWiFiOnly: true,
         saveChaptersForOffline: false,

@@ -1,0 +1,12 @@
+[
+  {
+    "index": 0,
+    "imageUrl": "https://example.invalid/pages/001__001.jpg",
+    "url": "https://example.invalid/chapter/263"
+  },
+  {
+    "index": 1,
+    "imageUrl": "https://example.invalid/pages/001__002.jpg",
+    "url": "https://example.invalid/chapter/263"
+  }
+]
