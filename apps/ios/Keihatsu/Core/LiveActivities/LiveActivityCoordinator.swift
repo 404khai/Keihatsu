@@ -88,8 +88,15 @@ final class LiveActivityCoordinator: ObservableObject {
         readingSnapshot = snapshot
         let state = readingState(snapshot, status: .reading)
 
+        if readingActivity == nil {
+            readingActivity = Activity<ReadingActivityAttributes>.activities.first {
+                $0.attributes.sessionID == snapshot.sessionID
+            }
+            if let readingActivity { monitor(readingActivity) }
+        }
         if let activity = readingActivity, activity.attributes.sessionID == snapshot.sessionID {
             await activity.update(ActivityContent(state: state, staleDate: .now.addingTimeInterval(5 * 60), relevanceScore: 0.9))
+            lastError = nil
             return
         }
         await endReading(immediate: true)
@@ -105,6 +112,9 @@ final class LiveActivityCoordinator: ObservableObject {
             readingActivity = activity
             monitor(activity)
             lastError = nil
+            // The system may reserve the Dynamic Island for other foreground UI while
+            // Keihatsu is open. `activityState` and `Activity.activities` remain the
+            // source of truth; the app must not draw an imitation Island.
         } catch {
             lastError = error.localizedDescription
         }
@@ -116,12 +126,17 @@ final class LiveActivityCoordinator: ObservableObject {
         readingUpdateTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(750))
             guard !Task.isCancelled, let self,
-                  let activity = readingActivity,
-                  activity.attributes.sessionID == snapshot.sessionID,
                   preferences.readingLiveActivitiesEnabled,
                   !preferences.incognitoModeEnabled else { return }
-            let state = readingState(snapshot, status: .reading)
-            await activity.update(ActivityContent(state: state, staleDate: .now.addingTimeInterval(5 * 60), relevanceScore: 0.9))
+            if let activity = readingActivity,
+               activity.attributes.sessionID == snapshot.sessionID {
+                let state = readingState(snapshot, status: .reading)
+                await activity.update(ActivityContent(state: state, staleDate: .now.addingTimeInterval(5 * 60), relevanceScore: 0.9))
+            } else {
+                // Page/title/identity data comes from the loaded local reader model.
+                // Retrying here recovers a missed start without requiring the network.
+                await startReading(snapshot)
+            }
         }
     }
 

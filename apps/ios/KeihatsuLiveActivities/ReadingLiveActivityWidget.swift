@@ -12,37 +12,23 @@ struct ReadingLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label("Keihatsu", systemImage: "book.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.keihatsuActivityAccent)
+                    ReadingActivityIcon()
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text("\(context.state.currentPage)/\(context.state.totalPages)")
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(Color.keihatsuActivityAccent)
+                    ReadingPageCount(state: context.state)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    ReadingActivityDetails(state: context.state, showsAction: true, isStale: context.isStale)
-                        .padding(.top, 2)
+                    ReadingActivityDetails(state: context.state, isStale: context.isStale)
                 }
             } compactLeading: {
-                Image(systemName: "book.fill")
-                    .foregroundStyle(Color.keihatsuActivityAccent)
-                    .accessibilityLabel("Keihatsu reading")
+                ReadingActivityIcon()
             } compactTrailing: {
-                Text("\(context.state.currentPage)/\(context.state.totalPages)")
-                    .font(.caption2.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(Color.keihatsuActivityAccent)
+                ReadingPageCount(state: context.state, compact: true)
             } minimal: {
-                ZStack {
-                    ProgressView(value: context.state.progress)
-                        .progressViewStyle(.circular)
-                        .tint(Color.keihatsuActivityAccent)
-                    Image(systemName: "book.fill")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-                .accessibilityLabel("Reading page \(context.state.currentPage) of \(context.state.totalPages)")
+                ReadingActivityIcon(progress: context.state.progress, size: 24)
+                    .accessibilityLabel(
+                        "Reading page \(context.state.currentPage) of \(context.state.totalPages)"
+                    )
             }
             .keylineTint(Color.keihatsuActivityAccent)
             .widgetURL(LiveActivityLink.reader(attributes: context.attributes, state: context.state))
@@ -54,80 +40,153 @@ private struct ReadingLockScreenView: View {
     let context: ActivityViewContext<ReadingActivityAttributes>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("Keihatsu", systemImage: "book.fill")
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 7) {
+                ReadingActivityIcon(size: 20)
+                Text(statusLabel)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.keihatsuActivityAccent)
-                Spacer()
-                Text(context.state.status == .reading ? "Reading" : "Reading paused")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                ReadingPageCount(state: context.state)
             }
-            ReadingActivityDetails(
-                state: context.state,
-                showsAction: context.state.status != .reading,
-                isStale: context.isStale
-            )
+
+            ReadingActivityDetails(state: context.state, isStale: context.isStale)
         }
         .padding(14)
+    }
+
+    private var statusLabel: String {
+        switch context.state.status {
+        case .reading: "Reading"
+        case .paused: "Reading paused"
+        case .finished: "Finished"
+        }
     }
 }
 
 private struct ReadingActivityDetails: View {
     let state: ReadingActivityAttributes.ContentState
-    let showsAction: Bool
-    var isStale = false
+    let isStale: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(state.mangaTitle)
-                        .font(.headline.weight(.semibold))
-                        .lineLimit(1)
-                        .privacySensitive()
-                    Text(state.chapterName)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .privacySensitive()
-                }
-                Spacer(minLength: 8)
-                Text("Page \(state.currentPage) of \(state.totalPages)")
-                    .font(.caption.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(Color.keihatsuActivityAccent)
+        VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.mangaTitle)
+                    .font(.headline.weight(.semibold))
                     .lineLimit(1)
+                    .privacySensitive()
+                Text(state.chapterName)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .privacySensitive()
             }
+
             ProgressView(value: state.progress)
                 .tint(Color.keihatsuActivityAccent)
-            if showsAction {
-                HStack {
-                    Text(summary)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Label("Continue reading", systemImage: "arrow.up.forward.app")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.keihatsuActivityAccent)
-                }
-            }
+
+            Text(progressLabel)
+                .font(.caption2.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 
-    private var summary: String {
-        if isStale { return "Last known position" }
-        return state.status == .finished ? "Session ended" : "Progress saved"
+    private var progressLabel: String {
+        let percent = state.progress.formatted(.percent.precision(.fractionLength(0)))
+        return isStale ? "Last known · \(percent) read" : "\(percent) read"
     }
 }
 
-#Preview("Reading", as: .content, using: ReadingActivityAttributes(sessionID: UUID())) {
+private struct ReadingActivityIcon: View {
+    var progress: Double?
+    var size: CGFloat
+
+    init(progress: Double? = nil, size: CGFloat = 22) {
+        self.progress = progress
+        self.size = size
+    }
+
+    var body: some View {
+        ZStack {
+            if let progress {
+                Circle()
+                    .stroke(Color.keihatsuActivityAccent.opacity(0.28), lineWidth: 2)
+                Circle()
+                    .trim(from: 0, to: min(max(progress, 0), 1))
+                    .stroke(Color.keihatsuActivityAccent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+
+            Image(systemName: "book.fill")
+                .font(.system(size: size * (progress == nil ? 0.7 : 0.42), weight: .semibold))
+                .foregroundStyle(Color.keihatsuActivityAccent)
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Reading")
+    }
+}
+
+private struct ReadingPageCount: View {
+    let state: ReadingActivityAttributes.ContentState
+    var compact = false
+
+    var body: some View {
+        Text(compact ? "\(state.currentPage)/\(state.totalPages)" : "\(state.currentPage) of \(state.totalPages)")
+            .font((compact ? Font.caption2 : Font.caption).monospacedDigit().weight(.semibold))
+            .foregroundStyle(Color.keihatsuActivityAccent)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .accessibilityLabel("Page \(state.currentPage) of \(state.totalPages)")
+    }
+}
+
+#Preview("Reading Lock • Page 2", as: .content, using: ReadingActivityAttributes(sessionID: UUID())) {
     ReadingLiveActivityWidget()
 } contentStates: {
     ReadingActivityAttributes.ContentState(
-        mangaTitle: "The Regressed Mercenary’s Machinations",
-        chapterName: "Chapter 52",
+        mangaTitle: "The Regressed Mercenary’s Machinations", chapterName: "Chapter 52",
+        sourceID: "preview", mangaID: "manga", chapterID: "chapter-52",
+        currentPage: 2, totalPages: 21, status: .reading, updatedAt: .now
+    )
+    ReadingActivityAttributes.ContentState(
+        mangaTitle: "The Regressed Mercenary’s Machinations", chapterName: "Chapter 52",
+        sourceID: "preview", mangaID: "manga", chapterID: "chapter-52",
+        currentPage: 14, totalPages: 28, status: .paused, updatedAt: .now
+    )
+    ReadingActivityAttributes.ContentState(
+        mangaTitle: "The Regressed Mercenary’s Machinations", chapterName: "Chapter 52",
+        sourceID: "preview", mangaID: "manga", chapterID: "chapter-52",
+        currentPage: 21, totalPages: 21, status: .finished, updatedAt: .now
+    )
+}
+
+#Preview("Reading Compact", as: .dynamicIsland(.compact), using: ReadingActivityAttributes(sessionID: UUID())) {
+    ReadingLiveActivityWidget()
+} contentStates: {
+    ReadingActivityAttributes.ContentState(
+        mangaTitle: "Manga", chapterName: "Chapter 52",
+        sourceID: "preview", mangaID: "manga", chapterID: "chapter-52",
+        currentPage: 2, totalPages: 21, status: .reading, updatedAt: .now
+    )
+}
+
+#Preview("Reading Expanded • Long Title", as: .dynamicIsland(.expanded), using: ReadingActivityAttributes(sessionID: UUID())) {
+    ReadingLiveActivityWidget()
+} contentStates: {
+    ReadingActivityAttributes.ContentState(
+        mangaTitle: "The Regressed Mercenary’s Machinations", chapterName: "Chapter 52",
         sourceID: "preview", mangaID: "manga", chapterID: "chapter-52",
         currentPage: 14, totalPages: 28, status: .reading, updatedAt: .now
+    )
+}
+
+#Preview("Reading Minimal", as: .dynamicIsland(.minimal), using: ReadingActivityAttributes(sessionID: UUID())) {
+    ReadingLiveActivityWidget()
+} contentStates: {
+    ReadingActivityAttributes.ContentState(
+        mangaTitle: "Manga", chapterName: "Chapter 52",
+        sourceID: "preview", mangaID: "manga", chapterID: "chapter-52",
+        currentPage: 2, totalPages: 21, status: .reading, updatedAt: .now
     )
 }

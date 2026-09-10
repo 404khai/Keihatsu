@@ -12,41 +12,30 @@ struct DownloadLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label("Keihatsu", systemImage: "arrow.down.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.keihatsuActivityAccent)
+                    DownloadProgressIcon(state: context.state)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.state.progress, format: .percent.precision(.fractionLength(0)))
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(Color.keihatsuActivityAccent)
+                    DownloadPercentage(progress: context.state.progress)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    DownloadActivityDetails(state: context.state, isStale: context.isStale)
-                        .padding(.top, 2)
+                    DownloadExpandedDetails(state: context.state, isStale: context.isStale)
                 }
             } compactLeading: {
-                Image(systemName: "arrow.down.circle.fill")
-                    .foregroundStyle(Color.keihatsuActivityAccent)
-                    .accessibilityLabel("Keihatsu downloads")
+                DownloadProgressIcon(state: context.state, size: 23)
             } compactTrailing: {
-                Text(context.state.progress, format: .percent.precision(.fractionLength(0)))
-                    .font(.caption2.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(Color.keihatsuActivityAccent)
+                DownloadPercentage(progress: context.state.progress, compact: true)
             } minimal: {
-                ZStack {
-                    ProgressView(value: context.state.progress)
-                        .progressViewStyle(.circular)
-                        .tint(Color.keihatsuActivityAccent)
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-                .accessibilityLabel("Download \(context.state.progress.formatted(.percent.precision(.fractionLength(0)))) complete")
+                DownloadProgressIcon(state: context.state, size: 24)
+                    .accessibilityLabel(downloadAccessibilityLabel(context.state.progress))
             }
             .keylineTint(Color.keihatsuActivityAccent)
             .widgetURL(LiveActivityLink.downloads())
         }
+    }
+
+    private func downloadAccessibilityLabel(_ progress: Double) -> String {
+        let percent = Int((min(max(progress, 0), 1) * 100).rounded())
+        return "Download \(percent) percent complete"
     }
 }
 
@@ -54,67 +43,187 @@ private struct DownloadLockScreenView: View {
     let context: ActivityViewContext<DownloadActivityAttributes>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("Keihatsu", systemImage: "arrow.down.circle.fill")
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 7) {
+                DownloadProgressIcon(state: context.state, size: 22)
+                Text(context.isStale ? "Last update" : context.state.status.label)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.keihatsuActivityAccent)
-                Spacer()
-                Text(context.state.status.label)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                DownloadPercentage(progress: context.state.progress)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(context.state.mangaTitle)
+                    .font(.headline.weight(.semibold))
+                    .lineLimit(1)
+                    .privacySensitive()
+                Text(lockScreenDetail)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .privacySensitive(context.state.totalChapters == 1)
             }
-            DownloadActivityDetails(state: context.state, isStale: context.isStale)
+
+            ProgressView(value: context.state.progress)
+                .tint(Color.keihatsuActivityAccent)
         }
         .padding(14)
     }
+
+    private var lockScreenDetail: String {
+        if context.state.totalChapters == 1, context.state.chapterName != "Keihatsu" {
+            return context.state.chapterName
+        }
+        return chapterCount(context.state)
+    }
 }
 
-private struct DownloadActivityDetails: View {
+private struct DownloadExpandedDetails: View {
     let state: DownloadActivityAttributes.ContentState
-    var isStale = false
+    let isStale: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(state.mangaTitle)
-                        .font(.headline.weight(.semibold))
-                        .lineLimit(1)
-                        .privacySensitive()
-                    Text(state.chapterName)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .privacySensitive()
-                }
-                Spacer(minLength: 8)
-                Text(state.progress, format: .percent.precision(.fractionLength(0)))
-                    .font(.headline.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(Color.keihatsuActivityAccent)
+        VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.mangaTitle)
+                    .font(.headline.weight(.semibold))
+                    .lineLimit(1)
+                    .privacySensitive()
+                Text(statusDetail)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .privacySensitive(state.totalChapters == 1)
             }
+
             ProgressView(value: state.progress)
                 .tint(Color.keihatsuActivityAccent)
-            HStack {
-                Text("\(state.completedChapters) of \(state.totalChapters) chapters")
-                    .font(.caption2.weight(.medium))
+
+            if state.totalChapters > 1 {
+                Text(chapterCount(state))
+                    .font(.caption2.monospacedDigit().weight(.semibold))
                     .foregroundStyle(.secondary)
-                Spacer()
-                Text(isStale ? "Last update" : state.status.label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(state.status == .failed ? Color.red : Color.keihatsuActivityAccent)
+                    .lineLimit(1)
             }
+        }
+    }
+
+    private var statusDetail: String {
+        if isStale { return "Last known download progress" }
+
+        if state.totalChapters == 1 {
+            let chapter = state.chapterName == "Keihatsu" ? "chapter" : state.chapterName
+            switch state.status {
+            case .queued: return "Queued \(chapter)"
+            case .resolving: return "Preparing \(chapter)"
+            case .downloading: return "Downloading \(chapter)"
+            case .packaging: return "Saving \(chapter)"
+            case .paused: return "Paused \(chapter)"
+            case .waitingForWiFi: return "Waiting for Wi-Fi"
+            case .failed: return "Couldn’t download \(chapter)"
+            case .completed: return "Downloaded \(chapter)"
+            }
+        }
+
+        return switch state.status {
+        case .queued: "Chapters queued"
+        case .resolving: "Preparing chapters"
+        case .downloading: "Downloading chapters"
+        case .packaging: "Saving chapters"
+        case .paused: "Chapter downloads paused"
+        case .waitingForWiFi: "Waiting for Wi-Fi"
+        case .failed: "Chapter download failed"
+        case .completed: "Chapters downloaded"
         }
     }
 }
 
-#Preview("Downloads", as: .content, using: DownloadActivityAttributes(batchID: UUID())) {
+private struct DownloadProgressIcon: View {
+    let state: DownloadActivityAttributes.ContentState
+    var size: CGFloat = 24
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.keihatsuActivityAccent.opacity(0.28), lineWidth: 2)
+            Circle()
+                .trim(from: 0, to: min(max(state.progress, 0), 1))
+                .stroke(Color.keihatsuActivityAccent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
+            Image(systemName: state.status == .completed ? "checkmark" : "arrow.down")
+                .font(.system(size: size * 0.43, weight: .bold))
+                .foregroundStyle(Color.keihatsuActivityAccent)
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel(state.status == .completed ? "Download complete" : "Downloading")
+    }
+}
+
+private struct DownloadPercentage: View {
+    let progress: Double
+    var compact = false
+
+    var body: some View {
+        Text(progress, format: .percent.precision(.fractionLength(0)))
+            .font((compact ? Font.caption2 : Font.caption).monospacedDigit().weight(.semibold))
+            .foregroundStyle(Color.keihatsuActivityAccent)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+    }
+}
+
+private func chapterCount(_ state: DownloadActivityAttributes.ContentState) -> String {
+    "\(state.completedChapters) of \(state.totalChapters) chapters"
+}
+
+#Preview("Downloads Lock • Multi-chapter", as: .content, using: DownloadActivityAttributes(batchID: UUID())) {
     DownloadLiveActivityWidget()
 } contentStates: {
     DownloadActivityAttributes.ContentState(
-        mangaTitle: "The Regressed Mercenary’s Machinations",
-        chapterName: "Chapter 52",
-        completedChapters: 2, totalChapters: 5, progress: 0.46,
+        mangaTitle: "The Regressed Mercenary’s Machinations", chapterName: "Chapter 52",
+        completedChapters: 0, totalChapters: 12, progress: 0,
+        status: .queued, updatedAt: .now
+    )
+    DownloadActivityAttributes.ContentState(
+        mangaTitle: "The Regressed Mercenary’s Machinations", chapterName: "Chapter 52",
+        completedChapters: 8, totalChapters: 12, progress: 0.67,
         status: .downloading, updatedAt: .now
+    )
+    DownloadActivityAttributes.ContentState(
+        mangaTitle: "The Regressed Mercenary’s Machinations", chapterName: "Chapter 52",
+        completedChapters: 12, totalChapters: 12, progress: 1,
+        status: .completed, updatedAt: .now
+    )
+}
+
+#Preview("Downloads Compact • 67%", as: .dynamicIsland(.compact), using: DownloadActivityAttributes(batchID: UUID())) {
+    DownloadLiveActivityWidget()
+} contentStates: {
+    DownloadActivityAttributes.ContentState(
+        mangaTitle: "Manga", chapterName: "Chapter 52",
+        completedChapters: 8, totalChapters: 12, progress: 0.67,
+        status: .downloading, updatedAt: .now
+    )
+}
+
+#Preview("Downloads Expanded • Long Title", as: .dynamicIsland(.expanded), using: DownloadActivityAttributes(batchID: UUID())) {
+    DownloadLiveActivityWidget()
+} contentStates: {
+    DownloadActivityAttributes.ContentState(
+        mangaTitle: "The Regressed Mercenary’s Machinations", chapterName: "Chapter 52",
+        completedChapters: 8, totalChapters: 12, progress: 0.67,
+        status: .downloading, updatedAt: .now
+    )
+}
+
+#Preview("Downloads Minimal • 0%", as: .dynamicIsland(.minimal), using: DownloadActivityAttributes(batchID: UUID())) {
+    DownloadLiveActivityWidget()
+} contentStates: {
+    DownloadActivityAttributes.ContentState(
+        mangaTitle: "Manga", chapterName: "Chapter 52",
+        completedChapters: 0, totalChapters: 1, progress: 0,
+        status: .queued, updatedAt: .now
     )
 }
