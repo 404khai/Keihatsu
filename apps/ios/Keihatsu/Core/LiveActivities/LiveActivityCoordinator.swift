@@ -88,18 +88,22 @@ final class LiveActivityCoordinator: ObservableObject {
         readingSnapshot = snapshot
         let state = readingState(snapshot, status: .reading)
 
-        if readingActivity == nil {
-            readingActivity = Activity<ReadingActivityAttributes>.activities.first {
-                $0.attributes.sessionID == snapshot.sessionID
-            }
-            if let readingActivity { monitor(readingActivity) }
+        let systemActivities = Activity<ReadingActivityAttributes>.activities
+        let matchingActivity = systemActivities.first {
+            $0.attributes.sessionID == snapshot.sessionID
+        }
+        for activity in systemActivities where activity.id != matchingActivity?.id {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+        if readingActivity?.id != matchingActivity?.id {
+            readingActivity = matchingActivity
+            if let matchingActivity { monitor(matchingActivity) }
         }
         if let activity = readingActivity, activity.attributes.sessionID == snapshot.sessionID {
             await activity.update(ActivityContent(state: state, staleDate: .now.addingTimeInterval(5 * 60), relevanceScore: 0.9))
             lastError = nil
             return
         }
-        await endReading(immediate: true)
         do {
             let attributes = ReadingActivityAttributes(
                 sessionID: snapshot.sessionID
@@ -143,27 +147,38 @@ final class LiveActivityCoordinator: ObservableObject {
     func pauseReading(_ snapshot: ReadingLiveActivitySnapshot) async {
         readingUpdateTask?.cancel()
         readingSnapshot = snapshot
+        if readingActivity == nil {
+            readingActivity = Activity<ReadingActivityAttributes>.activities.first {
+                $0.attributes.sessionID == snapshot.sessionID
+            }
+            if let readingActivity { monitor(readingActivity) }
+        }
         guard let activity = readingActivity, activity.attributes.sessionID == snapshot.sessionID else { return }
         let state = readingState(snapshot, status: .paused)
-        await activity.end(
-            ActivityContent(state: state, staleDate: nil, relevanceScore: 0.8),
-            dismissalPolicy: .after(.now.addingTimeInterval(15 * 60))
+        await activity.update(
+            ActivityContent(state: state, staleDate: .now.addingTimeInterval(15 * 60), relevanceScore: 0.8)
         )
-        readingActivity = nil
     }
 
     func endReading(immediate: Bool = false) async {
         readingUpdateTask?.cancel()
-        guard let activity = readingActivity else {
+        let activities = Activity<ReadingActivityAttributes>.activities
+        guard !activities.isEmpty else {
             readingSnapshot = nil
+            readingActivity = nil
             return
         }
         let snapshot = readingSnapshot
         let finalState = snapshot.map { readingState($0, status: .finished) }
-        await activity.end(
-            finalState.map { ActivityContent(state: $0, staleDate: nil, relevanceScore: 0.5) },
-            dismissalPolicy: immediate ? .immediate : .after(.now.addingTimeInterval(15 * 60))
-        )
+        for activity in activities {
+            let content = activity.id == readingActivity?.id
+                ? finalState.map { ActivityContent(state: $0, staleDate: nil, relevanceScore: 0.5) }
+                : nil
+            await activity.end(
+                content,
+                dismissalPolicy: immediate ? .immediate : .after(.now.addingTimeInterval(15 * 60))
+            )
+        }
         readingActivity = nil
         readingSnapshot = nil
     }

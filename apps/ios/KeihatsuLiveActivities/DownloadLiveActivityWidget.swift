@@ -13,12 +13,15 @@ struct DownloadLiveActivityWidget: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     DownloadProgressIcon(state: context.state)
+                        .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     DownloadPercentage(progress: context.state.progress)
+                        .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     DownloadExpandedDetails(state: context.state, isStale: context.isStale)
+                        .padding(.horizontal, 4)
                 }
             } compactLeading: {
                 DownloadProgressIcon(state: context.state, size: 23)
@@ -87,7 +90,7 @@ private struct DownloadExpandedDetails: View {
         VStack(alignment: .leading, spacing: 6) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.mangaTitle)
-                    .font(.headline.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                     .privacySensitive()
                 Text(statusDetail)

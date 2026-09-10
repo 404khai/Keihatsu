@@ -13,12 +13,15 @@ struct ReadingLiveActivityWidget: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     ReadingActivityIcon()
+                        .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     ReadingPageCount(state: context.state)
+                        .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    ReadingActivityDetails(state: context.state, isStale: context.isStale)
+                    ReadingActivityDetails(state: context.state, isStale: context.isStale, isExpanded: true)
+                        .padding(.horizontal, 4)
                 }
             } compactLeading: {
                 ReadingActivityIcon()
@@ -67,12 +70,13 @@ private struct ReadingLockScreenView: View {
 private struct ReadingActivityDetails: View {
     let state: ReadingActivityAttributes.ContentState
     let isStale: Bool
+    var isExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.mangaTitle)
-                    .font(.headline.weight(.semibold))
+                    .font((isExpanded ? Font.subheadline : Font.headline).weight(.semibold))
                     .lineLimit(1)
                     .privacySensitive()
                 Text(state.chapterName)
