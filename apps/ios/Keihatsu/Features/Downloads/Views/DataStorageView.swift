@@ -23,31 +23,34 @@ struct DataStorageView: View {
 
     var body: some View {
         List {
-            Section {
+            Section("Download directory") {
                 VStack(alignment: .leading, spacing: 14) {
-                    Label("Download directory", systemImage: "folder")
-                        .font(.headline)
-                        .foregroundStyle(accent)
+                    HStack(spacing: 12) {
+                        Text(downloads.storage.directoryPath)
+                            .font(.callout.monospaced())
+                            .textSelection(.enabled)
 
-                    Text(downloads.storage.directoryPath)
-                        .font(.callout.monospaced())
-                        .textSelection(.enabled)
+                        Spacer(minLength: 8)
+
+                        Button {
+                            showsDirectoryPicker = true
+                        } label: {
+                            Image(systemName: "folder.badge.gearshape")
+                                .font(.body.weight(.semibold))
+                                .frame(width: 32, height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Change download directory")
+                    }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 8)
                         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     Text("\(mangaMegabytesLabel) used by Keihatsu downloads")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-
-                    Button {
-                        showsDirectoryPicker = true
-                    } label: {
-                        Label("Change Directory", systemImage: "folder.badge.gearshape")
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(accent)
                 }
                 .padding(.vertical, 8)
             }
