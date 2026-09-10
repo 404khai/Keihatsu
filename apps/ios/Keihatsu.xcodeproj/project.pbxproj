@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		B50000000000000000000001 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B50000000000000000000003 /* GoogleSignIn */; };
+		D70000000000000000000001 /* BlobatarSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = D70000000000000000000003 /* BlobatarSwiftUI */; };
+		D70000000000000000000004 /* BlobatarCore in Frameworks */ = {isa = PBXBuildFile; productRef = D70000000000000000000005 /* BlobatarCore */; };
 		C60000000000000000000001 /* KeihatsuLiveActivities.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C60000000000000000000003 /* KeihatsuLiveActivities.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C60000000000000000000002 /* LiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000004 /* LiveActivityAttributes.swift */; };
 /* End PBXBuildFile section */
@@ -109,6 +111,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D70000000000000000000004 /* BlobatarCore in Frameworks */,
+				D70000000000000000000001 /* BlobatarSwiftUI in Frameworks */,
 				B50000000000000000000001 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -182,6 +186,8 @@
 			);
 			name = Keihatsu;
 			packageProductDependencies = (
+				D70000000000000000000005 /* BlobatarCore */,
+				D70000000000000000000003 /* BlobatarSwiftUI */,
 				B50000000000000000000003 /* GoogleSignIn */,
 			);
 			productName = Keihatsu;
@@ -282,6 +288,7 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 84876FE62FC78D73003E68ED /* Products */;
 			packageReferences = (
+				D70000000000000000000002 /* XCLocalSwiftPackageReference "Blobatar" */,
 				B50000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			projectDirPath = "";
@@ -726,11 +733,28 @@
 		};
 /* End XCRemoteSwiftPackageReference section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		D70000000000000000000002 /* XCLocalSwiftPackageReference "Blobatar" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = /Users/admin/Developer/blobatar;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		B50000000000000000000003 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B50000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignIn;
+		};
+		D70000000000000000000003 /* BlobatarSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D70000000000000000000002 /* XCLocalSwiftPackageReference "Blobatar" */;
+			productName = BlobatarSwiftUI;
+		};
+		D70000000000000000000005 /* BlobatarCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D70000000000000000000002 /* XCLocalSwiftPackageReference "Blobatar" */;
+			productName = BlobatarCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
