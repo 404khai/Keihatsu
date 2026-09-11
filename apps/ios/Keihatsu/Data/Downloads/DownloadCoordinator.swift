@@ -219,6 +219,43 @@ final class DownloadCoordinator: ObservableObject {
         schedule()
     }
 
+    func moveSeriesToTop(_ id: UUID) {
+        moveSeries(containing: id, toTop: true)
+    }
+
+    func moveSeriesToBottom(_ id: UUID) {
+        moveSeries(containing: id, toTop: false)
+    }
+
+    private func moveSeries(containing id: UUID, toTop: Bool) {
+        guard let selected = activeRecords.first(where: { $0.id == id }) else { return }
+        let extensionRecords = activeRecords.filter {
+            $0.request.extensionName == selected.request.extensionName
+        }
+        let seriesRecords = extensionRecords.filter {
+            $0.request.identity.sourceID == selected.request.identity.sourceID
+                && $0.request.identity.mangaID == selected.request.identity.mangaID
+        }
+        guard !seriesRecords.isEmpty else { return }
+
+        let otherRecords = extensionRecords.filter {
+            $0.request.identity.sourceID != selected.request.identity.sourceID
+                || $0.request.identity.mangaID != selected.request.identity.mangaID
+        }
+        let reordered = toTop
+            ? seriesRecords + otherRecords
+            : otherRecords + seriesRecords
+        let prioritySlots = extensionRecords.map(\.priority).sorted()
+
+        for (offset, record) in reordered.enumerated() {
+            if let index = records.firstIndex(where: { $0.id == record.id }) {
+                records[index].priority = prioritySlots[offset]
+            }
+        }
+        persist()
+        schedule()
+    }
+
     func remove(_ id: UUID, deleteArchive: Bool = true) async {
         guard let index = records.firstIndex(where: { $0.id == id }), records[index].request.ownerID == ownerID else { return }
         let record = records.remove(at: index)

@@ -307,6 +307,51 @@ class DownloadProvider with ChangeNotifier {
     await _applyPriorityOrder(sorted);
   }
 
+  Future<void> moveSeriesToTop(String sourceId, String mangaId) async {
+    await _moveSeries(sourceId, mangaId, toTop: true);
+  }
+
+  Future<void> moveSeriesToBottom(String sourceId, String mangaId) async {
+    await _moveSeries(sourceId, mangaId, toTop: false);
+  }
+
+  Future<void> _moveSeries(
+    String sourceId,
+    String mangaId, {
+    required bool toTop,
+  }) async {
+    final List<DownloadQueueItem> sourceItems = _queue
+        .where((item) => item.sourceId == sourceId)
+        .sorted((a, b) => a.priority.compareTo(b.priority))
+        .toList();
+    final List<DownloadQueueItem> seriesItems = sourceItems
+        .where((item) => item.mangaId == mangaId)
+        .toList();
+    if (seriesItems.isEmpty) return;
+
+    final List<DownloadQueueItem> otherItems = sourceItems
+        .where((item) => item.mangaId != mangaId)
+        .toList();
+    final List<DownloadQueueItem> reorderedSource = toTop
+        ? [...seriesItems, ...otherItems]
+        : [...otherItems, ...seriesItems];
+
+    final List<DownloadQueueItem> allSorted = _queue
+        .sorted((a, b) => a.priority.compareTo(b.priority));
+    final List<DownloadQueueItem> rebuilt = [];
+    var sourceCursor = 0;
+
+    for (final DownloadQueueItem item in allSorted) {
+      if (item.sourceId == sourceId) {
+        rebuilt.add(reorderedSource[sourceCursor++]);
+      } else {
+        rebuilt.add(item);
+      }
+    }
+
+    await _applyPriorityOrder(rebuilt);
+  }
+
   Future<void> _applyPriorityOrder(List<DownloadQueueItem> ordered) async {
     await isar.writeTxn(() async {
       for (var i = 0; i < ordered.length; i++) {

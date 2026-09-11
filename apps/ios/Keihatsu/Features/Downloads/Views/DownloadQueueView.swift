@@ -34,25 +34,31 @@ struct DownloadQueueView: View {
                                         resume: { downloads.resume(record.id) }
                                     )
 
-                                    Button {
-                                        pendingMangaCancellation = record
+                                    Menu {
+                                        Button("Move series to top", systemImage: "arrow.up.to.line") {
+                                            downloads.moveSeriesToTop(record.id)
+                                        }
+                                        Button("Move series to bottom", systemImage: "arrow.down.to.line") {
+                                            downloads.moveSeriesToBottom(record.id)
+                                        }
+                                        Divider()
+                                        Button("Cancel", systemImage: "xmark", role: .destructive) {
+                                            pendingRemoval = record
+                                        }
+                                        Button("Cancel all for this series", systemImage: "xmark.circle", role: .destructive) {
+                                            pendingMangaCancellation = record
+                                        }
                                     } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.title2)
-                                            .foregroundStyle(.red)
+                                        Image(systemName: "ellipsis.vertical")
+                                            .font(.title3.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 32, height: 32)
                                     }
                                     .buttonStyle(.plain)
-                                    .accessibilityLabel("Cancel all downloads for \(record.request.mangaTitle)")
+                                    .accessibilityLabel("Actions for \(record.request.mangaTitle), \(record.request.chapterName)")
                                 }
                                 .swipeActions {
-                                    Button("Remove", systemImage: "trash", role: .destructive) { pendingRemoval = record }
-                                }
-                                .contextMenu {
-                                    Button("Move to Front", systemImage: "arrow.up.to.line") { downloads.moveToFront(record.id) }
-                                    Button("Cancel Manga Downloads", systemImage: "xmark.circle", role: .destructive) {
-                                        pendingMangaCancellation = record
-                                    }
-                                    Button("Remove Chapter", systemImage: "trash", role: .destructive) { pendingRemoval = record }
+                                    Button("Cancel", systemImage: "xmark", role: .destructive) { pendingRemoval = record }
                                 }
                             }
                             .onMove { offsets, destination in
@@ -80,14 +86,14 @@ struct DownloadQueueView: View {
             }
         }
         .confirmationDialog(
-            "Remove this download?",
+            "Cancel this download?",
             isPresented: Binding(
                 get: { pendingRemoval != nil },
                 set: { if !$0 { pendingRemoval = nil } }
             ),
             presenting: pendingRemoval
         ) { record in
-            Button("Remove Download", role: .destructive) { Task { await downloads.remove(record.id) } }
+            Button("Cancel Download", role: .destructive) { Task { await downloads.remove(record.id) } }
         } message: { record in
             Text("Downloaded pages and any completed CBZ for \(record.request.chapterName) will be removed.")
         }

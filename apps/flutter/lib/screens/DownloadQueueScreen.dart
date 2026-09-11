@@ -87,6 +87,45 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
     await provider.cancelMangaDownloads(sourceId, mangaId);
   }
 
+  Future<void> _cancelChapter(
+    DownloadQueueItem chapter,
+    DownloadProvider provider,
+  ) async {
+    final confirmed = await _confirmCancellation(
+      title: 'Cancel ${chapter.chapterName}?',
+      message: 'Downloaded pages for this chapter will be removed.',
+    );
+    if (!confirmed || !mounted) return;
+
+    await provider.removeFromQueue(chapter.chapterId);
+  }
+
+  Future<void> _handleQueueAction(
+    DownloadQueueItem chapter,
+    DownloadQueueItemAction action,
+    DownloadProvider provider,
+  ) async {
+    switch (action) {
+      case DownloadQueueItemAction.moveSeriesToTop:
+        await provider.moveSeriesToTop(chapter.sourceId, chapter.mangaId);
+        break;
+      case DownloadQueueItemAction.moveSeriesToBottom:
+        await provider.moveSeriesToBottom(chapter.sourceId, chapter.mangaId);
+        break;
+      case DownloadQueueItemAction.cancel:
+        await _cancelChapter(chapter, provider);
+        break;
+      case DownloadQueueItemAction.cancelAllForSeries:
+        await _cancelManga(
+          chapter.sourceId,
+          chapter.mangaId,
+          chapter.mangaTitle,
+          provider,
+        );
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -214,12 +253,8 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
             provider.reorderChaptersInExtension(sourceId, oldIndex, newIndex),
         onToggleChapterPause: (chapter) =>
             _toggleChapterPause(chapter, provider),
-        onCancelManga: (chapter) => _cancelManga(
-          sourceId,
-          chapter.mangaId,
-          chapter.mangaTitle,
-          provider,
-        ),
+        onAction: (chapter, action) =>
+            _handleQueueAction(chapter, action, provider),
       ),
     );
   }

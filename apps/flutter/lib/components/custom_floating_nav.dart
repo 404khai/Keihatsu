@@ -16,7 +16,7 @@ class CustomFloatingNav extends StatelessWidget {
   final int currentIndex;
   final Color brandColor;
 
-  static const double _barHeight = 64;
+  static const double _barHeight = 60;
   static const double _searchSize = 50;
   static const double _gap = 8;
 
@@ -174,54 +174,36 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color itemColor = selected ? brandColor : unselectedColor;
+    final Color iconColor = selected ? brandColor : unselectedColor;
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.symmetric(
-            horizontal: selected ? 8 : 5,
-            vertical: 5,
-          ),
-          decoration: BoxDecoration(
-            color: selected
-                ? brandColor.withValues(alpha: 0.30)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SvgPicture.asset(
-                destination.iconAsset,
-                width: selected ? 25 : 23,
-                height: selected ? 25 : 23,
-                colorFilter: ColorFilter.mode(itemColor, BlendMode.srcIn),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset(
+              destination.iconAsset,
+              width: 23,
+              height: 23,
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              destination.label,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: unselectedColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                height: 1,
               ),
-              const SizedBox(height: 1),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-                style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                  color: itemColor,
-                  fontSize: 10,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  height: 1,
-                ),
-                child: Text(
-                  destination.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  softWrap: false,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
