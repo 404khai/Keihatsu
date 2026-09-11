@@ -116,18 +116,42 @@ private struct CommentRow: View {
     let depth: Int
     @ObservedObject var model: CommentsViewModel
     @EnvironmentObject private var session: AccountSessionStore
+    @State private var isShowingProfile = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                NavigationLink { PublicProfileView(userID: comment.author.id) } label: {
+                Button {
+                    isShowingProfile = true
+                } label: {
                     UserAvatarView(seed: comment.author.id, label: comment.author.username, configuration: comment.author.avatar, size: depth == 0 ? 42 : 34)
                 }
                 .buttonStyle(.plain)
+
                 VStack(alignment: .leading, spacing: 7) {
-                    NavigationLink(comment.author.username) { PublicProfileView(userID: comment.author.id) }
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Button(comment.author.username) {
+                            isShowingProfile = true
+                        }
                         .font(.subheadline.weight(.semibold))
-                    if !comment.content.isEmpty { Text(comment.content).font(.body) }
+                        .buttonStyle(.plain)
+                        .lineLimit(1)
+
+                        Spacer(minLength: 8)
+
+                        Text(comment.createdAt.formatted(.relative(presentation: .named)))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
+
+                    if !comment.content.isEmpty {
+                        Text(comment.content)
+                            .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
                     if !comment.imageURLs.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack {
@@ -138,6 +162,7 @@ private struct CommentRow: View {
                             }
                         }
                     }
+
                     HStack(spacing: 16) {
                         Button { Task { await model.toggleLike(comment) } } label: {
                             Label("\(comment.likes)", systemImage: comment.isLikedByCurrentUser ? "heart.fill" : "heart")
@@ -146,16 +171,21 @@ private struct CommentRow: View {
                         if session.account?.id == comment.author.id {
                             Button("Delete", role: .destructive) { Task { await model.delete(comment) } }
                         }
-                        Text(comment.createdAt.formatted(.relative(presentation: .named))).foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
                     }
                     .font(.caption)
                     .buttonStyle(.plain)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             ForEach(comment.replies) { reply in
-                CommentRow(comment: reply, depth: min(depth + 1, 3), model: model).padding(.leading, 30)
+                CommentRow(comment: reply, depth: min(depth + 1, 3), model: model)
+                    .padding(.leading, depth < 2 ? 24 : 12)
             }
         }
         .padding(.vertical, 6)
+        .navigationDestination(isPresented: $isShowingProfile) {
+            PublicProfileView(userID: comment.author.id)
+        }
     }
 }

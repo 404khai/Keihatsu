@@ -25,6 +25,107 @@ class DownloadMangaGroupData {
   final List<DownloadQueueItem> chapters;
 }
 
+/// A flat, reorderable chapter queue for one extension.
+///
+/// Each chapter keeps the existing manga-row presentation while avoiding a
+/// second grouping layer for chapters from the same manga.
+class DownloadExtensionChapterList extends StatelessWidget {
+  const DownloadExtensionChapterList({
+    super.key,
+    required this.chapters,
+    required this.onReorder,
+    this.onToggleChapterPause,
+    this.onCancelManga,
+    this.borderRadius,
+  });
+
+  final List<DownloadQueueItem> chapters;
+  final void Function(int oldIndex, int newIndex) onReorder;
+  final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
+  final void Function(DownloadQueueItem chapter)? onCancelManga;
+  final BorderRadius? borderRadius;
+
+  BorderRadius _radiusFor(int index) {
+    const Radius outer = Radius.circular(MenuSection.outerRadius);
+    const Radius inner = Radius.circular(MenuSection.innerRadius);
+
+    if (chapters.length == 1) {
+      return borderRadius ?? BorderRadius.circular(MenuSection.outerRadius);
+    }
+
+    return BorderRadius.vertical(
+      top: index == 0 ? outer : inner,
+      bottom: index == chapters.length - 1 ? outer : inner,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+
+    return Material(
+      color: cs.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            borderRadius ?? BorderRadius.circular(MenuSection.outerRadius),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: chapters.length,
+        onReorder: onReorder,
+        proxyDecorator: (child, index, animation) => Material(
+          elevation: 6,
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          child: child,
+        ),
+        itemBuilder: (context, index) {
+          final DownloadQueueItem chapter = chapters[index];
+
+          return Column(
+            key: ValueKey(chapter.chapterId),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (index > 0)
+                Divider(
+                  height: MenuSection.tileGap,
+                  thickness: MenuSection.tileGap,
+                  color: cs.surface,
+                ),
+              DownloadMangaGroup(
+                mangaTitle: chapter.mangaTitle,
+                mangaThumbnail: chapter.mangaThumbnail,
+                chapters: [chapter],
+                borderRadius: _radiusFor(index),
+                mangaDragHandle: chapters.length > 1
+                    ? ReorderableDragStartListener(
+                        index: index,
+                        child: const Tooltip(
+                          message: 'Drag to reorder chapter',
+                          child: SizedBox(
+                            width: 40,
+                            height: 52,
+                            child: Icon(Icons.drag_handle_rounded, size: 24),
+                          ),
+                        ),
+                      )
+                    : null,
+                onToggleChapterPause: onToggleChapterPause,
+                onCancelManga: onCancelManga == null
+                    ? null
+                    : () => onCancelManga!(chapter),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
 /// Collapsible manga groups within one extension. Drag a manga row to reorder
 /// the whole group; drag sub-chapter handles to reorder within a manga.
 class DownloadExtensionMangaList extends StatelessWidget {
@@ -313,6 +414,14 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                     IconButton(
                       onPressed: () => widget.onCancelChapter!(primary),
                       tooltip: 'Cancel chapter download',
+                      icon: Icon(Icons.close_rounded, color: cs.error),
+                    ),
+                  if (!_hasMultipleChapters &&
+                      widget.onCancelChapter == null &&
+                      widget.onCancelManga != null)
+                    IconButton(
+                      onPressed: widget.onCancelManga,
+                      tooltip: 'Cancel all downloads for this manga',
                       icon: Icon(Icons.close_rounded, color: cs.error),
                     ),
                   if (_hasMultipleChapters && widget.onCancelManga != null)
