@@ -65,7 +65,14 @@ struct DownloadQueueView: View {
                                 downloads.move(in: group.name, from: offsets, to: destination)
                             }
                         } header: {
-                            Label(group.name, systemImage: "puzzlepiece.extension")
+                            HStack(spacing: 8) {
+                                ExtensionImageView(
+                                    sourceID: group.records.first?.request.identity.sourceID ?? group.name,
+                                    size: 22,
+                                    cornerRadius: 5
+                                )
+                                Text(capitalizedExtensionName(group.name))
+                            }
                         }
                     }
                 }
@@ -115,5 +122,10 @@ struct DownloadQueueView: View {
         } message: { record in
             Text("Every queued or in-progress chapter for \(record.request.mangaTitle) will be removed from this extension's queue.")
         }
+    }
+
+    private func capitalizedExtensionName(_ name: String) -> String {
+        guard let first = name.first else { return name }
+        return first.uppercased() + String(name.dropFirst())
     }
 }

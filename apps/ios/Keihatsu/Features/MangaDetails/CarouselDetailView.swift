@@ -185,7 +185,7 @@ private struct MangaDetailsContentView: View {
 
                 if let author = model.manga.author, !author.isEmpty { metadataLine(author, icon: "person.fill") }
                 if let artist = model.manga.artist, !artist.isEmpty { metadataLine(artist, icon: "paintbrush.pointed.fill") }
-                metadataLine(model.manga.id.sourceID.uppercased(), icon: "puzzlepiece.extension.fill")
+                extensionMetadataLine
 
                 HStack(spacing: 14) {
                     Button {
@@ -259,6 +259,15 @@ private struct MangaDetailsContentView: View {
         Label(text, systemImage: icon)
             .font(.system(size: 15))
             .foregroundStyle(.white.opacity(0.85))
+    }
+
+    private var extensionMetadataLine: some View {
+        HStack(spacing: 7) {
+            ExtensionImageView(sourceID: model.manga.id.sourceID, size: 18, cornerRadius: 4)
+            Text(model.manga.id.sourceID.uppercased())
+        }
+        .font(.system(size: 15))
+        .foregroundStyle(.white.opacity(0.85))
     }
 
     private var overviewSection: some View {

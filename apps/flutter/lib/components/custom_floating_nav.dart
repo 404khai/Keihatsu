@@ -184,11 +184,24 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset(
-              destination.iconAsset,
-              width: 23,
-              height: 23,
-              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: selected
+                    ? brandColor.withValues(alpha: 0.30)
+                    : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: SvgPicture.asset(
+                destination.iconAsset,
+                width: 22,
+                height: 22,
+                colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+              ),
             ),
             const SizedBox(height: 1),
             Text(
