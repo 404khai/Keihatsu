@@ -35,7 +35,8 @@ struct ProfilePageContent: View {
                     NavigationLink { SettingsView() } label: { ProfileRow(icon: "gearshape", title: "Settings", showsChevron: true) }
                         .buttonStyle(.plain)
                     ProfileDivider()
-                    ProfileRow(icon: "chart.bar", title: "Stats", showsChevron: true)
+                    NavigationLink { StatsView() } label: { ProfileRow(icon: "chart.bar", title: "Stats", showsChevron: true) }
+                        .buttonStyle(.plain)
                     ProfileDivider()
                     Button { showsInbox = true } label: { ProfileRow(icon: "tray", title: "Inbox", showsChevron: true) }
                         .buttonStyle(.plain)
@@ -49,6 +50,11 @@ struct ProfilePageContent: View {
                     .buttonStyle(.plain)
                 }
                 ProfileGroup {
+                    NavigationLink { SupportDeveloperView() } label: {
+                        ProfileRow(icon: "gift", title: "Support the Developer", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                    ProfileDivider()
                     NavigationLink { HelpAndSupportView() } label: { ProfileRow(icon: "questionmark.circle", title: "Help & Support", showsChevron: true) }
                         .buttonStyle(.plain)
                     ProfileDivider()

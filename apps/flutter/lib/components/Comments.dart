@@ -237,10 +237,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final commentsProvider = Provider.of<CommentsProvider>(context);
     final user = authProvider.user;
 
-    final brandColor = themeProvider.brandColor;
-    final bgColor = themeProvider.effectiveBgColor;
-    final isDarkMode = themeProvider.isDarkTheme;
-    final textColor = isDarkMode ? Colors.white : Colors.black87;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final brandColor = colorScheme.primary;
+    final bgColor = themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
+        ? Colors.black
+        : colorScheme.surface;
+    final textColor = colorScheme.onSurface;
     final userAvatar = UserBlobatar(
       seed: user?.id ?? 'keihatsu-guest',
       label: user?.username ?? 'Reader',
@@ -342,7 +344,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       ],
                     ),
                   ),
-                  const Divider(height: 30, thickness: 0.5),
+                  Divider(
+                    height: 30,
+                    thickness: 0.5,
+                    color: colorScheme.outlineVariant,
+                  ),
 
                   // Content Area
                   Padding(
@@ -376,9 +382,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                         // Sorting Filters
                         Row(
                           children: [
-                            _buildFilterChip("Top", true, brandColor),
+                            _buildFilterChip(context, "Top", true, brandColor),
                             const SizedBox(width: 12),
-                            _buildFilterChip("New", false, brandColor),
+                            _buildFilterChip(context, "New", false, brandColor),
                           ],
                         ),
                         const SizedBox(height: 30),
@@ -389,7 +395,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             child: Center(child: CircularProgressIndicator()),
                           )
                         else if (commentsProvider.error != null)
-                          Center(child: Text(commentsProvider.error!))
+                          Center(
+                            child: Text(
+                              commentsProvider.error!,
+                              style: TextStyle(color: colorScheme.error),
+                            ),
+                          )
                         else if (commentsProvider.comments.isEmpty)
                           Center(
                             child: Column(
@@ -447,12 +458,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     Widget userAvatar,
     Color brandColor,
   ) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
     if (!_isOnline) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: bgColor,
-          border: Border(top: BorderSide(color: textColor.withOpacity(0.1))),
+          border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
         ),
         child: SafeArea(
           top: false,
@@ -461,12 +474,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
             children: [
               Icon(
                 PhosphorIcons.wifiSlash(),
-                color: textColor.withOpacity(0.5),
+                color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 10),
               Text(
                 "Go online to comment",
-                style: TextStyle(color: textColor.withOpacity(0.5)),
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -478,7 +491,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: bgColor,
-        border: Border(top: BorderSide(color: textColor.withOpacity(0.1))),
+        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
       ),
       child: SafeArea(
         top: false,
@@ -496,7 +509,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   child: Container(
                     decoration: !_isFocused
                         ? BoxDecoration(
-                            color: textColor.withOpacity(0.1),
+                            color: colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(24),
                           )
                         : null,
@@ -512,7 +525,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                         hintText: _replyingToUsername != null
                             ? "Replying to $_replyingToUsername..."
                             : "Add comments...",
-                        hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+                        hintStyle: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                         border: InputBorder.none,
                         contentPadding: !_isFocused
                             ? const EdgeInsets.symmetric(
@@ -526,7 +541,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                 onTap: _pickImage,
                                 child: Icon(
                                   PhosphorIcons.image(),
-                                  color: textColor.withOpacity(0.6),
+                                  color: colorScheme.onSurfaceVariant,
                                   size: 24,
                                 ),
                               )
@@ -603,12 +618,16 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       width: 35,
                       height: 35,
                       decoration: BoxDecoration(
-                        color: Colors.redAccent.shade400, // Brand-like color
+                        color: brandColor,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         PhosphorIcons.arrowUp(PhosphorIconsStyle.bold),
-                        color: Colors.white,
+                        color:
+                            ThemeData.estimateBrightnessForColor(brandColor) ==
+                                Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
                         size: 20,
                       ),
                     ),
@@ -633,15 +652,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     bool isRight = false,
     bool isEnabled = true,
   }) {
-    final textColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black87;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final Color textColor = colorScheme.onSurface;
     return Opacity(
       opacity: isEnabled ? 1.0 : 0.5,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.black12,
+          color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -664,13 +682,24 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected, Color brandColor) {
+  Widget _buildFilterChip(
+    BuildContext context,
+    String label,
+    bool isSelected,
+    Color brandColor,
+  ) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
-        color: isSelected ? brandColor.withOpacity(0.1) : Colors.transparent,
+        color: isSelected
+            ? brandColor.withOpacity(0.12)
+            : colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isSelected ? brandColor : Colors.black12),
+        border: Border.all(
+          color: isSelected ? brandColor : colorScheme.outlineVariant,
+        ),
       ),
       child: Row(
         children: [
@@ -684,7 +713,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           Text(
             label,
             style: TextStyle(
-              color: isSelected ? brandColor : Colors.black54,
+              color: isSelected ? brandColor : colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.bold,
               fontSize: 13,
             ),
@@ -699,14 +728,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     required Comment comment,
     bool isReply = false,
   }) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final commentsProvider = Provider.of<CommentsProvider>(
       context,
       listen: false,
     );
 
-    final textColor = themeProvider.isDarkTheme ? Colors.white : Colors.black87;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final Color textColor = colorScheme.onSurface;
 
     final profileUserId = comment.user?.id ?? comment.userId;
     final user = comment.user?.username ?? "Unknown";
@@ -760,7 +789,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                 ),
                 const SizedBox(height: 4),
                 // Comment text
-                Text(text, style: const TextStyle(fontSize: 15, height: 1.4)),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
                 // Images
                 if (comment.images.isNotEmpty)
                   Padding(
@@ -837,8 +873,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             isLiked ? Icons.favorite : Icons.favorite_border,
                             size: 25,
                             color: isLiked
-                                ? Colors.red
-                                : textColor.withOpacity(0.5),
+                                ? colorScheme.error
+                                : colorScheme.onSurfaceVariant,
                           ),
                           if (likeCount > 0) ...[
                             const SizedBox(width: 4),
@@ -847,8 +883,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: isLiked
-                                    ? Colors.red
-                                    : textColor.withOpacity(0.5),
+                                    ? colorScheme.error
+                                    : colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

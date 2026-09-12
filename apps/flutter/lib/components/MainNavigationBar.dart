@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'floating_nav.dart';
-
+// import 'floating_nav.dart';
+import 'custom_floating_nav.dart';
 // import 'expandable_floating_main_nav.dart';
 // import 'reference_main_nav.dart';
 // import 'scaffold_floating_main_nav.dart';
@@ -26,7 +26,10 @@ class MainNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FloatingNav(currentIndex: currentIndex, brandColor: brandColor);
+    return CustomFloatingNav(
+      currentIndex: currentIndex,
+      brandColor: brandColor,
+    );
 
     // return ExpandableFloatingMainNav(
     //   currentIndex: currentIndex,

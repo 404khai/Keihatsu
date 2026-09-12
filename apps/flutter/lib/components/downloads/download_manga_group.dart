@@ -9,6 +9,13 @@ import 'package:keihatsu/models/local_models.dart';
 import 'package:material_shapes/material_shapes.dart';
 import 'package:material_wavy_progress_indicator/material_wavy_progress_indicator.dart';
 
+enum DownloadQueueItemAction {
+  moveSeriesToTop,
+  moveSeriesToBottom,
+  cancel,
+  cancelAllForSeries,
+}
+
 enum _MangaDownloadAction { cancelAll }
 
 class DownloadMangaGroupData {
@@ -23,6 +30,109 @@ class DownloadMangaGroupData {
   final String mangaTitle;
   final String? mangaThumbnail;
   final List<DownloadQueueItem> chapters;
+}
+
+/// A flat, reorderable chapter queue for one extension.
+///
+/// Each chapter keeps the existing manga-row presentation while avoiding a
+/// second grouping layer for chapters from the same manga.
+class DownloadExtensionChapterList extends StatelessWidget {
+  const DownloadExtensionChapterList({
+    super.key,
+    required this.chapters,
+    required this.onReorder,
+    required this.onAction,
+    this.onToggleChapterPause,
+    this.borderRadius,
+  });
+
+  final List<DownloadQueueItem> chapters;
+  final void Function(int oldIndex, int newIndex) onReorder;
+  final Future<void> Function(
+    DownloadQueueItem chapter,
+    DownloadQueueItemAction action,
+  )
+  onAction;
+  final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
+  final BorderRadius? borderRadius;
+
+  BorderRadius _radiusFor(int index) {
+    const Radius outer = Radius.circular(MenuSection.outerRadius);
+    const Radius inner = Radius.circular(MenuSection.innerRadius);
+
+    if (chapters.length == 1) {
+      return borderRadius ?? BorderRadius.circular(MenuSection.outerRadius);
+    }
+
+    return BorderRadius.vertical(
+      top: index == 0 ? outer : inner,
+      bottom: index == chapters.length - 1 ? outer : inner,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+
+    return Material(
+      color: cs.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            borderRadius ?? BorderRadius.circular(MenuSection.outerRadius),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: chapters.length,
+        onReorder: onReorder,
+        proxyDecorator: (child, index, animation) => Material(
+          elevation: 6,
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          child: child,
+        ),
+        itemBuilder: (context, index) {
+          final DownloadQueueItem chapter = chapters[index];
+
+          return Column(
+            key: ValueKey(chapter.chapterId),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (index > 0)
+                Divider(
+                  height: MenuSection.tileGap,
+                  thickness: MenuSection.tileGap,
+                  color: cs.surface,
+                ),
+              DownloadMangaGroup(
+                mangaTitle: chapter.mangaTitle,
+                mangaThumbnail: chapter.mangaThumbnail,
+                chapters: [chapter],
+                borderRadius: _radiusFor(index),
+                mangaDragHandle: chapters.length > 1
+                    ? ReorderableDragStartListener(
+                        index: index,
+                        child: const Tooltip(
+                          message: 'Drag to reorder chapter',
+                          child: SizedBox(
+                            width: 40,
+                            height: 52,
+                            child: Icon(Icons.drag_handle_rounded, size: 24),
+                          ),
+                        ),
+                      )
+                    : null,
+                onToggleChapterPause: onToggleChapterPause,
+                onQueueAction: (action) => onAction(chapter, action),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// Collapsible manga groups within one extension. Drag a manga row to reorder
@@ -150,6 +260,7 @@ class DownloadMangaGroup extends StatefulWidget {
     this.onToggleChapterPause,
     this.onCancelChapter,
     this.onCancelManga,
+    this.onQueueAction,
     this.mangaDragHandle,
   });
 
@@ -162,6 +273,7 @@ class DownloadMangaGroup extends StatefulWidget {
   final void Function(DownloadQueueItem chapter)? onToggleChapterPause;
   final void Function(DownloadQueueItem chapter)? onCancelChapter;
   final VoidCallback? onCancelManga;
+  final Future<void> Function(DownloadQueueItemAction action)? onQueueAction;
   final Widget? mangaDragHandle;
 
   @override
@@ -309,10 +421,72 @@ class _DownloadMangaGroupState extends State<DownloadMangaGroup> {
                           ? null
                           : () => widget.onToggleChapterPause!(primary),
                     ),
-                  if (!_hasMultipleChapters && widget.onCancelChapter != null)
+                  if (!_hasMultipleChapters && widget.onQueueAction != null)
+                    PopupMenuButton<DownloadQueueItemAction>(
+                      tooltip: 'Download actions',
+                      icon: const Icon(Icons.more_vert),
+                      onSelected: (action) async {
+                        await widget.onQueueAction!(action);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: DownloadQueueItemAction.moveSeriesToTop,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.vertical_align_top),
+                            title: Text('Move series to top'),
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: DownloadQueueItemAction.moveSeriesToBottom,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.vertical_align_bottom),
+                            title: Text('Move series to bottom'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: DownloadQueueItemAction.cancel,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.close, color: cs.error),
+                            title: Text(
+                              'Cancel',
+                              style: TextStyle(color: cs.error),
+                            ),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: DownloadQueueItemAction.cancelAllForSeries,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(
+                              Icons.cancel_outlined,
+                              color: cs.error,
+                            ),
+                            title: Text(
+                              'Cancel all for this series',
+                              style: TextStyle(color: cs.error),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (!_hasMultipleChapters &&
+                      widget.onQueueAction == null &&
+                      widget.onCancelChapter != null)
                     IconButton(
                       onPressed: () => widget.onCancelChapter!(primary),
                       tooltip: 'Cancel chapter download',
+                      icon: Icon(Icons.close_rounded, color: cs.error),
+                    ),
+                  if (!_hasMultipleChapters &&
+                      widget.onQueueAction == null &&
+                      widget.onCancelChapter == null &&
+                      widget.onCancelManga != null)
+                    IconButton(
+                      onPressed: widget.onCancelManga,
+                      tooltip: 'Cancel all downloads for this manga',
                       icon: Icon(Icons.close_rounded, color: cs.error),
                     ),
                   if (_hasMultipleChapters && widget.onCancelManga != null)

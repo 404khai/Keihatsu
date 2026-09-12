@@ -65,6 +65,7 @@ flutter:
   assets:
     - images/
     - images/extensions/
+    - images/icons/libraryIcons/
     - images/manwha/
     - lib/data/chapters.json
 
