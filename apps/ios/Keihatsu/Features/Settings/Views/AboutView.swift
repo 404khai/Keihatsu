@@ -63,7 +63,6 @@ struct AboutView: View {
         }
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        
     }
 
     private var missionCard: some View {
