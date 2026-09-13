@@ -119,6 +119,7 @@ enum KeihatsuThemePreference: String, Codable, CaseIterable, Identifiable {
     case oceanFrame
     case cinnabar
     case sandybrown
+    case saffron
 
     var id: String { rawValue }
 
@@ -131,6 +132,7 @@ enum KeihatsuThemePreference: String, Codable, CaseIterable, Identifiable {
         case .oceanFrame: return "Ocean Frame"
         case .cinnabar: return "Cinnabar"
         case .sandybrown: return "Sandy Brown"
+        case .saffron: return "Saffron"
         }
     }
 
@@ -143,6 +145,7 @@ enum KeihatsuThemePreference: String, Codable, CaseIterable, Identifiable {
         case .oceanFrame: return "Cool cyan for a calmer library"
         case .cinnabar: return "Bold red for a bold theme"
         case .sandybrown: return "Warm brown for a warm theme"
+        case .saffron: return "Golden yellow with a soft cream backdrop"
         }
     }
 
@@ -155,6 +158,20 @@ enum KeihatsuThemePreference: String, Codable, CaseIterable, Identifiable {
         case .oceanFrame: return "42D9F5"
         case .cinnabar: return "E74236"
         case .sandybrown: return "FEB172"
+        case .saffron: return "F4C430"
+        }
+    }
+
+    var backgroundHex: String {
+        switch self {
+        case .verdant: return "EAF8EA"
+        case .moonlit: return "F0ECFF"
+        case .sakuraPulse: return "FFEAF3"
+        case .emberScript: return "FFEBD4"
+        case .oceanFrame: return "E7FAFF"
+        case .cinnabar: return "FFE7E4"
+        case .sandybrown: return "FFF0E3"
+        case .saffron: return "FFFACF"
         }
     }
 }

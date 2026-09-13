@@ -68,7 +68,7 @@ struct DownloadQueueView: View {
                             HStack(spacing: 8) {
                                 ExtensionImageView(
                                     sourceID: group.records.first?.request.identity.sourceID ?? group.name,
-                                    size: 22,
+                                    size: 35,
                                     cornerRadius: 5
                                 )
                                 Text(capitalizedExtensionName(group.name))

@@ -33,7 +33,6 @@ struct AboutView: View {
 
     private var heroCard: some View {
         ZStack {
-
             VStack(spacing: 14) {
                 Image("AboutLogo")
                     .resizable()

@@ -540,42 +540,46 @@ private struct ThemePickerCard: View {
         Color(hex: theme.hex)
     }
 
+    private var backgroundColor: Color {
+        Color(hex: theme.backgroundHex)
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(cardBackground)
+                    .fill(backgroundColor)
                     .frame(height: 156)
 
-                VStack(spacing: 16) {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(barColor)
-                        .frame(width: 86, height: 22)
+                VStack(spacing: 18) {
+                    Capsule()
+                        .fill(color)
+                        .frame(width: 88, height: 24)
 
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(color.opacity(0.26))
-                        .frame(width: 78, height: 92)
+                        .fill(color.opacity(0.16))
+                        .frame(width: 80, height: 80)
                         .overlay {
                             Capsule()
                                 .fill(color)
-                                .frame(width: 44, height: 14)
+                                .frame(width: 50, height: 16)
                         }
                 }
+                .padding(.top, 18)
+                .frame(maxHeight: .infinity, alignment: .top)
 
                 VStack {
                     Spacer()
 
-                    HStack(spacing: 8) {
+                    HStack {
                         Circle()
                             .fill(color)
-                            .frame(width: 26, height: 26)
+                            .frame(width: 28, height: 28)
 
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(barColor)
-                            .frame(height: 18)
+                        Spacer()
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 12)
                 }
 
                 if isSelected {
@@ -604,28 +608,6 @@ private struct ThemePickerCard: View {
         }
     }
 
-    private var cardBackground: Color {
-        switch theme {
-        case .verdant:
-            return Color(hex: "EAF8EA")
-        case .moonlit:
-            return Color(hex: "F0ECFF")
-        case .sakuraPulse:
-            return Color(hex: "FFEAF3")
-        case .emberScript:
-            return Color(hex: "FFEBD4")
-        case .oceanFrame:
-            return Color(hex: "E7FAFF")
-        case .cinnabar:
-            return Color(hex: "E74236")
-        case .sandybrown:
-            return Color(hex: "FEB172")
-        }
-    }
-
-    private var barColor: Color {
-        Color(.systemGray4).opacity(0.75)
-    }
 }
 
 private struct SettingsGroup<Content: View>: View {
