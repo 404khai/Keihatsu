@@ -238,7 +238,7 @@ class MyApp extends StatelessWidget {
         ).apply(bodyColor: Colors.white, displayColor: Colors.white),
         useMaterial3: true,
       ),
-      initialRoute: authProvider.isAuthenticated ? '/home' : '/onboarding',
+      initialRoute: authProvider.isAuthenticated ? '/library' : '/onboarding',
       routes: {
         '/onboarding': (context) => const Onboarding(),
         '/onboardingFlow': (context) => const OnboardingFlow(),

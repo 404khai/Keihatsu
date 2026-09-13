@@ -263,7 +263,7 @@ private struct MangaDetailsContentView: View {
 
     private var extensionMetadataLine: some View {
         HStack(spacing: 7) {
-            ExtensionImageView(sourceID: model.manga.id.sourceID, size: 18, cornerRadius: 4)
+            ExtensionImageView(sourceID: model.manga.id.sourceID, size: 30, cornerRadius: 4)
             Text(model.manga.id.sourceID.uppercased())
         }
         .font(.system(size: 15))

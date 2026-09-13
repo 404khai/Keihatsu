@@ -212,6 +212,10 @@ class _LibraryScreenState extends State<LibraryScreen>
             : null,
         actions: [
           IconButton(
+            onPressed: () => offlineLibrary.refresh(true),
+            icon: Icon(Icons.calendar_month_rounded, color: textColor),
+          ),
+          IconButton(
             onPressed: () {
               setState(() => _isSearching = !_isSearching);
               if (!_isSearching) {
@@ -230,10 +234,10 @@ class _LibraryScreenState extends State<LibraryScreen>
             onPressed: _showDisplaySettings,
             icon: Icon(Icons.filter_alt_rounded, color: textColor),
           ),
-          IconButton(
-            onPressed: () => offlineLibrary.refresh(true),
-            icon: Icon(Icons.refresh, color: textColor),
-          ),
+          // IconButton(
+          //   onPressed: () => offlineLibrary.refresh(true),
+          //   icon: Icon(Icons.refresh, color: textColor),
+          // ),
         ],
       ),
       body: GradientFadeScrollListener(

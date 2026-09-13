@@ -8,11 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		B50000000000000000000001 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B50000000000000000000003 /* GoogleSignIn */; };
+		C60000000000000000000001 /* KeihatsuLiveActivities.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C60000000000000000000003 /* KeihatsuLiveActivities.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C60000000000000000000002 /* Keihatsu/Core/LiveActivities/LiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000004 /* Keihatsu/Core/LiveActivities/LiveActivityAttributes.swift */; };
 		D70000000000000000000001 /* BlobatarSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = D70000000000000000000003 /* BlobatarSwiftUI */; };
 		D70000000000000000000004 /* BlobatarCore in Frameworks */ = {isa = PBXBuildFile; productRef = D70000000000000000000005 /* BlobatarCore */; };
-		C60000000000000000000001 /* KeihatsuLiveActivities.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C60000000000000000000003 /* KeihatsuLiveActivities.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		C60000000000000000000002 /* LiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60000000000000000000004 /* LiveActivityAttributes.swift */; };
 /* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		A1000000000000000000006D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -56,15 +57,15 @@
 		A10000000000000000000064 /* KeihatsuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = KeihatsuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000078 /* KeihatsuUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = KeihatsuUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C60000000000000000000003 /* KeihatsuLiveActivities.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = KeihatsuLiveActivities.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		C60000000000000000000004 /* LiveActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keihatsu/Core/LiveActivities/LiveActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
+		C60000000000000000000004 /* Keihatsu/Core/LiveActivities/LiveActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keihatsu/Core/LiveActivities/LiveActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		842A16D22FE361C000466E6C /* Exceptions for "Keihatsu" folder in "Keihatsu" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
 				"Info-Debug.plist",
+				Info.plist,
 			);
 			target = 84876FE42FC78D73003E68ED /* Keihatsu */;
 		};
@@ -146,7 +147,7 @@
 			children = (
 				84876FE72FC78D73003E68ED /* Keihatsu */,
 				C60000000000000000000006 /* KeihatsuLiveActivities */,
-				C60000000000000000000004 /* LiveActivityAttributes.swift */,
+				C60000000000000000000004 /* Keihatsu/Core/LiveActivities/LiveActivityAttributes.swift */,
 				A10000000000000000000079 /* KeihatsuUITests */,
 				A10000000000000000000065 /* KeihatsuTests */,
 				84876FE62FC78D73003E68ED /* Products */,
@@ -194,28 +195,6 @@
 			productReference = 84876FE52FC78D73003E68ED /* Keihatsu.app */;
 			productType = "com.apple.product-type.application";
 		};
-		C6000000000000000000000B /* KeihatsuLiveActivities */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = C60000000000000000000010 /* Build configuration list for PBXNativeTarget "KeihatsuLiveActivities" */;
-			buildPhases = (
-				C60000000000000000000008 /* Sources */,
-				C60000000000000000000007 /* Frameworks */,
-				C60000000000000000000009 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				C60000000000000000000006 /* KeihatsuLiveActivities */,
-			);
-			name = KeihatsuLiveActivities;
-			packageProductDependencies = (
-			);
-			productName = KeihatsuLiveActivities;
-			productReference = C60000000000000000000003 /* KeihatsuLiveActivities.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		A10000000000000000000069 /* KeihatsuTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A1000000000000000000006C /* Build configuration list for PBXNativeTarget "KeihatsuTests" */;
@@ -258,6 +237,28 @@
 			productReference = A10000000000000000000078 /* KeihatsuUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		C6000000000000000000000B /* KeihatsuLiveActivities */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C60000000000000000000010 /* Build configuration list for PBXNativeTarget "KeihatsuLiveActivities" */;
+			buildPhases = (
+				C60000000000000000000008 /* Sources */,
+				C60000000000000000000007 /* Frameworks */,
+				C60000000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C60000000000000000000006 /* KeihatsuLiveActivities */,
+			);
+			name = KeihatsuLiveActivities;
+			packageProductDependencies = (
+			);
+			productName = KeihatsuLiveActivities;
+			productReference = C60000000000000000000003 /* KeihatsuLiveActivities.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -285,12 +286,12 @@
 			);
 			mainGroup = 84876FDC2FC78D73003E68ED;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
-			productRefGroup = 84876FE62FC78D73003E68ED /* Products */;
 			packageReferences = (
 				D70000000000000000000002 /* XCRemoteSwiftPackageReference "blobatar" */,
 				B50000000000000000000002 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 84876FE62FC78D73003E68ED /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -359,7 +360,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C60000000000000000000002 /* LiveActivityAttributes.swift in Sources */,
+				C60000000000000000000002 /* Keihatsu/Core/LiveActivities/LiveActivityAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -513,16 +514,16 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Keihatsu/Info-Debug.plist";
-				KEIHATSU_API_BASE_URL = "";
-				"KEIHATSU_API_BASE_URL[sdk=iphonesimulator*]" = "http://127.0.0.1:3000";
-				KEIHATSU_GOOGLE_CLIENT_ID = "887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9.apps.googleusercontent.com";
-				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9";
-				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "887783028868-auatnr60j0neo58vhk6h72ngtok8hjn7.apps.googleusercontent.com";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				KEIHATSU_API_BASE_URL = "";
+				"KEIHATSU_API_BASE_URL[sdk=iphonesimulator*]" = "http://127.0.0.1:3000";
+				KEIHATSU_GOOGLE_CLIENT_ID = "887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9.apps.googleusercontent.com";
+				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9";
+				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "887783028868-auatnr60j0neo58vhk6h72ngtok8hjn7.apps.googleusercontent.com";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -550,15 +551,15 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Keihatsu/Info.plist;
-				KEIHATSU_API_BASE_URL = "";
-				KEIHATSU_GOOGLE_CLIENT_ID = "887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9.apps.googleusercontent.com";
-				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9";
-				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "887783028868-auatnr60j0neo58vhk6h72ngtok8hjn7.apps.googleusercontent.com";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				KEIHATSU_API_BASE_URL = "";
+				KEIHATSU_GOOGLE_CLIENT_ID = "887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9.apps.googleusercontent.com";
+				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9";
+				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "887783028868-auatnr60j0neo58vhk6h72ngtok8hjn7.apps.googleusercontent.com";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -571,48 +572,6 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		C6000000000000000000000E /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = KeihatsuLiveActivities/Info.plist;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kaizel.Keihatsu.LiveActivities;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		C6000000000000000000000F /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = KeihatsuLiveActivities/Info.plist;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kaizel.Keihatsu.LiveActivities;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -669,6 +628,48 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Keihatsu;
+			};
+			name = Release;
+		};
+		C6000000000000000000000E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KeihatsuLiveActivities/Info.plist;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kaizel.Keihatsu.LiveActivities;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C6000000000000000000000F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KeihatsuLiveActivities/Info.plist;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kaizel.Keihatsu.LiveActivities;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};

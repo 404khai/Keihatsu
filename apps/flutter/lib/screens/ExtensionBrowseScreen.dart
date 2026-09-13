@@ -239,7 +239,7 @@ class _ExtensionBrowseScreenState extends State<ExtensionBrowseScreen> {
           constraints: const BoxConstraints(minHeight: 52, maxHeight: 52),
           backgroundColor: WidgetStatePropertyAll(colorScheme.surfaceContainer),
           shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           ),
           elevation: const WidgetStatePropertyAll(3),
         ),
