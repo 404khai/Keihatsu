@@ -13,7 +13,12 @@ struct LibraryView: View {
     @State private var showingCategories = false
 
     private var currentEntries: [LibraryEntry] {
-        options.options.filtered(collections.snapshot.library, category: selectedCategory, query: searchText)
+        options.options.filtered(
+            collections.snapshot.library,
+            category: selectedCategory,
+            query: searchText,
+            downloadedCount: downloadedCount(for:)
+        )
     }
 
     private var gridColumns: [GridItem] {
@@ -21,6 +26,11 @@ struct LibraryView: View {
             repeating: GridItem(.flexible(minimum: 0), spacing: 14, alignment: .top),
             count: options.options.columns
         )
+    }
+
+    private var gridCardHeight: CGFloat? {
+        guard options.options.columns == 4 else { return nil }
+        return options.options.layout == .cover ? 132 : 154
     }
 
     private func categoryLabel(_ name: String, id: UUID?) -> String {
@@ -119,7 +129,7 @@ struct LibraryView: View {
                         Spacer(minLength: 0)
                     }
                 } else {
-                    LibraryCard(item: entry.item, layout: options.options.layout)
+                    LibraryCard(item: entry.item, layout: options.options.layout, height: gridCardHeight)
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .top)
                         .overlay(alignment: .topLeading) {
                             if shouldShowBadges(for: entry) { badge(entry).padding(6) }
@@ -139,30 +149,69 @@ struct LibraryView: View {
         }
     }
 
+    private func downloadedCount(for entry: LibraryEntry) -> Int {
+        guard let manga = entry.item.manga else { return entry.downloadedCount }
+        return downloads.downloadedCount(for: manga.id)
+    }
+
     private func badge(_ entry: LibraryEntry) -> some View {
-        let localDownloaded = entry.item.manga.map { downloads.downloadedCount(for: $0.id) } ?? 0
+        let localDownloaded = downloadedCount(for: entry)
         return HStack(spacing: 6) {
-            if options.options.displaysUnreadBadge {
-                Label("\(entry.unreadCount)", systemImage: "book.closed")
+            if options.options.displaysUnreadBadge, entry.unreadCount > 0 {
+                badgePill(
+                    "\(entry.unreadCount)",
+                    systemImage: "book.closed",
+                    color: Color(red: 0.22, green: 0.48, blue: 0.96),
+                    accessibilityLabel: "\(entry.unreadCount) unread chapters"
+                )
             }
-            if options.options.displaysDownloadedBadge {
-                Label("\(localDownloaded)", systemImage: "arrow.down")
+            if options.options.displaysDownloadedBadge, localDownloaded > 0 {
+                badgePill(
+                    "\(localDownloaded)",
+                    systemImage: "arrow.down",
+                    color: Color(red: 0.20, green: 0.64, blue: 0.34),
+                    accessibilityLabel: "\(localDownloaded) downloaded chapters on this device"
+                )
             }
             if options.options.displaysLanguageBadge,
                let language = entry.item.manga?.language, !language.isEmpty {
-                Text(language.uppercased())
+                badgePill(
+                    language.uppercased(),
+                    color: Color(red: 0.80, green: 0.35, blue: 0.14),
+                    accessibilityLabel: "Language: \(language)"
+                )
             }
         }
-        .font(.caption2).monospacedDigit().lineLimit(1)
-        .padding(5).background(.regularMaterial, in: Capsule())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(entry.unreadCount) unread chapters, \(localDownloaded) downloaded chapters on this device")
+        .lineLimit(1)
     }
 
     private func shouldShowBadges(for entry: LibraryEntry) -> Bool {
-        options.options.displaysUnreadBadge
-            || options.options.displaysDownloadedBadge
+        (options.options.displaysUnreadBadge && entry.unreadCount > 0)
+            || (options.options.displaysDownloadedBadge && downloadedCount(for: entry) > 0)
             || (options.options.displaysLanguageBadge && !(entry.item.manga?.language ?? "").isEmpty)
+    }
+
+    private func badgePill(
+        _ text: String,
+        systemImage: String? = nil,
+        color: Color,
+        accessibilityLabel: String
+    ) -> some View {
+        Group {
+            if let systemImage {
+                Label(text, systemImage: systemImage)
+            } else {
+                Text(text)
+            }
+        }
+        .font(.caption2.weight(.semibold))
+        .monospacedDigit()
+        .foregroundStyle(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(color, in: Capsule())
+        .fixedSize()
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 

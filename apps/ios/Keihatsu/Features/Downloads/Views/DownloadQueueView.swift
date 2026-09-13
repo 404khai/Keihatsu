@@ -49,7 +49,7 @@ struct DownloadQueueView: View {
                                             pendingMangaCancellation = record
                                         }
                                     } label: {
-                                        Image(systemName: "ellipsis.vertical")
+                                        Image(systemName: "ellipsis")
                                             .font(.title3.weight(.semibold))
                                             .foregroundStyle(.secondary)
                                             .frame(width: 32, height: 32)

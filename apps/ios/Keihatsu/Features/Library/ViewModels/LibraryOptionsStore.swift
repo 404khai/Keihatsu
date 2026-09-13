@@ -31,24 +31,32 @@ nonisolated struct LibraryOptions: Codable {
     var displaysLanguageBadge: Bool { showLanguageBadge ?? showBadges }
     var displaysCategories: Bool { showCategories ?? true }
 
-    func filtered(_ entries: [LibraryEntry], category: UUID?, query: String) -> [LibraryEntry] {
+    func filtered(
+        _ entries: [LibraryEntry],
+        category: UUID?,
+        query: String,
+        downloadedCount: (LibraryEntry) -> Int = { $0.downloadedCount }
+    ) -> [LibraryEntry] {
         let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return entries.filter { entry in
             (category.map { entry.categoryIDs.contains($0) } ?? entry.categoryIDs.isEmpty)
-                && (!downloaded || entry.downloadedCount > 0) && (!unread || entry.unreadCount > 0)
+                && (!downloaded || downloadedCount(entry) > 0) && (!unread || entry.unreadCount > 0)
                 && (!started || entry.isStarted) && (!bookmarked || entry.isBookmarked) && (!completed || entry.isCompleted)
                 && (term.isEmpty || [entry.item.title, entry.item.category, entry.item.metadataLine].contains { $0.localizedCaseInsensitiveContains(term) })
         }.sorted { a, b in
-            let result: ComparisonResult
+            let primaryResult: ComparisonResult
             switch sort {
-            case .alphabetical: result = a.item.title.localizedStandardCompare(b.item.title)
-            case .lastRead: result = (a.lastReadAt ?? .distantPast).compare(b.lastReadAt ?? .distantPast)
-            case .lastUpdated: result = a.lastUpdatedAt.compare(b.lastUpdatedAt)
-            case .dateAdded: result = a.dateAddedAt.compare(b.dateAddedAt)
-            case .unreadCount: result = a.unreadCount == b.unreadCount ? .orderedSame : a.unreadCount < b.unreadCount ? .orderedAscending : .orderedDescending
-            case .totalChapters: result = a.totalChapters == b.totalChapters ? .orderedSame : a.totalChapters < b.totalChapters ? .orderedAscending : .orderedDescending
+            case .alphabetical: primaryResult = a.item.title.localizedStandardCompare(b.item.title)
+            case .lastRead: primaryResult = (a.lastReadAt ?? .distantPast).compare(b.lastReadAt ?? .distantPast)
+            case .lastUpdated: primaryResult = a.lastUpdatedAt.compare(b.lastUpdatedAt)
+            case .dateAdded: primaryResult = a.dateAddedAt.compare(b.dateAddedAt)
+            case .unreadCount: primaryResult = a.unreadCount == b.unreadCount ? .orderedSame : a.unreadCount < b.unreadCount ? .orderedAscending : .orderedDescending
+            case .totalChapters: primaryResult = a.totalChapters == b.totalChapters ? .orderedSame : a.totalChapters < b.totalChapters ? .orderedAscending : .orderedDescending
             }
-            if result == .orderedSame { return a.id.uuidString < b.id.uuidString }
+            let titleResult = a.item.title.localizedStandardCompare(b.item.title)
+            let result = primaryResult != .orderedSame
+                ? primaryResult
+                : titleResult != .orderedSame ? titleResult : a.id.uuidString.compare(b.id.uuidString)
             return ascending ? result == .orderedAscending : result == .orderedDescending
         }
     }

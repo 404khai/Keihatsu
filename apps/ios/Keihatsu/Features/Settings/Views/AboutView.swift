@@ -33,17 +33,6 @@ struct AboutView: View {
 
     private var heroCard: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.black, Color(hex: "18230D"), accent.opacity(0.72)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            Circle()
-                .fill(accent.opacity(0.32))
-                .frame(width: 230, height: 230)
-                .blur(radius: 54)
-                .offset(x: 120, y: -100)
 
             VStack(spacing: 14) {
                 Image("AboutLogo")
@@ -74,10 +63,7 @@ struct AboutView: View {
         }
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(.white.opacity(0.08), lineWidth: 1)
-        }
+        
     }
 
     private var missionCard: some View {

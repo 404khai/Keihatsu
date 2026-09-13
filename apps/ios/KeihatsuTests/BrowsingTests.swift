@@ -117,6 +117,22 @@ struct BrowsingTests {
         }
         options.downloaded = true; options.unread = true
         #expect(options.filtered(store.snapshot.library, category: nil, query: "").allSatisfy { $0.downloadedCount > 0 && $0.unreadCount > 0 })
+        let locallyDownloadedID = try #require(entries.first?.id)
+        var localFilter = LibraryOptions()
+        localFilter.downloaded = true
+        let localDownloads = localFilter.filtered(
+            store.snapshot.library,
+            category: nil,
+            query: "",
+            downloadedCount: { $0.id == locallyDownloadedID ? 1 : 0 }
+        )
+        #expect(localDownloads.map(\.id) == [locallyDownloadedID])
+        var ascending = LibraryOptions()
+        ascending.sort = .lastRead
+        ascending.ascending = true
+        let ascendingIDs = ascending.filtered(store.snapshot.library, category: nil, query: "").map(\.id)
+        ascending.ascending = false
+        #expect(ascending.filtered(store.snapshot.library, category: nil, query: "").map(\.id) == Array(ascendingIDs.reversed()))
         #expect(store.saveCategory(id: nil, name: "Favorites"))
         #expect(!store.saveCategory(id: nil, name: "favorites"))
         let category = try #require(store.snapshot.categories.last)
