@@ -99,7 +99,7 @@ struct LocalUserPreferences: Codable, Equatable {
         incognitoModeEnabled: false,
         readingLiveActivitiesEnabled: true,
         downloadLiveActivitiesEnabled: true,
-        showLiveActivityMangaDetails: false,
+        showLiveActivityMangaDetails: true,
         autoSyncEnabled: true,
         downloadOnWiFiOnly: true,
         saveChaptersForOffline: false,

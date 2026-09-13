@@ -49,6 +49,20 @@ struct LiveActivityTests {
         #expect(completed.status == .completed && !completed.hasUnfinishedWork)
     }
 
+    @Test func detailedDownloadProjectionUsesMangaAndChapterNames() throws {
+        let record = makeDownload(status: .downloading, progress: 0.4, title: "Second Manga")
+        let projection = try #require(DownloadLiveActivityProjection.make(
+            records: [record],
+            trackedRecordIDs: [record.id],
+            batchID: UUID(),
+            isGloballyPaused: false,
+            showsDetails: true
+        ))
+
+        #expect(projection.mangaTitle == "Second Manga")
+        #expect(projection.chapterName == "Chapter 1")
+    }
+
     @Test func readingLinkTracksCurrentChapterAndRoundTripsOpaqueIDs() throws {
         let state = ReadingActivityAttributes.ContentState(
             mangaTitle: "A Manga", chapterName: "Chapter 2.5",
@@ -84,12 +98,26 @@ struct LiveActivityTests {
         #expect(context.pageIndex == 0)
     }
 
-    @Test func legacyPreferencesAdoptPrivateLiveActivityDefaults() throws {
+    @Test func legacyPreferencesShowLiveActivityDetailsByDefault() throws {
         let preferences = try JSONDecoder().decode(LocalUserPreferences.self, from: Data("{}".utf8))
 
         #expect(preferences.readingLiveActivitiesEnabled)
         #expect(preferences.downloadLiveActivitiesEnabled)
-        #expect(!preferences.showLiveActivityMangaDetails)
+        #expect(preferences.showLiveActivityMangaDetails)
+    }
+
+    @Test @MainActor func existingPrivatePreferenceMigratesOnceAndRemainsUserControlled() throws {
+        let defaults = try #require(UserDefaults(suiteName: "keihatsu.live-activity-tests.\(UUID())"))
+        var preferences = LocalUserPreferences.default
+        preferences.showLiveActivityMangaDetails = false
+        defaults.set(try JSONEncoder().encode(preferences), forKey: "keihatsu.localUserPreferences")
+
+        let migrated = AppPreferencesStore(userDefaults: defaults)
+        #expect(migrated.preferences.showLiveActivityMangaDetails)
+
+        migrated.preferences.showLiveActivityMangaDetails = false
+        let restored = AppPreferencesStore(userDefaults: defaults)
+        #expect(!restored.preferences.showLiveActivityMangaDetails)
     }
 
     @Test func representativeActivityPayloadsStayBelowActivityKitLimit() throws {

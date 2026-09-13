@@ -10,19 +10,29 @@ final class AppPreferencesStore: ObservableObject {
     }
 
     private let storageKey = "keihatsu.localUserPreferences"
+    private let liveActivityDetailsMigrationKey = "keihatsu.migrations.liveActivityDetailsDefault.v1"
     private let userDefaults: UserDefaults
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
 
+        var initialPreferences: LocalUserPreferences
         if
             let data = userDefaults.data(forKey: storageKey),
             let decoded = try? JSONDecoder().decode(LocalUserPreferences.self, from: data)
         {
-            self.preferences = decoded
+            initialPreferences = decoded
         } else {
-            self.preferences = .default
+            initialPreferences = .default
         }
+
+        let shouldMigrateLiveActivityDetails = !userDefaults.bool(forKey: liveActivityDetailsMigrationKey)
+        if shouldMigrateLiveActivityDetails {
+            initialPreferences.showLiveActivityMangaDetails = true
+            userDefaults.set(true, forKey: liveActivityDetailsMigrationKey)
+        }
+        self.preferences = initialPreferences
+        if shouldMigrateLiveActivityDetails { save() }
     }
 
     func reset() {
