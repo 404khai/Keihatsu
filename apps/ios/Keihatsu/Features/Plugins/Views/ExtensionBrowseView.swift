@@ -137,7 +137,7 @@ struct ExtensionBrowseView: View {
         }
         .refreshable { await model.reload(query: searchText) }
         .navigationDestination(for: MangaDetailsSeed.self) { seed in
-            CarouselDetailView(seed: seed, animation: animation, origin: .search)
+            MangaDetailView(seed: seed, animation: animation, origin: .search)
         }
     }
 

@@ -232,7 +232,7 @@ struct HomeView: View {
                     .navigationTransition(.zoom(sourceID: "Notifications", in: animation))
             }
             .navigationDestination(for: MangaDetailsSeed.self) { seed in
-                CarouselDetailView(seed: seed, animation: animation, origin: .home)
+                MangaDetailView(seed: seed, animation: animation, origin: .home)
             }
         }
     }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct CarouselDetailView: View {
+struct MangaDetailView: View {
     @EnvironmentObject private var environment: AppEnvironment
     let seed: MangaDetailsSeed
     let animation: Namespace.ID
@@ -137,7 +137,7 @@ private struct MangaDetailsContentView: View {
             ReaderEntryView(manga: model.manga, chapters: model.chapters, context: context)
         }
         .navigationDestination(for: MangaDetailsSeed.self) { seed in
-            CarouselDetailView(seed: seed, animation: animation, origin: .details)
+            MangaDetailView(seed: seed, animation: animation, origin: .details)
         }
     }
 
@@ -581,6 +581,6 @@ private struct BackgroundExtensionModifier: ViewModifier {
 
 #Preview {
     @Previewable @Namespace var animation
-    NavigationStack { CarouselDetailView(item: images[4], animation: animation, origin: .home) }
+    NavigationStack { MangaDetailView(item: images[4], animation: animation, origin: .home) }
         .appEnvironment(.preview())
 }

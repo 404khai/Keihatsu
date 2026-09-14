@@ -61,7 +61,7 @@ struct GlobalExtensionSearchView: View {
         .task(id: searchKey) { await model.search(searchText, sources: visibleExtensions) }
         .onSubmit(of: .search) { model.remember(searchText) }
         .navigationDestination(for: MangaDetailsSeed.self) { seed in
-            CarouselDetailView(seed: seed, animation: animation, origin: .search)
+            MangaDetailView(seed: seed, animation: animation, origin: .search)
         }
         .navigationTitle("Search")
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search across sources"))

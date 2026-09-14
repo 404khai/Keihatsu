@@ -3,6 +3,7 @@ import UIKit
 
 struct ReaderView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var navigation: AppNavigation
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
     @StateObject private var model: ReaderViewModel
     @State private var showsComments = false
@@ -94,10 +95,18 @@ struct ReaderView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .onAppear { updateIdleTimer() }
+        .onAppear {
+            navigation.readerDidAppear(chapter: model.currentChapter?.id ?? model.context.chapter)
+            updateIdleTimer()
+        }
         .onDisappear {
+            navigation.readerDidDisappear()
             UIApplication.shared.isIdleTimerDisabled = false
             Task { await model.end() }
+        }
+        .onChange(of: model.currentChapter?.id) { _, chapter in
+            guard let chapter else { return }
+            navigation.readerDidAppear(chapter: chapter)
         }
         .onChange(of: preferencesStore.preferences.keepScreenAwake) { updateIdleTimer() }
         .onChange(of: scenePhase) { _, phase in

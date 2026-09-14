@@ -20,7 +20,7 @@ export class CommentsService {
     sourceId: string,
     mangaId: string,
     chapterId: string,
-    createCommentDto: CreateCommentDto,
+    createCommentDto: CreateCommentDto = {},
     files: Express.Multer.File[] = [],
   ) {
     if (createCommentDto.parentId) {

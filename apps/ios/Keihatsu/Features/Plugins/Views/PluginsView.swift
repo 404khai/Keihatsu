@@ -13,9 +13,9 @@ struct PluginsView: View {
     @State private var searchText = ""
     @State private var selectedPlugin: PluginSource?
     @State private var pendingBrowseSource: Source?
-    @State private var browseSource: Source?
 
     @EnvironmentObject private var sources: SourcePreferencesStore
+    @EnvironmentObject private var navigation: AppNavigation
     @State private var availableOnly = false
 
     private var plugins: [PluginSource] {
@@ -122,7 +122,7 @@ struct PluginsView: View {
         .sheet(item: $selectedPlugin, onDismiss: {
             if let source = pendingBrowseSource {
                 pendingBrowseSource = nil
-                browseSource = source
+                navigation.extensionsPath.append(source)
             }
         }) { item in
             ExtensionDetailsSheet(
@@ -132,7 +132,7 @@ struct PluginsView: View {
                 onBrowse: { pendingBrowseSource = item.source }
             )
         }
-        .navigationDestination(item: $browseSource) { source in
+        .navigationDestination(for: Source.self) { source in
             ExtensionBrowseView(source: source, repository: environment.services.catalogue)
         }
     }

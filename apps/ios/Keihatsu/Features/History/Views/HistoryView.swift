@@ -96,7 +96,7 @@ struct HistoryView: View {
         .navigationTitle("History")
         .task { await readingHistory.refresh() }
         .navigationDestination(for: MangaDetailsSeed.self) { seed in
-            CarouselDetailView(seed: seed, animation: animation, origin: .history)
+            MangaDetailView(seed: seed, animation: animation, origin: .history)
         }
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search history"))
         .overlay {
