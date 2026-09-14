@@ -165,6 +165,20 @@ class AuthApi {
     }
   }
 
+  Future<void> deleteAccount(String token) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/user/profile'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode != 204) {
+      final payload = response.body.isEmpty
+          ? null
+          : json.decode(response.body) as Map<String, dynamic>;
+      throw Exception(payload?['message'] ?? 'Failed to delete account');
+    }
+  }
+
   // --- User Preferences Endpoints ---
 
   Future<UserPreferences> getPreferences(String token) async {

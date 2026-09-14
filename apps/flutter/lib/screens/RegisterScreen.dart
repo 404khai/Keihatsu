@@ -72,7 +72,7 @@ class RegisterScreen extends StatelessWidget {
                         try {
                           await authProvider.loginWithGoogle();
                           if (context.mounted && authProvider.isAuthenticated) {
-                            Navigator.pushReplacementNamed(context, '/home');
+                            Navigator.pushReplacementNamed(context, '/library');
                           }
                         } catch (e) {
                           if (context.mounted) {
@@ -93,11 +93,11 @@ class RegisterScreen extends StatelessWidget {
                             'images/google.png',
                             height: 20,
                             errorBuilder: (context, error, stackTrace) =>
-                            const Icon(
-                              Icons.login,
-                              size: 20,
-                              color: Colors.white,
-                            ),
+                                const Icon(
+                                  Icons.login,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
                           ),
                           const SizedBox(width: 12),
                           const Text(
@@ -118,7 +118,7 @@ class RegisterScreen extends StatelessWidget {
                 // Skip for now
                 TextButton(
                   onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/home');
+                    Navigator.pushReplacementNamed(context, '/library');
                   },
                   child: const Text(
                     "Skip for now",

@@ -70,6 +70,7 @@ flutter:
 
   assets:
     - images/
+    - images/icons/appIcons/
     - images/extensions/
     - images/icons/libraryIcons/
     - images/manwha/
@@ -77,8 +78,8 @@ flutter:
 
 flutter_launcher_icons:
   android: "ic_launcher"
-  ios: true
-  image_path: "images/keihatsu.png"
+  ios: false
+  image_path: "images/icons/appIcons/KeihatsuIcon.png"
   remove_alpha_ios: true
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "images/keihatsu.png"

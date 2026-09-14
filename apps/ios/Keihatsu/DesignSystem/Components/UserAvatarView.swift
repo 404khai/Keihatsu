@@ -51,7 +51,7 @@ struct UserAvatarView: View {
         return BlobatarOptions(
             hue: configuration.hue,
             traits: traits,
-            background: .squircle,
+            background: .circle,
             expression: configuration.expression.blobatarExpression
         )
     }

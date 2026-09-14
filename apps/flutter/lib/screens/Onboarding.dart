@@ -27,7 +27,7 @@ class _OnboardingState extends State<Onboarding> {
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
     if (token != null) {
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/library');
     } else {
       if (hasSeenOnboarding) {
         Navigator.pushReplacementNamed(context, '/login');

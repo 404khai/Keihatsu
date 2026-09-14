@@ -498,6 +498,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               }
                             },
                           ),
+                          MenuTile(
+                            icon: Icons.delete_forever_outlined,
+                            title: 'Delete account',
+                            foreground: cs.error,
+                            onTap: () async {
+                              final bool confirmed = await StyledSheet.show(
+                                context,
+                                icon: Icons.delete_forever_rounded,
+                                title: 'Delete account?',
+                                message:
+                                    'This permanently deletes your profile, library, '
+                                    'categories, history, comments, and preferences. '
+                                    "This can't be undone.",
+                                confirmLabel: 'Delete forever',
+                                destructive: true,
+                              );
+                              if (!confirmed || !context.mounted) return;
+
+                              try {
+                                await authProvider.deleteAccount();
+                                if (!context.mounted) return;
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  '/login',
+                                );
+                              } catch (error) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(error.toString())),
+                                );
+                              }
+                            },
+                          ),
                         ],
                       ),
                     ],

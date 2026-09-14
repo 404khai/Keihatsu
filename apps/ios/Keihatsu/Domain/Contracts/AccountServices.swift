@@ -11,6 +11,7 @@ protocol UserServicing: Sendable {
     func updatePreferences(_ preferences: SyncedUserPreferences, token: String) async throws -> SyncedUserPreferences
     func updateProfile(_ update: ProfileUpdate, token: String) async throws -> UserAccount
     func updateVisibility(_ isPublic: Bool, token: String) async throws -> UserAccount
+    func deleteAccount(token: String) async throws
     func publicProfile(userID: String) async throws -> PublicUserProfile
 }
 

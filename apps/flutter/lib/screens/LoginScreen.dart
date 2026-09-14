@@ -72,7 +72,7 @@ class LoginScreen extends StatelessWidget {
                         try {
                           await authProvider.loginWithGoogle();
                           if (context.mounted && authProvider.isAuthenticated) {
-                            Navigator.pushReplacementNamed(context, '/home');
+                            Navigator.pushReplacementNamed(context, '/library');
                           }
                         } catch (e) {
                           if (context.mounted) {
@@ -91,11 +91,11 @@ class LoginScreen extends StatelessWidget {
                             'images/google.png',
                             height: 20,
                             errorBuilder: (context, error, stackTrace) =>
-                            const Icon(
-                              Icons.login,
-                              size: 20,
-                              color: Colors.white,
-                            ),
+                                const Icon(
+                                  Icons.login,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
                           ),
                           const SizedBox(width: 12),
                           const Text(
@@ -116,7 +116,7 @@ class LoginScreen extends StatelessWidget {
                 // Skip for now
                 TextButton(
                   onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/home');
+                    Navigator.pushReplacementNamed(context, '/library');
                   },
                   child: const Text(
                     "Skip for now",
@@ -137,7 +137,10 @@ class LoginScreen extends StatelessWidget {
                     text: TextSpan(
                       style: const TextStyle(color: textColor, fontSize: 14),
                       children: [
-                        const TextSpan(text: "Don't have an account? ", style: TextStyle(color: subTextColor)),
+                        const TextSpan(
+                          text: "Don't have an account? ",
+                          style: TextStyle(color: subTextColor),
+                        ),
                         TextSpan(
                           text: "Register",
                           style: TextStyle(

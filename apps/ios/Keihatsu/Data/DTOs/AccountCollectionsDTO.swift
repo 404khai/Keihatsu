@@ -75,7 +75,7 @@ nonisolated struct HistoryEntryDTO: Decodable, Sendable {
         )
         return ReaderProgressRecord(
             manga: manga, chapter: chapter, pageIndex: max(pageNumber ?? 0, 0),
-            intraPageAnchor: 0, totalPages: 0, activeReadingSeconds: 0,
+            intraPageAnchor: 0, totalPages: max((pageNumber ?? 0) + 1, 1), activeReadingSeconds: 0,
             isRead: isRead ?? false, isBookmarked: isBookmarked ?? false,
             updatedAt: APIDate.parse(lastReadAt) ?? .distantPast
         )

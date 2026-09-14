@@ -14,7 +14,13 @@ struct LibraryControlsSheet: View {
                     Toggle("Completed", isOn: $store.options.completed)
                 }
                 Section("Sort") {
-                    Picker("Sort by", selection: $store.options.sort) {
+                    Picker(
+                        "Sort by",
+                        selection: Binding(
+                            get: { store.options.sort },
+                            set: { store.setSort($0) }
+                        )
+                    ) {
                         ForEach(LibrarySort.allCases) { Text($0.rawValue).tag($0) }
                     }
                     Toggle("Ascending", isOn: $store.options.ascending)

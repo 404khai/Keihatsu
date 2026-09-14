@@ -173,6 +173,51 @@ export class UsersService {
     });
   }
 
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true, bannerUrl: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.prisma.$transaction(async (transaction) => {
+      const comments = await transaction.comment.findMany({
+        where: { userId },
+        select: { id: true },
+      });
+      const commentIds = comments.map((comment) => comment.id);
+
+      if (commentIds.length > 0) {
+        await transaction.comment.updateMany({
+          where: { parentId: { in: commentIds } },
+          data: { parentId: null },
+        });
+      }
+
+      await transaction.commentLike.deleteMany({ where: { userId } });
+      await transaction.comment.deleteMany({ where: { userId } });
+      await transaction.historySyncEvent.deleteMany({ where: { userId } });
+      await transaction.historyEntry.deleteMany({ where: { userId } });
+      await transaction.libraryEntry.deleteMany({ where: { userId } });
+      await transaction.category.deleteMany({ where: { userId } });
+      await transaction.user.delete({ where: { id: userId } });
+    });
+
+    const cleanupResults = await Promise.allSettled([
+      this.cloudinaryService.deleteImageByUrl(user.avatarUrl),
+      this.cloudinaryService.deleteImageByUrl(user.bannerUrl),
+    ]);
+    cleanupResults.forEach((result) => {
+      if (result.status === 'rejected') {
+        this.logger.warn(
+          `Failed to delete account Cloudinary asset: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+        );
+      }
+    });
+  }
+
   async getPublicProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
