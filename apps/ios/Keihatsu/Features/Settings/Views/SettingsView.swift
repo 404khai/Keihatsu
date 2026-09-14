@@ -289,7 +289,7 @@ struct BrowseSettingsView: View {
                 SettingsToggleRow(
                     icon: "puzzlepiece.extension",
                     title: "Source Warnings",
-                    subtitle: "Show availability and safety hints for plugins",
+                    subtitle: "Show availability and safety hints for extensions",
                     isOn: $preferencesStore.preferences.sourceWarningsEnabled,
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
@@ -300,7 +300,6 @@ struct BrowseSettingsView: View {
 
 struct TrackingSettingsView: View {
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
-    @EnvironmentObject private var syncQueueStore: SyncQueueStore
 
     var body: some View {
         SettingsControlsPage(title: "Tracking") {
@@ -312,10 +311,6 @@ struct TrackingSettingsView: View {
                     isOn: $preferencesStore.preferences.trackingSyncEnabled,
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
-
-                SettingsDivider()
-
-                SyncStatusView(accent: Color(hex: preferencesStore.preferences.theme.hex))
             }
         }
     }
@@ -387,6 +382,9 @@ struct AdvancedSettingsView: View {
                 }
                 .padding(16)
             }
+            SettingsGroup(title: "Account Sync") {
+                SyncStatusView(accent: Color(hex: preferencesStore.preferences.theme.hex))
+            }
         }
     }
 }
@@ -410,6 +408,7 @@ struct SettingsControlsPage<Content: View>: View {
 }
 
 struct SyncStatusView: View {
+    @EnvironmentObject private var accountSession: AccountSessionStore
     @EnvironmentObject private var syncQueueStore: SyncQueueStore
     let accent: Color
 
@@ -430,9 +429,9 @@ struct SyncStatusView: View {
 
                 Spacer(minLength: 0)
 
-                Label("Unavailable", systemImage: "icloud.slash")
+                Label(syncState.label, systemImage: syncState.symbol)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(syncState.color)
             }
 
             ForEach(syncQueueStore.operations.prefix(3)) { operation in
@@ -466,10 +465,23 @@ struct SyncStatusView: View {
 
     private var lastSyncedText: String {
         guard let lastSyncedAt = syncQueueStore.lastSyncedAt else {
-            return "Account sync is not available yet"
+            return accountSession.isAuthenticated
+                ? "Waiting for the first successful sync"
+                : "Sign in to sync account data"
         }
 
         return "Last synced \(lastSyncedAt.formatted(date: .abbreviated, time: .shortened))"
+    }
+
+    private var syncState: (label: String, symbol: String, color: Color) {
+        guard accountSession.isAuthenticated else { return ("Signed Out", "icloud.slash", .secondary) }
+        if syncQueueStore.operations.contains(where: { $0.status == .failed }) {
+            return ("Needs Attention", "exclamationmark.icloud", .red)
+        }
+        if syncQueueStore.operations.contains(where: { $0.status == .queued || $0.status == .syncing }) {
+            return ("Syncing", "arrow.triangle.2.circlepath.icloud", accent)
+        }
+        return ("Up to Date", "checkmark.icloud", .green)
     }
 
     private func statusColor(for status: SyncOperationStatus) -> Color {

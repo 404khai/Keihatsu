@@ -96,7 +96,7 @@ struct ContentView: View {
                 }
             }
 
-            Tab.init("Plugins", systemImage: "puzzlepiece.extension", value: AppNavigation.Tab.extensions){
+            Tab.init("Extensions", systemImage: "puzzlepiece.extension", value: AppNavigation.Tab.extensions){
                 NavigationStack(path: $navigation.extensionsPath) {
                     PluginsView()
                 }

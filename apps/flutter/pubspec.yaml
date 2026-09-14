@@ -49,6 +49,7 @@ dependencies:
     path: ../../../navii/packages/flutter
   blobatar:
     path: /Users/admin/Developer/blobatar/packages/flutter
+  share_plus: ^12.0.2
 
 dev_dependencies:
   flutter_launcher_icons: "^0.14.3"
@@ -78,6 +79,7 @@ flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
   image_path: "images/keihatsu.png"
+  remove_alpha_ios: true
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "images/keihatsu.png"
   min_sdk_android: 21

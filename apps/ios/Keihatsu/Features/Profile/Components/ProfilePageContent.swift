@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ProfilePageContent: View {
     @EnvironmentObject private var accountSession: AccountSessionStore
@@ -8,6 +9,7 @@ struct ProfilePageContent: View {
     @State private var showsInbox = false
     @State private var showsSignIn = false
     @State private var showsEditProfile = false
+    @State private var showsCategories = false
     @State private var confirmsLogout = false
 
     private var account: UserAccount? { accountSession.account }
@@ -42,7 +44,10 @@ struct ProfilePageContent: View {
                         .buttonStyle(.plain)
                 }
                 ProfileGroup {
-                    ProfileRow(icon: "tag", title: "Categories", showsChevron: true)
+                    Button { showsCategories = true } label: {
+                        ProfileRow(icon: "tag", title: "Categories", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
                     ProfileDivider()
                     NavigationLink { DataStorageView() } label: {
                         ProfileRow(icon: "server.rack", title: "Data & Storage", showsChevron: true)
@@ -92,6 +97,7 @@ struct ProfilePageContent: View {
         .sheet(isPresented: $showsEditProfile) {
             if let account { EditProfileView(account: account) }
         }
+        .sheet(isPresented: $showsCategories) { LibraryCategoriesSheet() }
         .confirmationDialog("Sign out of Keihatsu?", isPresented: $confirmsLogout) {
             Button("Sign Out", role: .destructive) {
                 Task { await accountSession.logout(); bootstrap.requireAccountEntry() }
@@ -119,11 +125,35 @@ struct ProfilePageContent: View {
             }
             .frame(maxWidth: .infinity)
             if account != nil {
-                Button { showsEditProfile = true } label: {
-                    Label("Edit Profile", systemImage: "pencil").font(.headline).frame(maxWidth: .infinity).frame(height: 48)
+                HStack(spacing: 12) {
+                    Button { showsEditProfile = true } label: {
+                        Label("Edit Profile", systemImage: "pencil")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+
+                    Menu {
+                        Button {
+                            UIPasteboard.general.string = profileURL.absoluteString
+                        } label: {
+                            Label("Copy Profile Link", systemImage: "doc.on.doc")
+                        }
+
+                        ShareLink(item: profileURL) {
+                            Label("Share Profile", systemImage: "square.and.arrow.up")
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.headline)
+                            .frame(width: 48, height: 48)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.circle)
+                    .accessibilityLabel("Copy or share profile")
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
             }
         }
         .frame(maxWidth: .infinity)
@@ -132,6 +162,11 @@ struct ProfilePageContent: View {
     private var profileSubtitle: String {
         if let bio = account?.bio?.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty { return bio }
         return account == nil ? "Sign in to sync your reading journey." : "Keihatsu reader"
+    }
+
+    private var profileURL: URL {
+        let slug = account?.username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? account?.id ?? "reader"
+        return URL(string: "https://keihatsu.app/u/\(slug)")!
     }
 
     private var statsCard: some View {

@@ -89,6 +89,30 @@ struct ReaderPersistenceTests {
 
 @Suite @MainActor
 struct ReaderViewModelTests {
+    @Test func openingChapterImmediatelyCreatesHistoryEntry() async {
+        let mangaID = MangaIdentity(sourceID: "source", mangaID: "manga")
+        let manga = Manga(id: mangaID, title: "Title", url: nil, thumbnailURL: nil, description: nil, author: nil, artist: nil, status: nil, genres: [], language: nil)
+        let chapter = Chapter(id: .init(manga: mangaID, chapterID: "one"), name: "One", number: 1, uploadedAt: nil, url: nil, scanlator: nil)
+        let historyRepository = ReaderHistoryRepositorySpy()
+        let history = ReadingHistoryModel(repository: historyRepository)
+        let model = ReaderViewModel(
+            manga: manga,
+            chapters: [chapter],
+            context: ReaderLaunchContext(chapter: chapter.id, origin: .details, pageIndex: nil),
+            reader: ReaderRepositoryStub(pageCount: 10),
+            history: history,
+            imagePipeline: ImagePipeline(configuration: APIConfiguration(baseURLString: "https://example.test")),
+            incognito: false
+        )
+
+        await model.load()
+
+        let saved = await historyRepository.lastProgress
+        #expect(saved?.chapter.id == chapter.id)
+        #expect(saved?.pageIndex == 0)
+        #expect(await historyRepository.savedCount == 1)
+    }
+
     @Test func deletingMultipleHistoryEntriesDeletesEveryManga() async {
         let repository = ReaderHistoryRepositorySpy()
         let history = ReadingHistoryModel(repository: repository)

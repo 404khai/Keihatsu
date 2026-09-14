@@ -43,6 +43,7 @@ class MenuHeader extends StatefulWidget {
     this.memberSince,
     this.location,
     this.badgeIcon,
+    this.onCopyTap,
     this.onShareTap,
     this.showProfileActions = false,
     this.statRotationInterval = const Duration(seconds: 5),
@@ -63,6 +64,7 @@ class MenuHeader extends StatefulWidget {
   final String? memberSince;
   final String? location;
   final IconData? badgeIcon;
+  final VoidCallback? onCopyTap;
   final VoidCallback? onShareTap;
   final bool showProfileActions;
   final Duration statRotationInterval;
@@ -289,7 +291,7 @@ class _MenuHeaderState extends State<MenuHeader> {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: widget.onShareTap,
+                    onPressed: widget.onEditTap,
                     style: FilledButton.styleFrom(
                       backgroundColor: cs.surfaceContainerHigh,
                       foregroundColor: cs.onSurface,
@@ -300,12 +302,12 @@ class _MenuHeaderState extends State<MenuHeader> {
                       ),
                     ),
                     icon: Icon(
-                      Icons.ios_share_rounded,
+                      Icons.edit_outlined,
                       size: 18,
                       color: cs.onSurface,
                     ),
                     label: Text(
-                      'Share Profile',
+                      'Edit Profile',
                       style: tt.labelLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -313,19 +315,35 @@ class _MenuHeaderState extends State<MenuHeader> {
                   ),
                 ),
                 12.gap,
-                ShapedActionButton(
-                  onTap: widget.onEditTap ?? () {},
-                  rest: MaterialShapes.circle,
-                  pressed: MaterialShapes.sunny,
-                  color: cs.surfaceContainerHigh,
-                  height: 44,
-                  padding: EdgeInsets.zero,
-                  child: SizedBox(
-                    width: 44,
-                    child: Icon(
-                      Icons.edit_outlined,
-                      size: 20,
-                      color: cs.onSurface,
+                MenuAnchor(
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: widget.onCopyTap,
+                      leadingIcon: const Icon(Icons.content_copy_rounded),
+                      child: const Text('Copy Profile Link'),
+                    ),
+                    MenuItemButton(
+                      onPressed: widget.onShareTap,
+                      leadingIcon: const Icon(Icons.ios_share_rounded),
+                      child: const Text('Share Profile'),
+                    ),
+                  ],
+                  builder: (context, controller, child) => ShapedActionButton(
+                    onTap: controller.isOpen
+                        ? controller.close
+                        : controller.open,
+                    rest: MaterialShapes.circle,
+                    pressed: MaterialShapes.sunny,
+                    color: cs.surfaceContainerHigh,
+                    height: 44,
+                    padding: EdgeInsets.zero,
+                    child: SizedBox(
+                      width: 44,
+                      child: Icon(
+                        Icons.ios_share_rounded,
+                        size: 20,
+                        color: cs.onSurface,
+                      ),
                     ),
                   ),
                 ),

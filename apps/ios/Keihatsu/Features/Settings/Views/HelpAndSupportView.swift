@@ -18,7 +18,7 @@ struct HelpAndSupportView: View {
                         .font(.headline)
                         .foregroundStyle(accent)
 
-                    Text("Find answers for library sync, source plugins, reader behavior, downloads, and account settings.")
+                    Text("Find answers for library sync, source extensions, reader behavior, downloads, and account settings.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -185,9 +185,9 @@ private struct SupportTopic: Identifiable {
         ),
         SupportTopic(
             icon: "puzzlepiece.extension",
-            title: "Source plugins",
+            title: "Source extensions",
             summary: "Manage installed sources and plugin availability.",
-            details: "If a source is unavailable, check the Plugins screen for enabled status, source warnings, and migration options before retrying search or chapter loading."
+            details: "If a source is unavailable, check the Extensions screen for enabled status, source warnings, and migration options before retrying search or chapter loading."
         ),
         SupportTopic(
             icon: "book",
