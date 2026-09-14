@@ -22,6 +22,7 @@ struct AppRootView: View {
             }
         }
         .task {
+            await environment.readingHistory.refresh()
             await environment.accountSession.restore()
             if environment.accountSession.isAuthenticated { bootstrap.enterAuthenticated() }
         }

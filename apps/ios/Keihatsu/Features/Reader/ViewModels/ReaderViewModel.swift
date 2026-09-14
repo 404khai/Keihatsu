@@ -92,6 +92,7 @@ final class ReaderViewModel: ObservableObject {
             if let snapshot = liveActivitySnapshot {
                 await liveActivities?.startReading(snapshot)
             }
+            await persistCurrentPosition()
         } catch {
             loadError = error.localizedDescription
         }

@@ -35,7 +35,8 @@ nonisolated struct LibraryOptions: Codable {
         _ entries: [LibraryEntry],
         category: UUID?,
         query: String,
-        downloadedCount: (LibraryEntry) -> Int = { $0.downloadedCount }
+        downloadedCount: (LibraryEntry) -> Int = { $0.downloadedCount },
+        lastReadAt: (LibraryEntry) -> Date? = { $0.lastReadAt }
     ) -> [LibraryEntry] {
         let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return entries.filter { entry in
@@ -47,7 +48,7 @@ nonisolated struct LibraryOptions: Codable {
             let primaryResult: ComparisonResult
             switch sort {
             case .alphabetical: primaryResult = a.item.title.localizedStandardCompare(b.item.title)
-            case .lastRead: primaryResult = (a.lastReadAt ?? .distantPast).compare(b.lastReadAt ?? .distantPast)
+            case .lastRead: primaryResult = (lastReadAt(a) ?? .distantPast).compare(lastReadAt(b) ?? .distantPast)
             case .lastUpdated: primaryResult = a.lastUpdatedAt.compare(b.lastUpdatedAt)
             case .dateAdded: primaryResult = a.dateAddedAt.compare(b.dateAddedAt)
             case .unreadCount: primaryResult = a.unreadCount == b.unreadCount ? .orderedSame : a.unreadCount < b.unreadCount ? .orderedAscending : .orderedDescending
@@ -72,6 +73,10 @@ final class LibraryOptionsStore: ObservableObject {
         options.columns = min(4, max(2, options.columns))
     }
 
+    func setSort(_ sort: LibrarySort) {
+        options.sort = sort
+        options.ascending = sort == .alphabetical
+    }
 
     func apply(_ synced: SyncedUserPreferences) {
         options.layout = LibraryLayout.allCases.first {

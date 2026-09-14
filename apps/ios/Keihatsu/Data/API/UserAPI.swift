@@ -55,6 +55,13 @@ nonisolated struct UserAPI: UserServicing, Sendable {
         return dto.domain()
     }
 
+    func deleteAccount(token: String) async throws {
+        let _: EmptyAPIResponse = try await client.send(
+            APIRequest<EmptyAPIResponse>(path: ["user", "profile"], method: .delete, requiresAuthentication: true),
+            bearerToken: token
+        )
+    }
+
     func publicProfile(userID: String) async throws -> PublicUserProfile {
         let dto = try await client.send(APIRequest<PublicProfileDTO>(path: ["user", "profile", "public", userID]))
         return dto.domain

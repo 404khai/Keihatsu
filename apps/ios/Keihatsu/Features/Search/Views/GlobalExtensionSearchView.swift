@@ -34,7 +34,7 @@ struct GlobalExtensionSearchView: View {
                 if visibleExtensions.isEmpty && !sources.isLoading {
                     ContentUnavailableView {
                         Label("No sources selected", systemImage: "magnifyingglass")
-                    } description: { Text("Choose All, adjust filters, or enable a source in Plugins.") }
+                    } description: { Text("Choose All, adjust filters, or enable a source in Extensions.") }
                     actions: { Button("Manage Sources") { navigation.selectedTab = .extensions } }
                 }
                 if isSearching {

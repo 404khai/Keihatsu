@@ -117,7 +117,7 @@ final class AccountDataCoordinator: CollectionMutationHandling {
                 readingTimeDeltaMilliseconds: Int((delta * 1_000).rounded())
             )
         )
-        await processOutbox()
+        Task { [weak self] in await self?.processOutbox() }
     }
 
     func deleteHistory(_ manga: MangaIdentity) async {

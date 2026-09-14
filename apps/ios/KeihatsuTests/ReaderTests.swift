@@ -48,6 +48,22 @@ struct ReaderPersistenceTests {
         #expect(record.isBookmarked)
     }
 
+    @Test func progressPreservesFractionalTimestampAcrossRelaunch() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "keihatsu-reader-tests-\(UUID())", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let timestamp = Date(timeIntervalSince1970: 1_800_000_000.456)
+        let value = ReaderProgressRecord(
+            manga: manga(), chapter: chapter(1), pageIndex: 1, intraPageAnchor: 0,
+            totalPages: 10, activeReadingSeconds: 0, isRead: false, isBookmarked: false,
+            updatedAt: timestamp
+        )
+        try await ReaderProgressStore(namespace: "fractional", directory: root).save(value)
+
+        let restored = await ReaderProgressStore(namespace: "fractional", directory: root).recent()
+
+        #expect(restored.first?.updatedAt.timeIntervalSince1970 == timestamp.timeIntervalSince1970)
+    }
+
     @Test func localHistoryAlsoUpdatesMangaDetailResumeState() async throws {
         let details = MangaDetailsStore(namespace: "reader-test", persistToDisk: false)
         let progress = ReaderProgressStore(namespace: "reader-test", persistToDisk: false)
@@ -85,10 +101,49 @@ struct ReaderPersistenceTests {
         #expect(recent.first?.chapter.id == latest.chapter.id)
         #expect(recent.first?.pageIndex == latest.pageIndex)
     }
+
+    @Test func synchronizedHistoryRecordRemainsVisibleWithoutAStoredPageCount() throws {
+        let dto = HistoryEntryDTO(
+            id: "history", mangaId: mangaID.mangaID, sourceId: mangaID.sourceID,
+            chapterId: "chapter-1", pageNumber: 7,
+            lastReadAt: "2026-09-14T03:00:00.000Z", isBookmarked: false,
+            isRead: false, title: "Title", thumbnailUrl: nil, author: nil,
+            chapterName: "Chapter 1", chapterNumber: 1, deletedAt: nil
+        )
+
+        let progress = try #require(dto.progress)
+
+        #expect(progress.totalPages == 8)
+        #expect(progress.pageIndex == 7)
+    }
 }
 
 @Suite @MainActor
 struct ReaderViewModelTests {
+    @Test func openingChapterImmediatelyCreatesHistoryEntry() async {
+        let mangaID = MangaIdentity(sourceID: "source", mangaID: "manga")
+        let manga = Manga(id: mangaID, title: "Title", url: nil, thumbnailURL: nil, description: nil, author: nil, artist: nil, status: nil, genres: [], language: nil)
+        let chapter = Chapter(id: .init(manga: mangaID, chapterID: "one"), name: "One", number: 1, uploadedAt: nil, url: nil, scanlator: nil)
+        let historyRepository = ReaderHistoryRepositorySpy()
+        let history = ReadingHistoryModel(repository: historyRepository)
+        let model = ReaderViewModel(
+            manga: manga,
+            chapters: [chapter],
+            context: ReaderLaunchContext(chapter: chapter.id, origin: .details, pageIndex: nil),
+            reader: ReaderRepositoryStub(pageCount: 10),
+            history: history,
+            imagePipeline: ImagePipeline(configuration: APIConfiguration(baseURLString: "https://example.test")),
+            incognito: false
+        )
+
+        await model.load()
+
+        let saved = await historyRepository.lastProgress
+        #expect(saved?.chapter.id == chapter.id)
+        #expect(saved?.pageIndex == 0)
+        #expect(await historyRepository.savedCount == 1)
+    }
+
     @Test func deletingMultipleHistoryEntriesDeletesEveryManga() async {
         let repository = ReaderHistoryRepositorySpy()
         let history = ReadingHistoryModel(repository: repository)

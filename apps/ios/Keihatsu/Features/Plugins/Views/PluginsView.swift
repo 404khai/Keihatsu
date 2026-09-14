@@ -74,14 +74,14 @@ struct PluginsView: View {
                     switch selectedTab {
                     case .sources:
                         if filteredSourceItems.isEmpty && !sources.isLoading {
-                            CatalogueMessage(message: "No enabled sources. Add an available source from Plugins.")
+                            CatalogueMessage(message: "No enabled sources. Add an available source from Extensions.")
                             Button("Browse Sources") { selectedTab = .plugins }
                         }
                         ForEach(filteredSourceItems) { item in
                             PluginCard(item: item) { selectedPlugin = item }
                         }
                     case .plugins:
-                        Text("Enable available sources below. Downloadable plugins are not available yet.")
+                        Text("Enable available sources below. Downloadable extensions are not available yet.")
                             .font(.subheadline).foregroundStyle(.secondary)
                         ForEach(filteredPluginItems) { item in
                             PluginCard(item: item) { selectedPlugin = item }
@@ -101,9 +101,9 @@ struct PluginsView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .task { await sources.load() }
         .refreshable { await sources.load(force: true) }
-        .navigationTitle("Plugins")
+        .navigationTitle("Extensions")
         .navigationBarTitleDisplayMode(.automatic)
-        .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search plugins"))
+        .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search extensions"))
 //        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
 //        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
@@ -247,7 +247,7 @@ private enum PluginsTab: CaseIterable {
     var title: String {
         switch self {
         case .sources: return "Sources"
-        case .plugins: return "Plugins"
+        case .plugins: return "Extensions"
         case .migrate: return "Migrate"
         }
     }

@@ -23,11 +23,13 @@ import 'package:keihatsu/screens/DownloadQueueScreen.dart';
 import 'package:keihatsu/screens/EditProfileScreen.dart';
 import 'package:keihatsu/screens/HelpAndSupportScreen.dart';
 import 'package:keihatsu/screens/InboxScreen.dart';
+import 'package:keihatsu/screens/LibrarySettingsScreen.dart';
 import 'package:keihatsu/screens/SettingsScreen.dart';
 import 'package:keihatsu/screens/StatsScreen.dart';
 import 'package:keihatsu/theme_provider.dart';
 import 'package:material_shapes/material_shapes.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -89,6 +91,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _shareProfile(String profileUrl) async {
+    final box = context.findRenderObject() as RenderBox?;
+    await SharePlus.instance.share(
+      ShareParams(
+        text: profileUrl,
+        sharePositionOrigin: box == null
+            ? null
+            : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  }
+
   // Future<void> _handleGoogleSignIn(
   //   BuildContext context,
   //   AuthProvider authProvider,
@@ -127,6 +141,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 120;
     final int libraryCount = user?.stats?.libraryCount ?? 10;
+    final String profileUrl =
+        'https://keihatsu.app/u/${user?.username ?? user?.id ?? 'reader'}';
 
     return Scaffold(
       extendBody: true,
@@ -244,19 +260,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? Icons.hardware_rounded
                               : null,
                           showProfileActions: isAuthenticated,
-                          onShareTap: () {
-                            Clipboard.setData(
-                              ClipboardData(
-                                text:
-                                    'https://keihatsu.app/u/${user?.username ?? user?.id ?? 'reader'}',
-                              ),
-                            );
+                          onCopyTap: () {
+                            Clipboard.setData(ClipboardData(text: profileUrl));
                             NotificationPill.show(
                               context,
                               message: 'Profile link copied',
                               icon: Icons.insert_link_rounded,
                             );
                           },
+                          onShareTap: () => _shareProfile(profileUrl),
                           onEditTap: isAuthenticated
                               ? () => _openEditProfile(authProvider)
                               : null,
@@ -355,10 +367,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         MenuTile(
                           icon: Icons.label_outline,
                           title: 'Categories',
-                          onTap: () => Navigator.pushReplacementNamed(
-                            context,
-                            '/history',
-                          ),
+                          onTap: () =>
+                              _push(context, const LibrarySettingsScreen()),
                         ),
                         MenuTile(
                           icon: Icons.bar_chart_outlined,
@@ -498,18 +508,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 icon: Icons.delete_forever_rounded,
                                 title: 'Delete account?',
                                 message:
-                                    'This permanently erases your account, subscriptions, '
-                                    "and listening history. This can't be undone.",
+                                    'This permanently deletes your profile, library, '
+                                    'categories, history, comments, and preferences. '
+                                    "This can't be undone.",
                                 confirmLabel: 'Delete forever',
                                 destructive: true,
                               );
-                              if (confirmed && context.mounted) {
+                              if (!confirmed || !context.mounted) return;
+
+                              try {
+                                await authProvider.deleteAccount();
+                                if (!context.mounted) return;
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  '/login',
+                                );
+                              } catch (error) {
+                                if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Account deletion is not available yet.',
-                                    ),
-                                  ),
+                                  SnackBar(content: Text(error.toString())),
                                 );
                               }
                             },

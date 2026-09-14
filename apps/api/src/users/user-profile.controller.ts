@@ -8,6 +8,9 @@ import {
   UseInterceptors,
   UploadedFiles,
   Param,
+  Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
@@ -70,5 +73,12 @@ export class UserProfileController {
       req.user.id,
       updateDto.isProfilePublic,
     );
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async deleteAccount(@Req() req: AuthenticatedRequest): Promise<void> {
+    await this.usersService.deleteAccount(req.user.id);
   }
 }

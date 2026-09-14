@@ -22,11 +22,51 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"
                 />
+        </activity>
+        <activity-alias
+            android:name=".SpringLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@drawable/keihatsu_spring_icon"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".SummerLauncher"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@drawable/keihatsu_icon"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".AutumnLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@drawable/keihatsu_autumn_icon"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".WinterLauncher"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@drawable/keihatsu_winter_icon"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

@@ -280,6 +280,23 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteAccount() async {
+    final token = _token;
+    if (token == null) {
+      throw Exception('You must be signed in to delete your account.');
+    }
+
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _authApi.deleteAccount(token);
+      await logout();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> updateProfile({
     String? username,
     String? bio,

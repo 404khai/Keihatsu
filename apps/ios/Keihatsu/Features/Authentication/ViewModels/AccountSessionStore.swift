@@ -114,6 +114,12 @@ final class AccountSessionStore: ObservableObject {
         try await users.publicProfile(userID: userID)
     }
 
+    func deleteAccount() async throws {
+        guard let token = bearerToken else { throw APIError.authenticationRequired }
+        try await users.deleteAccount(token: token)
+        await logout()
+    }
+
     func logout() async {
         generation = UUID()
         restoreTask?.cancel()

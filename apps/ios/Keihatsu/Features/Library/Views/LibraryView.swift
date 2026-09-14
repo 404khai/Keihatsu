@@ -5,6 +5,7 @@ struct LibraryView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var collections: CollectionStore
+    @EnvironmentObject private var readingHistory: ReadingHistoryModel
     @EnvironmentObject private var options: LibraryOptionsStore
     @EnvironmentObject private var downloads: DownloadCoordinator
     @State private var selectedCategory: UUID?
@@ -17,7 +18,8 @@ struct LibraryView: View {
             collections.snapshot.library,
             category: selectedCategory,
             query: searchText,
-            downloadedCount: downloadedCount(for:)
+            downloadedCount: downloadedCount(for:),
+            lastReadAt: effectiveLastReadAt(for:)
         )
     }
 
@@ -152,6 +154,15 @@ struct LibraryView: View {
     private func downloadedCount(for entry: LibraryEntry) -> Int {
         guard let manga = entry.item.manga else { return entry.downloadedCount }
         return downloads.downloadedCount(for: manga.id)
+    }
+
+    private func effectiveLastReadAt(for entry: LibraryEntry) -> Date? {
+        guard let mangaID = entry.item.manga?.id else { return entry.lastReadAt }
+        let localLastReadAt = readingHistory.entries.lazy
+            .filter { $0.manga.id == mangaID }
+            .map(\.updatedAt)
+            .max()
+        return [entry.lastReadAt, localLastReadAt].compactMap { $0 }.max()
     }
 
     private func badge(_ entry: LibraryEntry) -> some View {

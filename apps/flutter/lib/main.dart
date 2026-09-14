@@ -26,6 +26,7 @@ import 'services/manga_repository.dart';
 import 'services/library_repository.dart';
 import 'services/session_bootstrap_service.dart';
 import 'services/user_repository.dart';
+import 'services/seasonal_branding_service.dart';
 
 // Screens
 import 'screens/Onboarding.dart';
@@ -174,7 +175,7 @@ void main() async {
             libraryRepo: libraryRepo,
             mangaRepo: mangaRepo,
             getToken: () =>
-            Provider.of<AuthProvider>(context, listen: false).token,
+                Provider.of<AuthProvider>(context, listen: false).token,
           ),
           update: (context, auth, previous) {
             previous!.bindUserScope(auth.localScopeUserId);
@@ -187,12 +188,12 @@ void main() async {
             isar: isar,
             mangaRepo: mangaRepo,
             getToken: () =>
-            Provider.of<AuthProvider>(context, listen: false).token,
+                Provider.of<AuthProvider>(context, listen: false).token,
           ),
           update: (context, auth, previous) => previous!,
         ),
       ],
-      child: const MyApp(),
+      child: const SeasonalBrandingLifecycle(child: MyApp()),
     ),
   );
 }

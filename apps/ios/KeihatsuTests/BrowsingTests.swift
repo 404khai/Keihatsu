@@ -148,6 +148,21 @@ struct BrowsingTests {
         #expect(!store.historySections(query: "").flatMap(\.items).contains { $0.id == history.id })
         let defaults = defaults()
         let display = LibraryOptionsStore(defaults: defaults)
+        display.options.ascending = true
+        display.setSort(.lastRead)
+        #expect(display.options.sort == .lastRead)
+        #expect(!display.options.ascending)
+        let newestReadFirst = display.options.filtered(store.snapshot.library, category: nil, query: "")
+        #expect(newestReadFirst.first?.lastReadAt == newestReadFirst.compactMap(\.lastReadAt).max())
+        let locallyRead = try #require(newestReadFirst.last)
+        let localTimestamp = Date.distantFuture
+        let localHistoryFirst = display.options.filtered(
+            store.snapshot.library,
+            category: nil,
+            query: "",
+            lastReadAt: { $0.id == locallyRead.id ? localTimestamp : $0.lastReadAt }
+        )
+        #expect(localHistoryFirst.first?.id == locallyRead.id)
         for layout in LibraryLayout.allCases {
             display.options.layout = layout
             #expect(LibraryOptionsStore(defaults: defaults).options.layout == layout)
