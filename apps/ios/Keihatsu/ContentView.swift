@@ -72,9 +72,6 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.background)
         }
-        .fullScreenCover(item: $navigation.liveActivityDestination) { destination in
-            LiveActivityDestinationView(destination: destination)
-        }
     }
 
     @ViewBuilder
@@ -87,6 +84,9 @@ struct ContentView: View {
             Tab.init("Library", systemImage: "books.vertical", value: AppNavigation.Tab.library){
                 NavigationStack(path: $navigation.libraryPath) {
                     LibraryView(animation: animation)
+                        .navigationDestination(for: LiveActivityDestination.self) { destination in
+                            LiveActivityDestinationView(destination: destination)
+                        }
                 }
             }
 

@@ -13,7 +13,7 @@ final class AppNavigation: ObservableObject {
     @Published var extensionsPath = NavigationPath()
     @Published var profilePath = NavigationPath()
     @Published var searchPath = NavigationPath()
-    @Published var liveActivityDestination: LiveActivityDestination?
+    private var visibleReaderChapter: ChapterIdentity?
 
     func reset() {
         selectedTab = .library
@@ -23,14 +23,29 @@ final class AppNavigation: ObservableObject {
         extensionsPath = NavigationPath()
         profilePath = NavigationPath()
         searchPath = NavigationPath()
-        liveActivityDestination = nil
+        visibleReaderChapter = nil
     }
 
     @discardableResult
     func handleLiveActivityURL(_ url: URL) -> Bool {
         guard let destination = LiveActivityDestination(url: url) else { return false }
-        liveActivityDestination = destination
+        if case .reader(_, let context) = destination,
+           visibleReaderChapter == context.chapter {
+            return true
+        }
+
+        selectedTab = .library
+        libraryPath = NavigationPath()
+        libraryPath.append(destination)
         return true
+    }
+
+    func readerDidAppear(chapter: ChapterIdentity) {
+        visibleReaderChapter = chapter
+    }
+
+    func readerDidDisappear() {
+        visibleReaderChapter = nil
     }
 }
 

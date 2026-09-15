@@ -98,6 +98,40 @@ struct LiveActivityTests {
         #expect(context.pageIndex == 0)
     }
 
+    @Test @MainActor func tappingVisibleReaderActivityDoesNotAddAnotherReader() throws {
+        let navigation = AppNavigation()
+        let chapter = ChapterIdentity(
+            manga: MangaIdentity(sourceID: "source", mangaID: "manga"),
+            chapterID: "chapter"
+        )
+        navigation.selectedTab = .history
+        navigation.historyPath.append("visible-reader")
+        navigation.readerDidAppear(chapter: chapter)
+
+        let handled = navigation.handleLiveActivityURL(
+            URL(string: "keihatsu://reader?source=source&manga=manga&chapter=chapter&page=4")!
+        )
+
+        #expect(handled)
+        #expect(navigation.selectedTab == .history)
+        #expect(navigation.historyPath.count == 1)
+        #expect(navigation.libraryPath.isEmpty)
+    }
+
+    @Test @MainActor func tappingAnotherActivityPushesThroughLibraryNavigation() throws {
+        let navigation = AppNavigation()
+        navigation.selectedTab = .profile
+        navigation.libraryPath.append("stale-detail")
+
+        let handled = navigation.handleLiveActivityURL(
+            URL(string: "keihatsu://reader?source=source&manga=manga&chapter=chapter&page=4")!
+        )
+
+        #expect(handled)
+        #expect(navigation.selectedTab == .library)
+        #expect(navigation.libraryPath.count == 1)
+    }
+
     @Test func legacyPreferencesShowLiveActivityDetailsByDefault() throws {
         let preferences = try JSONDecoder().decode(LocalUserPreferences.self, from: Data("{}".utf8))
 

@@ -206,6 +206,7 @@ struct HomeView: View {
             .refreshable { await model.load(sources: sources.enabledSources) }
             .navigationTitle("Explore")
             .navigationBarTitleDisplayMode(.automatic)
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Notifications", systemImage: "bell.fill") {
@@ -232,7 +233,7 @@ struct HomeView: View {
                     .navigationTransition(.zoom(sourceID: "Notifications", in: animation))
             }
             .navigationDestination(for: MangaDetailsSeed.self) { seed in
-                CarouselDetailView(seed: seed, animation: animation, origin: .home)
+                MangaDetailView(seed: seed, animation: animation, origin: .home)
             }
         }
     }

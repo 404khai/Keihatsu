@@ -40,6 +40,7 @@ struct PublicProfileView: View {
         }
         .navigationTitle("Reader Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .task(id: userID) { await load() }
         .refreshable { await load() }
     }

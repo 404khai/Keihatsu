@@ -119,6 +119,10 @@ struct ProfilePageContent: View {
                 }
             }
         }
+        .scrollEdgeEffectStyle(.soft, for: .top)
+//        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+//        .navigationBarTitleDisplayMode(.inline)
+//        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .refreshable { await accountSession.refreshProfile() }
         .sheet(isPresented: $showsInbox) { NotificationsSheetView(title: "Inbox") }
         .sheet(isPresented: $showsSignIn) {

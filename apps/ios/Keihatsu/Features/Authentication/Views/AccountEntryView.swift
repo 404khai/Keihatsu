@@ -46,6 +46,7 @@ struct AccountEntryView: View {
                 .padding(theme.spacing.screenPadding)
             }
             .navigationTitle("Welcome to Keihatsu")
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .background(theme.colors.background)
         }
     }
