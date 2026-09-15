@@ -79,6 +79,7 @@ struct SupportDeveloperView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Support the Developer")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
     }
 }

@@ -119,7 +119,7 @@ struct ProfilePageContent: View {
                 }
             }
         }
-        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .scrollEdgeEffectStyle(.soft, for: .top)
 //        .background(Color(.systemGroupedBackground).ignoresSafeArea())
 //        .navigationBarTitleDisplayMode(.inline)
 //        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)

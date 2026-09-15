@@ -32,6 +32,7 @@ struct OnboardingView: View {
                 }
             }
             .background(theme.colors.background)
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Skip", action: onComplete)

@@ -81,6 +81,7 @@ struct LibraryView: View {
             .padding(.vertical, 16)
         }
         .navigationTitle("Library")
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search library"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

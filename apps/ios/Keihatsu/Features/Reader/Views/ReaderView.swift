@@ -70,6 +70,7 @@ struct ReaderView: View {
         }
         .background(readerBackground.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack(alignment: .leading, spacing: 2) {

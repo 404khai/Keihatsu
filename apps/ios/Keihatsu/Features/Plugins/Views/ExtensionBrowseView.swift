@@ -94,6 +94,7 @@ struct ExtensionBrowseView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search \(source.name)"))
         .toolbar(.hidden, for: .tabBar)
         .toolbar {

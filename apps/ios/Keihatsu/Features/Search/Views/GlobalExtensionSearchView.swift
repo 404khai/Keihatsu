@@ -64,6 +64,7 @@ struct GlobalExtensionSearchView: View {
             MangaDetailView(seed: seed, animation: animation, origin: .search)
         }
         .navigationTitle("Search")
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search across sources"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

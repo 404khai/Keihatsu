@@ -103,6 +103,7 @@ struct PluginsView: View {
         .refreshable { await sources.load(force: true) }
         .navigationTitle("Extensions")
         .navigationBarTitleDisplayMode(.automatic)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search extensions"))
 //        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
 //        .toolbarColorScheme(.dark, for: .navigationBar)

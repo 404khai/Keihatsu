@@ -206,6 +206,7 @@ struct HomeView: View {
             .refreshable { await model.load(sources: sources.enabledSources) }
             .navigationTitle("Explore")
             .navigationBarTitleDisplayMode(.automatic)
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Notifications", systemImage: "bell.fill") {
