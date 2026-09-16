@@ -89,7 +89,8 @@ private struct MangaDetailsContentView: View {
         .background(Color.black.ignoresSafeArea())
         .ignoresSafeArea(edges: .top)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+//        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .onPreferenceChange(HeroHeaderVisibilityKey.self) { showCollapsedHeader = $0 < 50 }
         .task(id: model.seed.manga.id) {

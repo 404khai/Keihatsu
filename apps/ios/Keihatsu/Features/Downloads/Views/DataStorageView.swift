@@ -83,6 +83,7 @@ struct DataStorageView: View {
         }
         .navigationTitle("Data & Storage")
         .toolbar(.hidden, for: .tabBar)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .task { await downloads.refreshStorage() }
         .refreshable { await downloads.refreshStorage() }
         .fileImporter(

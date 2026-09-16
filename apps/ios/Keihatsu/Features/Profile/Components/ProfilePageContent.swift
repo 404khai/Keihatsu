@@ -200,7 +200,7 @@ struct ProfilePageContent: View {
                             .frame(width: 48, height: 48)
                     }
                     .buttonStyle(.glass)
-                    .glassEffect(.regular, in: .circle)
+//                    .glassEffect(.regular, in: .circle)
                     .buttonBorderShape(.circle)
                     .accessibilityLabel("Copy or share profile")
                 }

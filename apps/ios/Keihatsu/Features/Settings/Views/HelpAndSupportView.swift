@@ -74,6 +74,7 @@ struct HelpAndSupportView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Help & Support")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
     }
