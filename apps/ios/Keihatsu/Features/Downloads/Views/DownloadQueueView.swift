@@ -92,6 +92,7 @@ struct DownloadQueueView: View {
                 .accessibilityLabel(downloads.isGloballyPaused ? "Resume all downloads" : "Pause all downloads")
             }
         }
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .confirmationDialog(
             "Cancel this download?",
             isPresented: Binding(

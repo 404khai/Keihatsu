@@ -115,7 +115,7 @@ class CommentsProvider with ChangeNotifier {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/comments/$commentId/like'),
+        Uri.parse('${ApiConstants.baseUrl}/comments/like/$commentId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

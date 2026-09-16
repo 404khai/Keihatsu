@@ -81,6 +81,7 @@ struct LibraryView: View {
             .padding(.vertical, 16)
         }
         .navigationTitle("Library")
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search library"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -114,7 +115,7 @@ struct LibraryView: View {
             if let id = selectedCategory, !collections.snapshot.categories.contains(where: { $0.id == id }) { selectedCategory = nil }
         }
         .navigationDestination(for: MangaDetailsSeed.self) { seed in
-            CarouselDetailView(seed: seed, animation: animation, origin: .library)
+            MangaDetailView(seed: seed, animation: animation, origin: .library)
         }
     }
     private func entryLink(_ entry: LibraryEntry) -> some View {

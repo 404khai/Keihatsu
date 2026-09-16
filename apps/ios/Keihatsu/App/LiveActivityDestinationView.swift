@@ -1,27 +1,17 @@
 import SwiftUI
 
 struct LiveActivityDestinationView: View {
-    @Environment(\.dismiss) private var dismiss
     let destination: LiveActivityDestination
 
     var body: some View {
-        NavigationStack {
-            Group {
-                switch destination {
-                case .downloads:
-                    DownloadQueueView()
-                case .privacy:
-                    PrivacySettingsView()
-                case .reader(let manga, let context):
-                    LiveActivityReaderLoader(mangaID: manga, context: context)
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Close", systemImage: "xmark") { dismiss() }
-                        .labelStyle(.iconOnly)
-                        .accessibilityLabel("Close")
-                }
+        Group {
+            switch destination {
+            case .downloads:
+                DownloadQueueView()
+            case .privacy:
+                PrivacySettingsView()
+            case .reader(let manga, let context):
+                LiveActivityReaderLoader(mangaID: manga, context: context)
             }
         }
     }

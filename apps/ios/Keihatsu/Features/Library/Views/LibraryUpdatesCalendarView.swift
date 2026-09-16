@@ -32,6 +32,8 @@ struct LibraryUpdatesCalendarView: View {
         }
         .navigationTitle("Upcoming")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollEdgeEffectStyle(.soft, for: .top)
+//        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
     }
 }
 

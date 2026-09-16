@@ -34,7 +34,7 @@ nonisolated struct CommentsAPI: CommentsServicing, Sendable {
 
     func toggleLike(commentID: String, token: String) async throws {
         let _: LikeResponse = try await client.send(
-            APIRequest<LikeResponse>(path: ["comments", commentID, "like"], method: .post, requiresAuthentication: true),
+            APIRequest<LikeResponse>(path: ["comments", "like", commentID], method: .post, requiresAuthentication: true),
             bearerToken: token
         )
     }

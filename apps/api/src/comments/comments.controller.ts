@@ -59,6 +59,12 @@ export class CommentsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post(['like/:id', ':id/like'])
+  async like(@Param('id') id: string, @Req() req: any) {
+    return this.commentsService.like(req.user.id, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':mangaId/:chapterId')
   @UseInterceptors(FilesInterceptor('images', 5)) // Allow up to 5 images per comment
   async create(
@@ -91,12 +97,6 @@ export class CommentsController {
       chapterId,
       req.user?.id,
     );
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/like')
-  async like(@Param('id') id: string, @Req() req: any) {
-    return this.commentsService.like(req.user.id, id);
   }
 
   @UseGuards(JwtAuthGuard)

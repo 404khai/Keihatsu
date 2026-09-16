@@ -40,6 +40,8 @@ struct PublicProfileView: View {
         }
         .navigationTitle("Reader Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .task(id: userID) { await load() }
         .refreshable { await load() }
     }

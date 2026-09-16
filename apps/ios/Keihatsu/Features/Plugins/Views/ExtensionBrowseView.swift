@@ -94,6 +94,7 @@ struct ExtensionBrowseView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search \(source.name)"))
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
@@ -137,7 +138,7 @@ struct ExtensionBrowseView: View {
         }
         .refreshable { await model.reload(query: searchText) }
         .navigationDestination(for: MangaDetailsSeed.self) { seed in
-            CarouselDetailView(seed: seed, animation: animation, origin: .search)
+            MangaDetailView(seed: seed, animation: animation, origin: .search)
         }
     }
 

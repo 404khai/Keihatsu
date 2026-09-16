@@ -115,6 +115,7 @@ struct EditProfileView: View {
                         .disabled(!isValid || isSaving)
                 }
             }
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .interactiveDismissDisabled(isSaving)
         }
     }

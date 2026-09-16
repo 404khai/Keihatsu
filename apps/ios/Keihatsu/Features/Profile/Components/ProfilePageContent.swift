@@ -119,6 +119,10 @@ struct ProfilePageContent: View {
                 }
             }
         }
+        .scrollEdgeEffectStyle(.soft, for: .top)
+//        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+//        .navigationBarTitleDisplayMode(.inline)
+//        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .refreshable { await accountSession.refreshProfile() }
         .sheet(isPresented: $showsInbox) { NotificationsSheetView(title: "Inbox") }
         .sheet(isPresented: $showsSignIn) {
@@ -196,7 +200,7 @@ struct ProfilePageContent: View {
                             .frame(width: 48, height: 48)
                     }
                     .buttonStyle(.glass)
-                    .glassEffect(.regular, in: .circle)
+//                    .glassEffect(.regular, in: .circle)
                     .buttonBorderShape(.circle)
                     .accessibilityLabel("Copy or share profile")
                 }
