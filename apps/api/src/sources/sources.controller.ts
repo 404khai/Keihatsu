@@ -48,10 +48,11 @@ export class SourcesController {
     const isManhuaTop =
       parsedUrl.hostname === 'manhuatop.org' ||
       parsedUrl.hostname.endsWith('.manhuatop.org');
+    const isMangaFire = parsedUrl.hostname === 'static.mfcdn.nl';
 
-    if (parsedUrl.protocol !== 'https:' || (!isBatCave && !isManhuaTop)) {
+    if (parsedUrl.protocol !== 'https:' || (!isBatCave && !isManhuaTop && !isMangaFire)) {
       throw new BadRequestException(
-        'Only BatCave and ManhuaTop assets can be proxied',
+        'Unsupported image host',
       );
     }
 
@@ -85,8 +86,9 @@ export class SourcesController {
       }
     }
 
-    const safeReferer =
-      referer && referer.startsWith('https://batcave.biz/')
+    const safeReferer = isMangaFire
+      ? 'https://mangafire.to/'
+      : referer && referer.startsWith('https://batcave.biz/')
         ? referer
         : 'https://batcave.biz/';
 
@@ -97,7 +99,7 @@ export class SourcesController {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
           Referer: safeReferer,
-          Origin: 'https://batcave.biz',
+          Origin: isMangaFire ? 'https://mangafire.to' : 'https://batcave.biz',
           Accept: 'image/webp,image/apng,image/*,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
         },

@@ -30,7 +30,8 @@ export class AtsumaruSource extends HttpSource {
   iconUrl = '/images/atsumaru.png';
 
   private imageUrl(path?: string): string {
-    return path ? new URL(path, 'https://cdn.atsu.moe').toString() : '';
+    if (!path) return '';
+    return new URL(path.startsWith('/') ? path : `/static/${path}`, 'https://cdn.atsu.moe').toString();
   }
 
   private async listing(page: number, query: string, sort: string): Promise<MangasPage> {
@@ -47,7 +48,7 @@ export class AtsumaruSource extends HttpSource {
       id: document.id,
       url: `${this.baseUrl}/manga/${document.id}`,
       title: document.title,
-      thumbnailUrl: this.imageUrl(document.posterMedium || document.poster),
+      thumbnailUrl: this.imageUrl(document.poster || document.posterMedium),
       sourceId: this.id,
     }));
     return { mangas, hasNextPage: page * 24 < data.found };
@@ -72,7 +73,7 @@ export class AtsumaruSource extends HttpSource {
       id: string; title: string; mediumImage?: string; image?: string;
     }) => ({
       id: item.id, url: `${this.baseUrl}/manga/${item.id}`,
-      title: item.title, thumbnailUrl: this.imageUrl(`/static/${item.mediumImage || item.image}`),
+      title: item.title, thumbnailUrl: this.imageUrl(item.image || item.mediumImage),
       sourceId: this.id,
     }));
     return { mangas, hasNextPage: mangas.length === 24 };
@@ -94,7 +95,7 @@ export class AtsumaruSource extends HttpSource {
       id: manga.id,
       url: `${this.baseUrl}/manga/${manga.id}`,
       title: manga.title,
-      thumbnailUrl: this.imageUrl(manga.poster?.mediumImage || manga.poster?.image),
+      thumbnailUrl: this.imageUrl(manga.poster?.image || manga.poster?.mediumImage),
       description: manga.synopsis,
       author: manga.authors?.map((value: { name: string }) => value.name).join(', '),
       status: manga.status,

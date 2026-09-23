@@ -20,7 +20,7 @@ final class SourcePreferencesStore: ObservableObject {
         pinned = defaults.dictionary(forKey: "keihatsu.sources.pinned") as? [String: Bool] ?? [:]
     }
 
-    private static let availableSourceIDs: Set<String> = ["manhuatop", "atsumaru", "mangafire"]
+    private static let availableSourceIDs: Set<String> = ["manhuatop", "atsumaru", "mangafire", "weebcentral", "batcave"]
     func isAvailable(_ source: Source) -> Bool { Self.availableSourceIDs.contains(source.id.lowercased()) }
     func isEnabled(_ source: Source) -> Bool { isAvailable(source) && (enabled[source.id] ?? (source.id.lowercased() == "manhuatop")) }
     func isPinned(_ source: Source) -> Bool { pinned[source.id] ?? (source.id == "manhuatop") }

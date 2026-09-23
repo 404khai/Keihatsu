@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../services/api_constants.dart';
 
 class OfflineImage extends StatelessWidget {
   final String? imageUrl;
@@ -52,8 +53,20 @@ class OfflineImage extends StatelessWidget {
     } else if (_hasImageUrl) {
       final resolvedUrl = imageUrl!.trim();
       if (resolvedUrl.startsWith('http')) {
+        final uri = Uri.tryParse(resolvedUrl);
+        final normalizedUrl =
+            uri?.host == 'cdn.atsu.moe' &&
+                uri != null &&
+                !uri.path.startsWith('/static/')
+            ? uri.replace(path: '/static${uri.path}').toString()
+            : resolvedUrl;
+        final networkUrl = uri?.host == 'static.mfcdn.nl'
+            ? Uri.parse(
+                '${ApiConstants.baseUrl}/sources/proxy/image',
+              ).replace(queryParameters: {'url': resolvedUrl}).toString()
+            : normalizedUrl;
         child = CachedNetworkImage(
-          imageUrl: resolvedUrl,
+          imageUrl: networkUrl,
           cacheKey: cacheKey ?? resolvedUrl,
           width: width,
           height: height,

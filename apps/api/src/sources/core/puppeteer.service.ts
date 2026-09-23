@@ -140,7 +140,9 @@ export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
             (number: number) => document.querySelector('.npager__num.is-active')?.textContent?.trim() === String(number),
             { timeout: 10_000 }, current + 1,
           );
-          if (pages.length > 100) throw new Error(`Too many chapter pages for ${responsePath}`);
+          if (pages.at(-1)!.meta.page <= current) {
+            throw new Error(`Chapter pagination did not advance for ${responsePath}`);
+          }
         }
         return pages;
       } finally {
@@ -232,30 +234,33 @@ export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
       });
 
       // Set a realistic User-Agent (although Stealth plugin handles this, explicit setting can help)
-      await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-      );
-
-      await page.setExtraHTTPHeaders({
-        'Accept-Language': 'en-US,en;q=0.9',
-        Referer: 'https://google.com',
-      });
+      const isWeebCentral = new URL(url).hostname === 'weebcentral.com';
+      if (!isWeebCentral) {
+        await page.setUserAgent(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        );
+        await page.setExtraHTTPHeaders({
+          'Accept-Language': 'en-US,en;q=0.9',
+          Referer: new URL(url).origin + '/',
+        });
+      }
 
       // Block images/fonts to speed up, BUT allow stylesheets/scripts as some sites break without them
-      await page.setRequestInterception(true);
-      page.on('request', (req) => {
-        const resourceType = req.resourceType();
-        // Allow stylesheets and scripts to ensure proper rendering and anti-bot checks pass
-        if (
-          resourceType === 'image' ||
-          resourceType === 'font' ||
-          resourceType === 'media'
-        ) {
-          req.abort();
-        } else {
-          req.continue();
-        }
-      });
+      if (!isWeebCentral) {
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+          const resourceType = req.resourceType();
+          if (
+            resourceType === 'image' ||
+            resourceType === 'font' ||
+            resourceType === 'media'
+          ) {
+            req.abort();
+          } else {
+            req.continue();
+          }
+        });
+      }
 
       // Navigate
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });

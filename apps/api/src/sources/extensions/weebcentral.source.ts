@@ -176,7 +176,7 @@ export class WeebCentralSource extends HttpSource {
       // WeebCentral loads images dynamically. Wait for images to appear.
       const html = await this.fetchPage(
         url,
-        'img[src*="weebcentral.com"]',
+        'img[alt^="Page "]',
         3000,
       );
 
@@ -212,7 +212,7 @@ export class WeebCentralSource extends HttpSource {
       // Skip if random link or no href
       if (!href || href.includes('/series/random')) return;
 
-      const id = href.split('/').filter(Boolean).pop(); // Handle trailing slash
+      const id = new URL(href, this.baseUrl).pathname.match(/^\/series\/([^/]+)/)?.[1];
       if (!id) return;
 
       // Avoid duplicates
@@ -258,7 +258,7 @@ export class WeebCentralSource extends HttpSource {
       }
 
       // Clean title
-      title = title.replace(/Official/gi, '').trim();
+      title = title.replace(/\s+cover$/i, '').replace(/Official/gi, '').trim();
 
       if (title.length < 1 || !thumbnail) return;
 
@@ -316,8 +316,8 @@ export class WeebCentralSource extends HttpSource {
 
     const title = $('h1').first().text().trim();
     const thumbnail =
-      $('img[alt="' + title + '"]').attr('src') ||
-      $('img').first().attr('src') ||
+      $('img[alt$=" cover"]').first().attr('src') ||
+      $('meta[property="og:image"]').attr('content') ||
       '';
     const description = $('p')
       .filter((i, el) => $(el).text().length > 50)
@@ -347,7 +347,7 @@ export class WeebCentralSource extends HttpSource {
       id: mangaId,
       url: `${this.baseUrl}/series/${mangaId}/`,
       title,
-      thumbnailUrl: thumbnail,
+      thumbnailUrl: thumbnail ? new URL(thumbnail, this.baseUrl).toString() : '',
       description,
       author,
       artist: '',
@@ -370,7 +370,7 @@ export class WeebCentralSource extends HttpSource {
       const url = $(element).attr('href');
       if (!url) return;
 
-      const id = url.split('/').filter(Boolean).pop(); // Extract chapter ID
+      const id = new URL(url, this.baseUrl).pathname.match(/^\/chapters\/([^/]+)/)?.[1];
 
       // The text inside the link usually contains "Chapter X" or similar
       const name =
@@ -399,7 +399,7 @@ export class WeebCentralSource extends HttpSource {
     const $ = cheerio.load(response.data);
     const pages: Page[] = [];
 
-    $('img[src*="weebcentral.com"]').each((index, element) => {
+    $('img[alt^="Page "]').each((index, element) => {
       const url = $(element).attr('src');
       if (url && !url.includes('logo')) {
         pages.push({
