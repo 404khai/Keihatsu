@@ -9,13 +9,10 @@ struct SettingsView: View {
 
     private let sections: [SettingsSection] = [
         SettingsSection(icon: "paintpalette", iconColor: Color(hex: "FF6EA8"), title: "Appearance", subtitle: "Themes, dark mode, display", destination: .appearance),
-        SettingsSection(icon: "books.vertical", iconColor: Color(hex: "8DE328"), usesDarkSymbol: true, title: "Library", subtitle: "Categories, global updates, badges", destination: .library),
         SettingsSection(icon: "book", iconColor: Color(hex: "A98BFF"), title: "Reader", subtitle: "Reading mode, display, navigation", destination: .reader),
-        SettingsSection(icon: "arrow.down.to.line.compact", iconColor: Color(hex: "42D9F5"), usesDarkSymbol: true, title: "Downloads", subtitle: "Download behavior and offline chapters", destination: .downloads),
-        SettingsSection(icon: "safari", iconColor: Color(hex: "5AA7FF"), title: "Browse", subtitle: "Extensions, global search, source hints", destination: .browse),
-        SettingsSection(icon: "arrow.triangle.2.circlepath", iconColor: Color(hex: "FF7A3D"), title: "Tracking", subtitle: "Sync with external reading services", destination: .tracking),
+        SettingsSection(icon: "arrow.down.to.line.compact", iconColor: Color(hex: "42D9F5"), usesDarkSymbol: true, title: "Downloads", subtitle: "Download behavior and queue", destination: .downloads),
         SettingsSection(icon: "shield.checkered", iconColor: Color(hex: "FFD166"), usesDarkSymbol: true, title: "Privacy", subtitle: "History, incognito mode, visibility", destination: .privacy),
-        SettingsSection(icon: "command", iconColor: Color(hex: "B8B8FF"), title: "Advanced", subtitle: "Backup, clear cache, logs", destination: .advanced)
+        SettingsSection(icon: "command", iconColor: Color(hex: "B8B8FF"), title: "Advanced", subtitle: "Reset preferences and account sync", destination: .advanced)
     ]
 
     var body: some View {
@@ -51,16 +48,10 @@ struct SettingsView: View {
         switch destination {
         case .appearance:
             AppearanceSettingsView()
-        case .library:
-            LibrarySettingsView()
         case .reader:
             ReaderSettingsView()
         case .downloads:
             DownloadsSettingsView()
-        case .browse:
-            BrowseSettingsView()
-        case .tracking:
-            TrackingSettingsView()
         case .privacy:
             PrivacySettingsView()
         case .advanced:
@@ -88,16 +79,7 @@ struct AppearanceSettingsView: View {
                     .pickerStyle(.segmented)
                     .padding(16)
 
-                    SettingsDivider()
 
-                    SettingsPickerRow(
-                        icon: "app.background.dotted",
-                        title: "App Icon",
-                        subtitle: "Choose the launcher identity",
-                        selection: $preferencesStore.preferences.appIcon,
-                        options: AppIconPreference.allCases,
-                        accent: accent
-                    )
                 }
 
                 SettingsGroup(title: "Theme") {
@@ -135,34 +117,6 @@ struct AppearanceSettingsView: View {
     }
 }
 
-struct LibrarySettingsView: View {
-    @EnvironmentObject private var preferencesStore: AppPreferencesStore
-
-    var body: some View {
-        SettingsControlsPage(title: "Library") {
-            SettingsGroup(title: "Updates") {
-                SettingsToggleRow(
-                    icon: "books.vertical",
-                    title: "Global Updates",
-                    subtitle: "Refresh saved titles when the session syncs",
-                    isOn: $preferencesStore.preferences.globalLibraryUpdatesEnabled,
-                    accent: Color(hex: preferencesStore.preferences.theme.hex)
-                )
-
-                SettingsDivider()
-
-                SettingsToggleRow(
-                    icon: "number.circle",
-                    title: "Library Badges",
-                    subtitle: "Show unread, downloaded, and update indicators",
-                    isOn: $preferencesStore.preferences.showChapterBadges,
-                    accent: Color(hex: preferencesStore.preferences.theme.hex)
-                )
-            }
-        }
-    }
-}
-
 struct ReaderSettingsView: View {
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
 
@@ -172,9 +126,9 @@ struct ReaderSettingsView: View {
                 SettingsPickerRow(
                     icon: "rectangle.portrait.on.rectangle.portrait",
                     title: "Reading Direction",
-                    subtitle: "Vertical continuous reading",
+                    subtitle: "Choose continuous or page-by-page reading",
                     selection: $preferencesStore.preferences.readerDirection,
-                    options: [ReaderDirectionPreference.vertical],
+                    options: ReaderDirectionPreference.allCases,
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
 
@@ -227,15 +181,7 @@ struct DownloadsSettingsView: View {
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
 
-                SettingsDivider()
 
-                SettingsToggleRow(
-                    icon: "arrow.down.doc",
-                    title: "Save Chapters",
-                    subtitle: "Keep downloaded chapters available offline",
-                    isOn: $preferencesStore.preferences.saveChaptersForOffline,
-                    accent: Color(hex: preferencesStore.preferences.theme.hex)
-                )
             }
 
             SettingsGroup(title: "Live Activity") {
@@ -284,45 +230,11 @@ private struct SettingsNavigationInlineRow: View {
     }
 }
 
-struct BrowseSettingsView: View {
-    @EnvironmentObject private var preferencesStore: AppPreferencesStore
-
-    var body: some View {
-        SettingsControlsPage(title: "Browse") {
-            SettingsGroup(title: "Sources") {
-                SettingsToggleRow(
-                    icon: "puzzlepiece.extension",
-                    title: "Source Warnings",
-                    subtitle: "Show availability and safety hints for extensions",
-                    isOn: $preferencesStore.preferences.sourceWarningsEnabled,
-                    accent: Color(hex: preferencesStore.preferences.theme.hex)
-                )
-            }
-        }
-    }
-}
-
-struct TrackingSettingsView: View {
-    @EnvironmentObject private var preferencesStore: AppPreferencesStore
-
-    var body: some View {
-        SettingsControlsPage(title: "Tracking") {
-            SettingsGroup(title: "Services") {
-                SettingsToggleRow(
-                    icon: "point.3.connected.trianglepath.dotted",
-                    title: "External Tracking",
-                    subtitle: "Prepare progress sync for services like MyAnimeList",
-                    isOn: $preferencesStore.preferences.trackingSyncEnabled,
-                    accent: Color(hex: preferencesStore.preferences.theme.hex)
-                )
-            }
-        }
-    }
-}
 
 struct PrivacySettingsView: View {
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
     @EnvironmentObject private var accountSession: AccountSessionStore
+    @State private var visibilityError: String?
 
     var body: some View {
         SettingsControlsPage(title: "Privacy") {
@@ -351,38 +263,36 @@ struct PrivacySettingsView: View {
                     subtitle: accountSession.isAuthenticated ? "Allow readers to view your library" : "Sign in to manage profile visibility",
                     isOn: Binding(
                         get: { accountSession.account?.isProfilePublic ?? false },
-                        set: { value in Task { try? await accountSession.updateVisibility(value) } }
+                        set: { value in
+                            Task {
+                                do { try await accountSession.updateVisibility(value) }
+                                catch { visibilityError = error.localizedDescription }
+                            }
+                        }
                     ),
                     accent: Color(hex: preferencesStore.preferences.theme.hex)
                 )
                 .disabled(!accountSession.isAuthenticated)
             }
         }
+        .alert("Couldn’t update Public Library", isPresented: Binding(
+            get: { visibilityError != nil },
+            set: { if !$0 { visibilityError = nil } }
+        )) { Button("OK") { visibilityError = nil } } message: {
+            Text(visibilityError ?? "Please try again.")
+        }
     }
 }
 
 struct AdvancedSettingsView: View {
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
+    @State private var showsResetConfirmation = false
 
     var body: some View {
         SettingsControlsPage(title: "Advanced") {
-            SettingsGroup(title: "Diagnostics") {
-                SettingsToggleRow(
-                    icon: "waveform.path.ecg",
-                    title: "Diagnostics",
-                    subtitle: "Keep local logs for sync, reader, and source debugging",
-                    isOn: $preferencesStore.preferences.diagnosticsEnabled,
-                    accent: Color(hex: preferencesStore.preferences.theme.hex)
-                )
-
-                SettingsDivider()
-
-                Button(role: .destructive) {
-                    preferencesStore.reset()
-                } label: {
-                    Text("Reset Preferences")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
+            SettingsGroup(title: "Preferences") {
+                Button(role: .destructive) { showsResetConfirmation = true } label: {
+                    Text("Reset Preferences").font(.headline).frame(maxWidth: .infinity)
                 }
                 .padding(16)
             }
@@ -390,6 +300,9 @@ struct AdvancedSettingsView: View {
                 SyncStatusView(accent: Color(hex: preferencesStore.preferences.theme.hex))
             }
         }
+        .confirmationDialog("Reset all preferences?", isPresented: $showsResetConfirmation) {
+            Button("Reset Preferences", role: .destructive) { preferencesStore.reset() }
+        } message: { Text("Appearance, reader, download, and privacy preferences will return to their defaults.") }
     }
 }
 
@@ -778,11 +691,8 @@ private struct SettingsSection: Identifiable {
 
 private enum SettingsDestination: Hashable {
     case appearance
-    case library
     case reader
     case downloads
-    case browse
-    case tracking
     case privacy
     case advanced
 }

@@ -18,37 +18,12 @@ class SettingsScreen extends StatelessWidget {
     (
       icon: Icons.library_books_outlined,
       title: 'Library',
-      subtitle: 'Categories, global update, badges',
-    ),
-    (
-      icon: Icons.menu_book_outlined,
-      title: 'Reader',
-      subtitle: 'Reading mode, display, navigation',
-    ),
-    (
-      icon: Icons.download_outlined,
-      title: 'Downloads',
-      subtitle: 'Download location, save chapters',
-    ),
-    (
-      icon: Icons.explore_outlined,
-      title: 'Browse',
-      subtitle: 'Extensions, global search',
-    ),
-    (
-      icon: Icons.sync_outlined,
-      title: 'Tracking',
-      subtitle: 'Sync with services like MyAnimeList',
+      subtitle: 'Manage categories',
     ),
     (
       icon: Icons.shield_outlined,
       title: 'Privacy',
       subtitle: 'Profile visibility and privacy',
-    ),
-    (
-      icon: Icons.tune_outlined,
-      title: 'Advanced',
-      subtitle: 'Backup, clear cache, logs',
     ),
   ];
 
@@ -146,7 +121,7 @@ class SettingsScreen extends StatelessWidget {
             builder: (context) => const LibrarySettingsScreen(),
           ),
         );
-      case 6:
+      case 2:
         Navigator.push(
           context,
           MaterialPageRoute(

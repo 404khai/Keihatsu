@@ -5,17 +5,38 @@ import android.content.pm.PackageManager
 import android.os.Environment
 import android.os.StatFs
 import android.util.Log
+import android.view.KeyEvent
+import io.flutter.plugin.common.EventChannel
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var readerVolumeEvents: EventChannel.EventSink? = null
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (readerVolumeEvents != null && event.repeatCount == 0 &&
+            (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            readerVolumeEvents?.success(if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) 1 else -1)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
     private val seasonalBrandingPreferences by lazy {
         getSharedPreferences("seasonal_branding", MODE_PRIVATE)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "keihatsu/reader_volume")
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    readerVolumeEvents = events
+                }
+                override fun onCancel(arguments: Any?) {
+                    readerVolumeEvents = null
+                }
+            })
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "keihatsu/storage")
             .setMethodCallHandler { call, result ->

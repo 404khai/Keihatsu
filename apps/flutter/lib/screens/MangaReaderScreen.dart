@@ -2,8 +2,10 @@ import 'dart:io';
 import 'dart:async'; // Added
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme_provider.dart';
 import '../models/manga.dart';
 import '../models/chapter.dart';
@@ -14,6 +16,8 @@ import '../providers/auth_provider.dart'; // Added
 import '../providers/comments_provider.dart'; // Added
 import '../components/Comments.dart';
 import '../components/CustomBackButton.dart';
+
+enum ReaderMode { vertical, horizontalRtl, horizontalLtr }
 
 class MangaReaderScreen extends StatefulWidget {
   final Manga manga;
@@ -38,6 +42,10 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
   late int _currentChapterIndex;
   double _sliderValue = 1;
   bool _showControls = true;
+  ReaderMode _readMode = ReaderMode.vertical;
+  bool _pinchToZoom = true;
+  bool _volumeButtons = false;
+  StreamSubscription<dynamic>? _volumeSubscription;
   bool _isLoading = true;
   bool _isAppendingNextChapter = false;
   final Map<int, List<dynamic>> _chapterPages = {};
@@ -55,6 +63,7 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
   void initState() {
     super.initState();
     _readingTimer.start();
+    _loadReaderSettings();
     _currentChapterIndex = widget.initialChapterIndex;
     _bottomChapterIndex = _currentChapterIndex;
     _loadLocalManga();
@@ -105,9 +114,102 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
     });
   }
 
+  Future<void> _loadReaderSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _readMode = ReaderMode.values.byName(
+        prefs.getString('readerMode') ?? ReaderMode.vertical.name,
+      );
+      _pinchToZoom = prefs.getBool('readerPinchToZoom') ?? true;
+      _volumeButtons = prefs.getBool('readerVolumeButtons') ?? false;
+    });
+    _updateVolumeListener();
+  }
+
+  void _updateVolumeListener() {
+    _volumeSubscription?.cancel();
+    _volumeSubscription = null;
+    if (!_volumeButtons) return;
+    _volumeSubscription = const EventChannel('keihatsu/reader_volume')
+        .receiveBroadcastStream().listen((event) {
+      if (!mounted) return;
+      final delta = event as int;
+      final pages = _chapterPages[_currentChapterIndex];
+      if (pages == null || pages.isEmpty) return;
+      final direction = _readMode == ReaderMode.horizontalRtl ? -delta : delta;
+      final next = (_currentPageIndex + direction).clamp(0, pages.length - 1);
+      _scrollToPage(next);
+    });
+  }
+
+  Future<void> _showReaderSettings() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, updateSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Read mode', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<ReaderMode>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: ReaderMode.vertical, label: Text('Default')),
+                      ButtonSegment(value: ReaderMode.horizontalRtl, label: Text('RTL')),
+                      ButtonSegment(value: ReaderMode.horizontalLtr, label: Text('LTR')),
+                    ],
+                    selected: {_readMode},
+                    onSelectionChanged: (selection) async {
+                      setState(() => _readMode = selection.first);
+                      updateSheet(() {});
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('readerMode', _readMode.name);
+                    },
+                  ),
+                ),
+                SwitchListTile(
+                  title: const Text('Pinch to zoom'),
+                  value: _pinchToZoom,
+                  onChanged: (value) async {
+                    setState(() => _pinchToZoom = value);
+                    updateSheet(() {});
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('readerPinchToZoom', value);
+                  },
+                ),
+                SwitchListTile(
+                  title: const Text('Enable volume buttons'),
+                  subtitle: const Text('Use volume buttons for switching pages'),
+                  value: _volumeButtons,
+                  onChanged: (value) async {
+                    setState(() => _volumeButtons = value);
+                    updateSheet(() {});
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('readerVolumeButtons', value);
+                    _updateVolumeListener();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _volumeSubscription?.cancel();
     final chapterPages = _chapterPages[_currentChapterIndex];
     if (chapterPages != null && chapterPages.isNotEmpty) {
       _saveProgress(_currentChapterIndex, _currentPageIndex, chapterPages.length);
@@ -414,6 +516,8 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
               ),
             )
                 : ListView.builder(
+              scrollDirection: _readMode == ReaderMode.vertical ? Axis.vertical : Axis.horizontal,
+              reverse: _readMode == ReaderMode.horizontalRtl,
               controller: _scrollController,
               itemCount: _items.length + (_isAppendingNextChapter ? 1 : 0),
               itemBuilder: (context, index) {
@@ -462,31 +566,18 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                   );
                 }
 
-                return Image(
+                final image = Image(
                   image: imageProvider,
-                  fit: BoxFit.fitWidth,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 400,
-                      color: Colors.grey[900],
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white24,
-                        ),
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 400,
-                    color: Colors.grey[900],
-                    child: const Center(
-                      child: Icon(
-                        Icons.broken_image,
-                        color: Colors.white24,
-                      ),
-                    ),
+                  fit: _readMode == ReaderMode.vertical ? BoxFit.fitWidth : BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const SizedBox(
+                    height: 400, child: Icon(Icons.broken_image, color: Colors.white24),
                   ),
+                );
+                return SizedBox(
+                  width: _readMode == ReaderMode.vertical ? null : MediaQuery.sizeOf(context).width,
+                  child: _pinchToZoom
+                      ? InteractiveViewer(minScale: 1, maxScale: 4, child: image)
+                      : image,
                 );
               },
             ),
@@ -533,6 +624,11 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                               ),
                             ],
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                          tooltip: 'Reader settings',
+                          onPressed: _showReaderSettings,
                         ),
                       ],
                     ),
