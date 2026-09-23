@@ -56,7 +56,43 @@ export class SourcesController {
       );
     }
 
-    if (isManhuaTop || isBatCave) {
+    if (isBatCave) {
+      const safeReferer = referer && (() => {
+        try {
+          const parsed = new URL(referer);
+          return parsed.protocol === 'https:' &&
+            (parsed.hostname === 'batcave.biz' || parsed.hostname.endsWith('.batcave.biz'));
+        } catch { return false; }
+      })() ? referer : 'https://batcave.biz/';
+      try {
+        const upstream = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+            Referer: safeReferer,
+            Accept: 'image/webp,image/avif,image/*,*/*;q=0.8',
+          },
+          redirect: 'error',
+          signal: AbortSignal.timeout(30_000),
+        });
+        const contentType = upstream.headers.get('content-type') ?? '';
+        if (!upstream.ok || !contentType.startsWith('image/')) {
+          throw new Error(`BatCave image returned ${upstream.status} (${contentType})`);
+        }
+        const data = Buffer.from(await upstream.arrayBuffer());
+        if (data.length > 20 * 1024 * 1024) {
+          throw new Error('BatCave image is too large');
+        }
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Length', data.length.toString());
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end(data);
+        return;
+      } catch {
+        throw new BadGatewayException('Failed to proxy BatCave image');
+      }
+    }
+
+    if (isManhuaTop) {
       const safeReferer =
         referer &&
         (() => {
@@ -64,16 +100,15 @@ export class SourcesController {
             const parsedReferer = new URL(referer);
             return (
               parsedReferer.protocol === 'https:' &&
-              (isManhuaTop
-                ? parsedReferer.hostname === 'manhuatop.org' || parsedReferer.hostname.endsWith('.manhuatop.org')
-                : parsedReferer.hostname === 'batcave.biz' || parsedReferer.hostname.endsWith('.batcave.biz'))
+              (parsedReferer.hostname === 'manhuatop.org' ||
+                parsedReferer.hostname.endsWith('.manhuatop.org'))
             );
           } catch {
             return false;
           }
         })()
           ? referer
-          : isManhuaTop ? 'https://manhuatop.org/' : 'https://batcave.biz/';
+          : 'https://manhuatop.org/';
 
       try {
         const image = await this.puppeteerService.fetchBinary(url, safeReferer);
@@ -83,7 +118,7 @@ export class SourcesController {
         res.end(image.data);
         return;
       } catch {
-        throw new BadGatewayException('Failed to proxy source image');
+        throw new BadGatewayException('Failed to proxy ManhuaTop image');
       }
     }
 
