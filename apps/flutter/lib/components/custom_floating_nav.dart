@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/SearchScreen.dart';
@@ -20,7 +20,7 @@ class CustomFloatingNav extends StatelessWidget {
   static const double _searchSize = 50;
   static const double _gap = 8;
 
-  static const List<_NavDestination> _destinations = [
+  static final List<_NavDestination> _destinations = [
     // Home is intentionally hidden while the library-first navigation is in
     // use. Keep the destination here so it can be restored without rebuilding
     // its route mapping.
@@ -28,31 +28,31 @@ class CustomFloatingNav extends StatelessWidget {
     //   index: 0,
     //   route: '/home',
     //   label: 'Home',
-    //   iconAsset: 'images/icons/libraryIcons/home.svg',
+    //   icon: PhosphorIcons.house(),
     // ),
     _NavDestination(
       index: 1,
       route: '/library',
       label: 'Library',
-      iconAsset: 'images/icons/libraryIcons/library.svg',
+      icon: PhosphorIcons.books(),
     ),
     _NavDestination(
       index: 2,
       route: '/history',
       label: 'History',
-      iconAsset: 'images/icons/libraryIcons/history.svg',
+      icon: PhosphorIcons.clockCounterClockwise(),
     ),
     _NavDestination(
       index: 3,
       route: '/extensions',
       label: 'Extensions',
-      iconAsset: 'images/icons/libraryIcons/puzzle.svg',
+      icon: PhosphorIcons.puzzlePiece(),
     ),
     _NavDestination(
       index: 4,
       route: '/profile',
       label: 'Profile',
-      iconAsset: 'images/icons/libraryIcons/profile.svg',
+      icon: PhosphorIcons.user(),
     ),
   ];
 
@@ -149,13 +149,13 @@ class _NavDestination {
     required this.index,
     required this.route,
     required this.label,
-    required this.iconAsset,
+    required this.icon,
   });
 
   final int index;
   final String route;
   final String label;
-  final String iconAsset;
+  final PhosphorIconData icon;
 }
 
 class _NavItem extends StatelessWidget {
@@ -197,12 +197,7 @@ class _NavItem extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
-              child: SvgPicture.asset(
-                destination.iconAsset,
-                width: 22,
-                height: 22,
-                colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
-              ),
+              child: Icon(destination.icon, size: 22, color: iconColor),
             ),
             const SizedBox(height: 1),
             Text(
@@ -254,11 +249,10 @@ class _SearchFabButton extends StatelessWidget {
           width: _size,
           height: _size,
           child: Center(
-            child: SvgPicture.asset(
-              'images/icons/libraryIcons/search.svg',
-              width: 28,
-              height: 28,
-              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+            child: Icon(
+              PhosphorIcons.magnifyingGlass(),
+              size: 28,
+              color: iconColor,
             ),
           ),
         ),
