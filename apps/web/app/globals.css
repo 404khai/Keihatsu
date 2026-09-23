@@ -86,6 +86,124 @@ button {
   background: var(--paper);
 }
 
+/* Paper: Keihatsu — 404 Page */
+.not-found-page {
+  min-height: 100svh;
+  padding: 32px 48px 36px;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.not-found-nav {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  height: 58px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.not-found-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  line-height: 24px;
+}
+
+.not-found-brand img { width: 44px; height: 44px; object-fit: contain; }
+.not-found-nav__links { display: flex; align-items: center; gap: 26px; font-size: 14px; font-weight: 700; }
+
+.not-found-pill {
+  display: inline-flex;
+  min-height: 52px;
+  padding: 15px 20px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--yellow);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 18px;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.not-found-pill:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--ink); }
+.not-found-pill span { font-size: 19px; line-height: 12px; }
+.not-found-pill--small { min-height: 44px; padding: 11px 16px; font-size: 14px; }
+.not-found-pill--secondary { background: var(--paper); }
+
+.not-found-hero {
+  position: relative;
+  display: flex;
+  height: calc(100svh - 126px);
+  min-height: 702px;
+  padding: 42px 82px 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 106px;
+}
+
+.not-found-copy { position: relative; z-index: 2; display: flex; width: 485px; flex: 0 0 485px; flex-direction: column; align-items: flex-start; gap: 22px; }
+.not-found-eyebrow { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 13px; font-weight: 800; letter-spacing: .08em; line-height: 16px; text-transform: uppercase; }
+.not-found-eyebrow span { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: var(--yellow); }
+.not-found-copy h1 { margin: 0; font-size: 88px; font-weight: 400; letter-spacing: -.025em; line-height: 92%; }
+.not-found-copy > p { max-width: 430px; margin: 0; color: var(--muted); font-size: 18px; line-height: 28px; }
+.not-found-actions { display: flex; align-items: center; gap: 12px; padding-top: 8px; }
+.not-found-paw { position: absolute; top: 16px; left: 215px; width: 72px; height: 72px; overflow: hidden; border-radius: 24px; box-shadow: 0 18px 38px #1111111f; }
+.not-found-paw svg { width: 105px; height: 99px; }
+
+.not-found-art { position: relative; z-index: 2; display: flex; width: 505px; height: 470px; flex: 0 0 505px; align-items: center; justify-content: center; }
+.not-found-card { position: relative; z-index: 2; display: flex; width: 405px; height: 330px; flex-direction: column; align-items: center; justify-content: center; gap: 30px; border: 3px solid var(--ink); border-radius: 42px; background: var(--yellow); box-shadow: 12px 12px 0 var(--ink); transform: rotate(-4deg); }
+.not-found-card > span { font-size: 14px; font-weight: 900; letter-spacing: .1em; line-height: 18px; }
+.not-found-card strong { font-size: 164px; font-weight: 400; letter-spacing: -.04em; line-height: 86%; }
+.not-found-card small { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; line-height: 18px; }
+.not-found-card i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.not-found-shape { position: absolute; border: 2px solid var(--ink); }
+.not-found-shape--lilac { top: -15px; right: 14px; display: flex; width: 110px; height: 110px; align-items: center; justify-content: center; border-radius: 34px; background: var(--lilac); font-size: 17px; font-weight: 800; transform: rotate(8deg); }
+.not-found-shape--sky { bottom: 7px; left: -24px; width: 106px; height: 106px; border-radius: 50%; background: var(--sky); transform: rotate(-12deg); }
+.not-found-route { position: absolute; z-index: 3; top: -7px; right: -44px; display: flex; padding: 12px 16px; align-items: center; gap: 10px; border: 2px solid var(--ink); border-radius: 18px; background: var(--paper); box-shadow: 5px 5px 0 var(--ink); font-size: 14px; font-weight: 700; line-height: 18px; transform: rotate(5deg); }
+.not-found-route span { color: var(--yellow); font-size: 20px; line-height: 24px; }
+.not-found-mascot { position: absolute; z-index: 1; right: -176px; bottom: -114px; width: 433px; height: 419px; object-fit: cover; }
+
+@media (max-width: 1050px) {
+  .not-found-page { padding-inline: 28px; }
+  .not-found-nav__links > a:not(.not-found-pill) { display: none; }
+  .not-found-hero { height: auto; min-height: calc(100svh - 126px); padding: 64px 16px 100px; flex-direction: column; gap: 72px; }
+  .not-found-copy { width: min(100%, 620px); flex-basis: auto; align-items: center; text-align: center; }
+  .not-found-copy > p { max-width: 520px; }
+  .not-found-paw { left: calc(50% + 40px); }
+  .not-found-mascot { right: -185px; bottom: -125px; }
+}
+
+@media (max-width: 600px) {
+  .not-found-page { padding: 18px 18px 0; }
+  .not-found-nav { height: 48px; }
+  .not-found-brand { gap: 9px; font-size: 17px; }
+  .not-found-brand img { width: 38px; height: 38px; }
+  .not-found-nav__links .not-found-pill { min-height: 40px; padding: 9px 12px; font-size: 12px; }
+  .not-found-hero { min-height: 0; padding: 60px 0 180px; gap: 58px; overflow: visible; }
+  .not-found-copy { gap: 18px; }
+  .not-found-copy h1 { font-size: clamp(58px, 18vw, 76px); }
+  .not-found-copy > p { font-size: 16px; line-height: 25px; }
+  .not-found-actions { flex-direction: column; width: 100%; }
+  .not-found-actions .not-found-pill { width: min(100%, 250px); }
+  .not-found-paw { top: 4px; left: calc(50% + 62px); width: 56px; height: 56px; border-radius: 18px; }
+  .not-found-paw svg { width: 82px; height: 77px; }
+  .not-found-art { width: 320px; height: 310px; flex-basis: 310px; }
+  .not-found-card { width: 270px; height: 225px; gap: 20px; border-radius: 30px; box-shadow: 8px 8px 0 var(--ink); }
+  .not-found-card > span { font-size: 10px; }
+  .not-found-card strong { font-size: 108px; }
+  .not-found-card small { font-size: 12px; }
+  .not-found-shape--lilac { top: -3px; right: 2px; width: 74px; height: 74px; border-radius: 23px; }
+  .not-found-shape--sky { bottom: 0; left: -2px; width: 72px; height: 72px; }
+  .not-found-route { top: -36px; right: 0; padding: 9px 12px; font-size: 12px; }
+  .not-found-mascot { right: -148px; bottom: -137px; width: 340px; height: 330px; }
+}
+
 .paper-shell {
   width: min(calc(100% - 48px), 1216px);
   margin-inline: auto;

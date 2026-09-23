@@ -132,6 +132,7 @@ class CustomFloatingNav extends StatelessWidget {
               const SizedBox(width: _gap),
               _SearchFabButton(
                 brandColor: searchColor,
+                iconColor: cs.onPrimaryContainer,
                 isDark: isDark,
                 onTap: () => _openSearch(context),
               ),
@@ -226,11 +227,13 @@ class _NavItem extends StatelessWidget {
 class _SearchFabButton extends StatelessWidget {
   const _SearchFabButton({
     required this.brandColor,
+    required this.iconColor,
     required this.isDark,
     required this.onTap,
   });
 
   final Color brandColor;
+  final Color iconColor;
   final bool isDark;
   final VoidCallback onTap;
 
@@ -255,10 +258,7 @@ class _SearchFabButton extends StatelessWidget {
               'images/icons/libraryIcons/search.svg',
               width: 28,
               height: 28,
-              colorFilter: const ColorFilter.mode(
-                Color(0xFF1C1C1C),
-                BlendMode.srcIn,
-              ),
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
             ),
           ),
         ),
