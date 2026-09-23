@@ -72,6 +72,85 @@ export class PuppeteerService implements OnModuleInit, OnModuleDestroy {
     return request;
   }
 
+  async fetchJSONResponse<T>(pageUrl: string, responsePath: string): Promise<T> {
+    const request = this.fetchQueue.then(async () => {
+      await this.launchBrowser();
+      const page = await this.browser!.newPage();
+      try {
+        await page.setUserAgent(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        );
+        const responses: Promise<T>[] = [];
+        page.on('response', (response) => {
+          if (new URL(response.url()).pathname === responsePath) {
+            responses.push(
+              response.status() < 400
+                ? (response.json() as Promise<T>)
+                : Promise.reject(new Error(`Upstream returned ${response.status()} for ${responsePath}`)),
+            );
+          }
+        });
+        await page.goto(pageUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+        if (!responses.length) throw new Error(`No ${responsePath} response on ${pageUrl}`);
+        return await responses[0];
+      } finally {
+        await page.close().catch(() => undefined);
+      }
+    });
+    this.fetchQueue = request.catch(() => undefined);
+    return request;
+  }
+
+  async fetchPaginatedJSONResponses<T extends { meta: { page: number; hasNext: boolean } }>(
+    pageUrl: string,
+    responsePath: string,
+    nextSelector: string,
+  ): Promise<T[]> {
+    const request = this.fetchQueue.then(async () => {
+      await this.launchBrowser();
+      const page = await this.browser!.newPage();
+      try {
+        await page.setUserAgent(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        );
+        const matches = (url: string) => new URL(url).pathname === responsePath;
+        const firstResponse = page.waitForResponse((response) => matches(response.url()), { timeout: 30_000 });
+        await page.goto(pageUrl, { waitUntil: 'networkidle2', timeout: 60_000 });
+        const first = await firstResponse;
+        if (first.status() >= 400) throw new Error(`Upstream returned ${first.status()} for ${responsePath}`);
+        const pages: T[] = [await first.json() as T];
+        while (pages.at(-1)!.meta.hasNext) {
+          const current = pages.at(-1)!.meta.page;
+          const nextResponse = page.waitForResponse((response) =>
+            matches(response.url()) && new URL(response.url()).searchParams.get('page') === String(current + 1),
+            { timeout: 30_000 },
+          );
+          const clicked = await page.evaluate((number: number, selector: string) => {
+            const numbered = [...document.querySelectorAll<HTMLButtonElement>('.npager__num')]
+              .find((button) => button.textContent?.trim() === String(number));
+            const button = numbered ?? document.querySelector<HTMLButtonElement>(selector);
+            button?.click();
+            return !!button;
+          }, current + 1, nextSelector);
+          if (!clicked) throw new Error(`Missing chapter page ${current + 1} for ${responsePath}`);
+          const response = await nextResponse;
+          if (response.status() >= 400) throw new Error(`Upstream returned ${response.status()} for ${responsePath}`);
+          pages.push(await response.json() as T);
+          await page.waitForFunction(
+            (number: number) => document.querySelector('.npager__num.is-active')?.textContent?.trim() === String(number),
+            { timeout: 10_000 }, current + 1,
+          );
+          if (pages.length > 100) throw new Error(`Too many chapter pages for ${responsePath}`);
+        }
+        return pages;
+      } finally {
+        await page.close().catch(() => undefined);
+      }
+    });
+    this.fetchQueue = request.catch(() => undefined);
+    return request;
+  }
+
   private async fetchBinaryInternal(
     url: string,
     referer: string,

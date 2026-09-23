@@ -41,7 +41,7 @@ async function testExtensions() {
 
         // Test Atsumaru
         console.log('\n--- Testing Atsumaru ---');
-        const atsumaru = new AtsumaruSource(puppeteerService);
+        const atsumaru = new AtsumaruSource();
         
         console.log('Fetching Popular Manga...');
         const atsuPopular = await atsumaru.getPopularManga(1);

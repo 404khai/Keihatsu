@@ -50,6 +50,9 @@ final class ImagePipeline {
         }
         var request = URLRequest(url: url)
         request.setValue("image/*", forHTTPHeaderField: "Accept")
+        if let referer, referer.scheme?.lowercased() == "https", referer.host != nil {
+            request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
+        }
         return request
     }
 

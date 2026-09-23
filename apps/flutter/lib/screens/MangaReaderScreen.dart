@@ -8,6 +8,7 @@ import '../theme_provider.dart';
 import '../models/manga.dart';
 import '../models/chapter.dart';
 import '../models/local_models.dart';
+import '../services/reader_image_headers.dart';
 import '../services/manga_repository.dart';
 import '../providers/auth_provider.dart'; // Added
 import '../providers/comments_provider.dart'; // Added
@@ -180,15 +181,12 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
   }
 
   Map<String, String>? _buildImageHeaders(String? referer) {
-    if (widget.manga.sourceId.toLowerCase() != 'batcave') {
-      return null;
-    }
-
-    return {
-      'User-Agent': _browserUserAgent,
-      'Referer': referer?.isNotEmpty == true ? referer! : widget.manga.url,
-      'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
-    };
+    return ReaderImageHeaders.forSource(
+      sourceId: widget.manga.sourceId,
+      mangaUrl: widget.manga.url,
+      referer: referer,
+      userAgent: _browserUserAgent,
+    );
   }
 
   Future<List<dynamic>> _fetchPagesForChapter(int chapterIndex) async {

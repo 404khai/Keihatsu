@@ -281,7 +281,7 @@ actor ChapterArchiveStore {
                   let name = String(data: data[(cursor + 46)..<(cursor + 46 + nameLength)], encoding: .utf8) else {
                 throw ArchiveError.invalidArchive
             }
-            if ["jpg", "jpeg", "png", "webp", "gif"].contains((name as NSString).pathExtension.lowercased()) {
+            if ["jpg", "jpeg", "png", "webp", "gif", "avif"].contains((name as NSString).pathExtension.lowercased()) {
                 result.append(Entry(
                     name: name,
                     compression: data.uint16(at: cursor + 10),
@@ -309,7 +309,7 @@ actor ChapterArchiveStore {
 
     private func imageExtension(for url: URL) -> String {
         let ext = url.pathExtension.lowercased()
-        if ["jpg", "jpeg", "png", "webp", "gif"].contains(ext) { return ext }
+        if ["jpg", "jpeg", "png", "webp", "gif", "avif"].contains(ext) { return ext }
         guard let handle = try? FileHandle(forReadingFrom: url),
               let signature = try? handle.read(upToCount: 12) else { return "jpg" }
         try? handle.close()
@@ -317,6 +317,8 @@ actor ChapterArchiveStore {
         if signature.starts(with: [0x47, 0x49, 0x46]) { return "gif" }
         if signature.count >= 12, String(data: signature[0..<4], encoding: .ascii) == "RIFF",
            String(data: signature[8..<12], encoding: .ascii) == "WEBP" { return "webp" }
+        if signature.count >= 12, String(data: signature[4..<8], encoding: .ascii) == "ftyp",
+           ["avif", "avis"].contains(String(data: signature[8..<12], encoding: .ascii) ?? "") { return "avif" }
         return "jpg"
     }
 

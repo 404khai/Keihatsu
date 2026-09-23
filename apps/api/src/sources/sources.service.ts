@@ -20,7 +20,7 @@ export class SourcesService implements OnModuleInit {
   onModuleInit() {
     this.registerSource(new ManhuaTopSource(this.puppeteerService));
     this.registerSource(new WeebCentralSource(this.puppeteerService));
-    this.registerSource(new AtsumaruSource(this.puppeteerService));
+    this.registerSource(new AtsumaruSource());
     this.registerSource(new MangaFireSource(this.puppeteerService));
     this.registerSource(new BatCaveSource(this.puppeteerService));
   }
@@ -56,34 +56,15 @@ export class SourcesService implements OnModuleInit {
     filters?: any,
   ): Promise<MangasPage> {
     const source = this.getSource(sourceId);
-    try {
-      switch (type) {
-        case 'popular':
-          return source.getPopularManga(page);
-        case 'latest':
-          return source.getLatestUpdates(page);
-        case 'search':
-          return source.searchManga(page, query || '', filters);
-        default:
-          throw new Error('Invalid list type');
-      }
-    } catch (error) {
-      const fallbackSourceId = 'mock_source';
-      if (sourceId === fallbackSourceId) {
-        throw error;
-      }
-
-      const fallbackSource = this.getSource(fallbackSourceId);
-      switch (type) {
-        case 'popular':
-          return fallbackSource.getPopularManga(page);
-        case 'latest':
-          return fallbackSource.getLatestUpdates(page);
-        case 'search':
-          return fallbackSource.searchManga(page, query || '', filters);
-        default:
-          throw error;
-      }
+    switch (type) {
+      case 'popular':
+        return source.getPopularManga(page);
+      case 'latest':
+        return source.getLatestUpdates(page);
+      case 'search':
+        return source.searchManga(page, query || '', filters);
+      default:
+        throw new Error('Invalid list type');
     }
   }
 

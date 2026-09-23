@@ -322,6 +322,7 @@ class FileService {
         '.png',
         '.webp',
         '.gif',
+        '.avif',
       }.contains(extension);
     }).toList()..sort((a, b) => a.name.compareTo(b.name));
 
@@ -346,14 +347,27 @@ class FileService {
     required String mangaId,
     required String chapterId,
     required int index,
+    String? imageUrl,
   }) {
+    final extension = imageUrl == null
+        ? '.jpg'
+        : switch (p
+              .extension(Uri.tryParse(imageUrl)?.path ?? '')
+              .toLowerCase()) {
+            '.png' => '.png',
+            '.webp' => '.webp',
+            '.gif' => '.gif',
+            '.avif' => '.avif',
+            '.jpeg' => '.jpeg',
+            _ => '.jpg',
+          };
     return p.join(
       chapterDownloadSubPath(
         sourceId: sourceId,
         mangaId: mangaId,
         chapterId: chapterId,
       ),
-      'page${index.toString().padLeft(3, '0')}.jpg',
+      'page${index.toString().padLeft(3, '0')}$extension',
     );
   }
 
