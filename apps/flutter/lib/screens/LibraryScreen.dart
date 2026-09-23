@@ -8,6 +8,7 @@ import '../components/gradient_fade_app_bar.dart';
 import '../components/LibraryDisplaySettingsSheet.dart';
 import '../components/OfflineImage.dart';
 import '../components/library/filter_tabs.dart';
+import '../components/menu/bottom_padding.dart';
 import '../models/local_models.dart';
 import '../models/manga.dart';
 import '../providers/offline_library_provider.dart';
@@ -25,6 +26,7 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen>
     with GradientFadeAppBarMixin {
+  static const double _navClearance = 88;
   final int _currentIndex = 1;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -50,7 +52,8 @@ class _LibraryScreenState extends State<LibraryScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
+        backgroundColor:
+            themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
             ? Colors.black
             : cs.surface,
         title: Text(
@@ -119,6 +122,153 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
+  Future<void> _showCategoryContextMenu(LocalLibraryEntry entry) async {
+    final offlineLibrary = Provider.of<OfflineLibraryProvider>(
+      context,
+      listen: false,
+    );
+    final selectedCategoryIds = offlineLibrary.categories
+        .where(
+          (category) => offlineLibrary.isMangaInCategory(
+            entry.mangaId,
+            entry.sourceId,
+            category.id,
+          ),
+        )
+        .map((category) => category.id)
+        .toSet();
+
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close category menu',
+      barrierColor: Colors.black.withOpacity(0.62),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (context, setMenuState) {
+            final categories = offlineLibrary.categories;
+            final colorScheme = Theme.of(context).colorScheme;
+
+            return SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Transform.scale(
+                          scale: 1.04,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              width: 168,
+                              height: 248,
+                              child: _LibraryCoverImage(entry: entry),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: 340,
+                            maxHeight: 320,
+                          ),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black38,
+                                  blurRadius: 24,
+                                  offset: Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: categories.isEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Text(
+                                      'No other categories yet',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    shrinkWrap: true,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    itemCount: categories.length,
+                                    separatorBuilder: (context, index) =>
+                                        Divider(
+                                          height: 1,
+                                          color: colorScheme.outlineVariant,
+                                        ),
+                                    itemBuilder: (context, index) {
+                                      final category = categories[index];
+                                      final isSelected = selectedCategoryIds
+                                          .contains(category.id);
+
+                                      return CheckboxListTile(
+                                        value: isSelected,
+                                        controlAffinity:
+                                            ListTileControlAffinity.trailing,
+                                        title: Text(category.name),
+                                        onChanged: (_) async {
+                                          setMenuState(() {
+                                            if (isSelected) {
+                                              selectedCategoryIds.remove(
+                                                category.id,
+                                              );
+                                            } else {
+                                              selectedCategoryIds.add(
+                                                category.id,
+                                              );
+                                            }
+                                          });
+                                          await offlineLibrary
+                                              .toggleCategoryAssignment(
+                                                entry.mangaId,
+                                                entry.sourceId,
+                                                category.id,
+                                              );
+                                        },
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -150,33 +300,33 @@ class _LibraryScreenState extends State<LibraryScreen>
         automaticallyImplyLeading: false,
         title: _isSearching
             ? TextField(
-          controller: _searchController,
-          autofocus: true,
-          style: TextStyle(color: textColor),
-          decoration: InputDecoration(
-            hintText: 'Search library...',
-            hintStyle: TextStyle(color: cs.onSurfaceVariant),
-            border: InputBorder.none,
-          ),
-          onChanged: (value) => offlineLibrary.updateFilters(
-            offlineLibrary.filterState.copyWith(search: value),
-          ),
-        )
+                controller: _searchController,
+                autofocus: true,
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  hintText: 'Search library...',
+                  hintStyle: TextStyle(color: cs.onSurfaceVariant),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => offlineLibrary.updateFilters(
+                  offlineLibrary.filterState.copyWith(search: value),
+                ),
+              )
             : Text(
-          'Library',
-          style: GoogleFonts.unbounded(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-            color: textColor,
-            fontSize: 24,
-          ),
-          // style: GoogleFonts.unbounded(
-          //   textStyle: TextStyle(
-          //     color: textColor,
-          //     fontWeight: FontWeight.bold,
-          //   ),
-          // ),
-        ),
+                'Library',
+                style: GoogleFonts.unbounded(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                  color: textColor,
+                  fontSize: 24,
+                ),
+                // style: GoogleFonts.unbounded(
+                //   textStyle: TextStyle(
+                //     color: textColor,
+                //     fontWeight: FontWeight.bold,
+                //   ),
+                // ),
+              ),
         bottom: (prefs?.tabsShowCategories ?? true) && categories.isNotEmpty
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(52),
@@ -244,15 +394,15 @@ class _LibraryScreenState extends State<LibraryScreen>
         onFadeChanged: updateAppBarFade,
         child: FloatingNavScrollScope(
           child: offlineLibrary.isLoading
-          ? Center(child: CircularProgressIndicator(color: brandColor))
-          : offlineLibrary.library.isEmpty
-          ? _buildEmptyState(textColor)
-          : _buildLibraryContent(
-              offlineLibrary.getLibraryForCategory(_selectedCategory),
-              brandColor,
-              textColor,
-              prefs,
-            ),
+              ? Center(child: CircularProgressIndicator(color: brandColor))
+              : offlineLibrary.library.isEmpty
+              ? _buildEmptyState(textColor)
+              : _buildLibraryContent(
+                  offlineLibrary.getLibraryForCategory(_selectedCategory),
+                  brandColor,
+                  textColor,
+                  prefs,
+                ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -268,16 +418,21 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildLibraryContent(
-      List<LocalLibraryEntry> entries,
-      Color brandColor,
-      Color textColor,
-      dynamic prefs,
-      ) {
+    List<LocalLibraryEntry> entries,
+    Color brandColor,
+    Color textColor,
+    dynamic prefs,
+  ) {
     final displayMode = prefs?.categoriesDisplayMode ?? 'comfortable grid';
 
     if (displayMode == 'list') {
       return ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          10,
+          0,
+          BottomPadding.of(context) + _navClearance,
+        ),
         itemCount: entries.length,
         itemBuilder: (context, index) {
           return _buildMangaListItem(
@@ -296,7 +451,12 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (displayMode == 'cover grid') aspectRatio = 0.6;
 
     return GridView.builder(
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.fromLTRB(
+        10,
+        10,
+        10,
+        BottomPadding.of(context) + _navClearance,
+      ),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: prefs?.libraryItemsPerRow ?? 3,
         childAspectRatio: aspectRatio,
@@ -360,11 +520,11 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildSingleBadge(
-      String text,
-      Color color, {
-        Color textColor = Colors.black,
-        IconData? icon,
-      }) {
+    String text,
+    Color color, {
+    Color textColor = Colors.black,
+    IconData? icon,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
@@ -402,13 +562,14 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildMangaListItem(
-      BuildContext context,
-      LocalLibraryEntry entry,
-      Color brandColor,
-      Color textColor,
-      dynamic prefs,
-      ) {
+    BuildContext context,
+    LocalLibraryEntry entry,
+    Color brandColor,
+    Color textColor,
+    dynamic prefs,
+  ) {
     return ListTile(
+      onLongPress: () => _showCategoryContextMenu(entry),
       onTap: () {
         final manga = Manga(
           id: entry.mangaId,
@@ -453,16 +614,17 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildMangaGridItem(
-      BuildContext context,
-      LocalLibraryEntry entry,
-      Color brandColor,
-      Color textColor,
-      dynamic prefs,
-      String displayMode,
-      ) {
+    BuildContext context,
+    LocalLibraryEntry entry,
+    Color brandColor,
+    Color textColor,
+    dynamic prefs,
+    String displayMode,
+  ) {
     final bool showTitle = displayMode != 'cover grid';
 
     return GestureDetector(
+      onLongPress: () => _showCategoryContextMenu(entry),
       onTap: () {
         final manga = Manga(
           id: entry.mangaId,

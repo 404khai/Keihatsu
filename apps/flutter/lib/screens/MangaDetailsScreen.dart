@@ -665,7 +665,6 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
           final displayDescription =
               manga?.description ?? widget.manga.description;
           final displayAuthor = manga?.author ?? widget.manga.author;
-          final displayStatus = manga?.status ?? widget.manga.status;
           final displayGenres = manga?.genres ?? widget.manga.genres;
           final appBarForeground = _showTitle ? textColor : Colors.white;
 
@@ -743,79 +742,34 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 5),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: OfflineImage(
-                                    imageUrl: displayThumbUrl,
-                                    localFilePath: manga?.thumbnailLocalPath,
-                                    height: 180,
-                                    width: 120,
-                                    fit: BoxFit.cover,
-                                    fallback: Container(
-                                      height: 180,
-                                      width: 120,
-                                      color: cardColor,
-                                      child: Icon(
-                                        Icons.broken_image_outlined,
-                                        color: textColor.withOpacity(0.5),
-                                      ),
-                                    ),
+                          const SizedBox(height: 150),
+                          Text(
+                            displayTitle.toUpperCase(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.unbounded(
+                              textStyle: const TextStyle(
+                                fontSize: 24,
+                                height: 1.08,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 12,
+                                    color: Colors.black,
+                                    offset: Offset(1, 2),
                                   ),
-                                ),
+                                ],
                               ),
-                              const SizedBox(width: 20),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      displayTitle,
-                                      style: GoogleFonts.unbounded(
-                                        textStyle: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          shadows: [
-                                            Shadow(
-                                              blurRadius: 10.0,
-                                              color: Colors.black,
-                                              offset: Offset(2.0, 2.0),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    _buildInfoRow(
-                                      PhosphorIcons.user(),
-                                      displayAuthor ?? "Unknown",
-                                    ),
-                                    const SizedBox(height: 4),
-                                    _buildInfoRow(
-                                      PhosphorIcons.clock(),
-                                      displayStatus ?? "Ongoing",
-                                    ),
-                                    const SizedBox(height: 10),
-                                    _buildExtensionRow(widget.manga.sourceId),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
+                          const SizedBox(height: 10),
+                          _buildInfoRow(
+                            PhosphorIcons.user(),
+                            displayAuthor ?? "Unknown",
+                          ),
+                          const SizedBox(height: 10),
+                          _buildExtensionRow(widget.manga.sourceId),
                           const SizedBox(height: 25),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
