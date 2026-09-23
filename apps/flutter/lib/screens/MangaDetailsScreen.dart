@@ -749,7 +749,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.unbounded(
                               textStyle: const TextStyle(
-                                fontSize: 28,
+                                fontSize: 24,
                                 height: 1.08,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,

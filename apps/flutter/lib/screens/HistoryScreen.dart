@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:isar/isar.dart';
 import 'package:intl/intl.dart';
 import '../components/OfflineImage.dart';
@@ -31,6 +32,8 @@ class _HistoryScreenState extends State<HistoryScreen>
   final int _currentIndex = 2; // History is index 2
   final Set<int> _selectedIds = {};
   bool _isSelectionMode = false;
+  Stream<List<LocalManga>>? _historyStream;
+  String? _historyOwnerId;
 
   static const double _navClearance = 88;
 
@@ -41,6 +44,24 @@ class _HistoryScreenState extends State<HistoryScreen>
       if (!mounted) return;
       context.read<FloatingNavProvider>().expand();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ownerId = context.read<AuthProvider>().localScopeUserId;
+    if (_historyStream != null && _historyOwnerId == ownerId) return;
+
+    _historyOwnerId = ownerId;
+    _historyStream = context
+        .read<MangaRepository>()
+        .isar
+        .collection<LocalManga>()
+        .filter()
+        .ownerUserIdEqualTo(ownerId)
+        .lastReadAtIsNotNull()
+        .sortByLastReadAtDesc()
+        .watch(fireImmediately: true);
   }
 
   void _toggleSelection(int id) {
@@ -99,10 +120,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             title,
             style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           ),
-          content: Text(
-            content,
-            style: TextStyle(color: cs.onSurfaceVariant),
-          ),
+          content: Text(content, style: TextStyle(color: cs.onSurfaceVariant)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -151,6 +169,55 @@ class _HistoryScreenState extends State<HistoryScreen>
     return await repo.getChapters(manga.sourceId, manga.mangaId);
   }
 
+  Manga _mangaFromHistory(LocalManga manga) {
+    return Manga(
+      id: manga.mangaId,
+      sourceId: manga.sourceId,
+      title: manga.title,
+      url: "",
+      thumbnailUrl: manga.thumbnailUrl ?? "",
+      description: manga.description ?? "",
+      status: manga.status ?? "Unknown",
+    );
+  }
+
+  void _openMangaDetails(LocalManga manga) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            MangaDetailsScreen(manga: _mangaFromHistory(manga)),
+      ),
+    );
+  }
+
+  Future<void> _openLastReadChapter(LocalManga manga) async {
+    final chapters = await _getAllChapters(manga);
+    final lastReadChapter = await _getLastReadChapter(manga);
+    if (!mounted) return;
+
+    if (lastReadChapter != null && chapters.isNotEmpty) {
+      final index = chapters.indexWhere(
+        (chapter) => chapter.chapterId == lastReadChapter.chapterId,
+      );
+      if (index != -1) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MangaReaderScreen(
+              manga: _mangaFromHistory(manga),
+              chapters: chapters,
+              initialChapterIndex: index,
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    if (mounted) _openMangaDetails(manga);
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -167,13 +234,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     final Color textColor = cs.onSurface;
 
     return StreamBuilder<List<LocalManga>>(
-      stream: Provider.of<MangaRepository>(context, listen: false).isar
-          .collection<LocalManga>()
-          .filter()
-          .ownerUserIdEqualTo(authProvider.localScopeUserId)
-          .lastReadAtIsNotNull()
-          .sortByLastReadAtDesc()
-          .watch(fireImmediately: true),
+      stream: _historyStream,
       builder: (context, snapshot) {
         final history = snapshot.data ?? [];
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
@@ -189,9 +250,9 @@ class _HistoryScreenState extends State<HistoryScreen>
             automaticallyImplyLeading: false,
             leading: _isSelectionMode
                 ? IconButton(
-              icon: Icon(Icons.close, color: textColor),
-              onPressed: _clearSelection,
-            )
+                    icon: Icon(Icons.close, color: textColor),
+                    onPressed: _clearSelection,
+                  )
                 : null,
             title: Text(
               _isSelectionMode ? '${_selectedIds.length} selected' : 'History',
@@ -205,7 +266,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.5,
                 color: textColor,
-                fontSize: 24,
+                fontSize: 20,
               ),
             ),
             actions: [
@@ -222,7 +283,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                       context: context,
                       title: "Delete ${_selectedIds.length} items?",
                       content:
-                      "Are you sure you want to remove these items from your history?",
+                          "Are you sure you want to remove these items from your history?",
                       onConfirm: () async {
                         final isar = Provider.of<MangaRepository>(
                           context,
@@ -260,7 +321,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                       context: context,
                       title: "Clear History?",
                       content:
-                      "Are you sure you want to clear all reading history?",
+                          "Are you sure you want to clear all reading history?",
                       onConfirm: () async {
                         final isar = Provider.of<MangaRepository>(
                           context,
@@ -285,157 +346,109 @@ class _HistoryScreenState extends State<HistoryScreen>
             onFadeChanged: updateAppBarFade,
             child: FloatingNavScrollScope(
               child: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : history.isEmpty
-              ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.history,
-                  size: 64,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "No reading history",
-                  style: TextStyle(
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          )
-              : ListView.builder(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              0,
-              16,
-              BottomPadding.of(context) + _navClearance,
-            ),
-            itemCount: history.length,
-            itemBuilder: (context, index) {
-              final manga = history[index];
-              final showDate =
-                  index == 0 ||
-                      !isSameDay(
-                        history[index].lastReadAt!,
-                        history[index - 1].lastReadAt!,
-                      );
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (showDate)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        formatDate(manga.lastReadAt!),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                        ),
+                  ? const Center(child: CircularProgressIndicator())
+                  : history.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.history,
+                            size: 64,
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "No reading history",
+                            style: TextStyle(
+                              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  HistoryItem(
-                    manga: manga,
-                    isSelected: _selectedIds.contains(manga.id),
-                    isSelectionMode: _isSelectionMode,
-                    onTap: () async {
-                      if (_isSelectionMode) {
-                        _toggleSelection(manga.id);
-                      } else {
-                        // 1. Get all chapters
-                        final chapters = await _getAllChapters(manga);
-
-                        // 2. Find last read chapter
-                        final lastReadChapter = await _getLastReadChapter(
-                          manga,
-                        );
-
-                        if (lastReadChapter != null &&
-                            chapters.isNotEmpty) {
-                          // 3. Find index of last read chapter in the full list
-                          // Note: chapters from repo are usually sorted by number descending
-                          final index = chapters.indexWhere(
-                                (c) =>
-                            c.chapterId == lastReadChapter.chapterId,
-                          );
-
-                          if (index != -1) {
-                            // 4. Navigate directly to reader
-                            // Convert LocalManga to Manga for the reader
-                            final mangaObj = Manga(
-                              id: manga.mangaId,
-                              sourceId: manga.sourceId,
-                              title: manga.title,
-                              url: "",
-                              thumbnailUrl: manga.thumbnailUrl ?? "",
-                              description: manga.description ?? "",
-                              status: manga.status ?? "Unknown",
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        0,
+                        16,
+                        BottomPadding.of(context) + _navClearance,
+                      ),
+                      itemCount: history.length,
+                      itemBuilder: (context, index) {
+                        final manga = history[index];
+                        final showDate =
+                            index == 0 ||
+                            !isSameDay(
+                              history[index].lastReadAt!,
+                              history[index - 1].lastReadAt!,
                             );
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MangaReaderScreen(
-                                  manga: mangaObj,
-                                  chapters: chapters,
-                                  initialChapterIndex: index,
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (showDate)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Text(
+                                  formatDate(manga.lastReadAt!),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: cs.onSurfaceVariant.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            );
-                            return;
-                          }
-                        }
-
-                        // Fallback to details screen if logic fails or no history found
-                        final mangaObj = Manga(
-                          id: manga.mangaId,
-                          sourceId: manga.sourceId,
-                          title: manga.title,
-                          url: "",
-                          thumbnailUrl: manga.thumbnailUrl ?? "",
-                          description: manga.description ?? "",
-                          status: manga.status ?? "Unknown",
+                            HistoryItem(
+                              key: ValueKey(manga.id),
+                              manga: manga,
+                              isSelected: _selectedIds.contains(manga.id),
+                              isSelectionMode: _isSelectionMode,
+                              onCoverTap: () {
+                                if (_isSelectionMode) {
+                                  _toggleSelection(manga.id);
+                                } else {
+                                  _openMangaDetails(manga);
+                                }
+                              },
+                              onChapterTap: () {
+                                if (_isSelectionMode) {
+                                  _toggleSelection(manga.id);
+                                } else {
+                                  _openLastReadChapter(manga);
+                                }
+                              },
+                              onLongPress: () => _toggleSelection(manga.id),
+                              onDelete: () {
+                                _showDeleteConfirmation(
+                                  context: context,
+                                  title: "Remove from History?",
+                                  content:
+                                      "Are you sure you want to remove '${manga.title}' from your history?",
+                                  onConfirm: () async {
+                                    final isar = Provider.of<MangaRepository>(
+                                      context,
+                                      listen: false,
+                                    ).isar;
+                                    manga.lastReadAt = null;
+                                    await isar.writeTxn(() async {
+                                      await isar.collection<LocalManga>().put(
+                                        manga,
+                                      );
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                          ],
                         );
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                MangaDetailsScreen(manga: mangaObj),
-                          ),
-                        );
-                      }
-                    },
-                    onLongPress: () => _toggleSelection(manga.id),
-                    onDelete: () {
-                      _showDeleteConfirmation(
-                        context: context,
-                        title: "Remove from History?",
-                        content:
-                        "Are you sure you want to remove '${manga.title}' from your history?",
-                        onConfirm: () async {
-                          final isar = Provider.of<MangaRepository>(
-                            context,
-                            listen: false,
-                          ).isar;
-                          manga.lastReadAt = null;
-                          await isar.writeTxn(() async {
-                            await isar.collection<LocalManga>().put(
-                              manga,
-                            );
-                          });
-                        },
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-          ),
+                      },
+                    ),
+            ),
           ),
           bottomNavigationBar: MainNavigationBar(
             currentIndex: _currentIndex,
@@ -485,7 +498,8 @@ class HistoryItem extends StatefulWidget {
   final LocalManga manga;
   final bool isSelected;
   final bool isSelectionMode;
-  final VoidCallback onTap;
+  final VoidCallback onCoverTap;
+  final VoidCallback onChapterTap;
   final VoidCallback onLongPress;
   final VoidCallback onDelete;
 
@@ -494,7 +508,8 @@ class HistoryItem extends StatefulWidget {
     required this.manga,
     required this.isSelected,
     required this.isSelectionMode,
-    required this.onTap,
+    required this.onCoverTap,
+    required this.onChapterTap,
     required this.onLongPress,
     required this.onDelete,
   });
@@ -537,6 +552,92 @@ class _HistoryItemState extends State<HistoryItem> {
     if (mounted) setState(() => _lastReadChapter = chapter);
   }
 
+  void _showCategoryBottomSheet(
+    OfflineLibraryProvider offlineLibrary,
+    Manga manga,
+  ) {
+    final themeProvider = context.read<ThemeProvider>();
+    final cs = Theme.of(context).colorScheme;
+    final background =
+        themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
+        ? Colors.black
+        : cs.surface;
+    final selectedCategories = <String>{'Default'};
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: background,
+      showDragHandle: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final categories = [
+            'Default',
+            ...offlineLibrary.categories.map((category) => category.name),
+          ];
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Select Categories',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        final category = categories[index];
+                        return CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(category),
+                          value: selectedCategories.contains(category),
+                          activeColor: themeProvider.brandColor,
+                          onChanged: (selected) {
+                            setSheetState(() {
+                              if (selected == true) {
+                                selectedCategories.add(category);
+                              } else {
+                                selectedCategories.remove(category);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () {
+                        offlineLibrary.toggleLibrary(
+                          manga,
+                          categories: selectedCategories.toList(),
+                        );
+                        Navigator.pop(sheetContext);
+                      },
+                      child: const Text('Add to library'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -562,24 +663,25 @@ class _HistoryItemState extends State<HistoryItem> {
       status: widget.manga.status ?? "Unknown",
     );
 
-    return InkWell(
-      onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12.0),
-          color: widget.isSelected
-              ? brandColor.withOpacity(0.1)
-              : Colors.transparent,
-          border: widget.isSelected
-              ? Border.all(color: brandColor, width: 1)
-              : null,
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Stack(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12.0),
+        color: widget.isSelected
+            ? brandColor.withOpacity(0.1)
+            : Colors.transparent,
+        border: widget.isSelected
+            ? Border.all(color: brandColor, width: 1)
+            : null,
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: widget.onCoverTap,
+            onLongPress: widget.onLongPress,
+            borderRadius: BorderRadius.circular(4),
+            child: Stack(
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
@@ -609,75 +711,87 @@ class _HistoryItemState extends State<HistoryItem> {
                   ),
               ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.manga.title,
-                    style: GoogleFonts.unbounded(
-                      textStyle: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: textColor,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: InkWell(
+              onTap: widget.onChapterTap,
+              onLongPress: widget.onLongPress,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.manga.title,
+                      style: GoogleFonts.unbounded(
+                        textStyle: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: textColor,
+                        ),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _lastReadChapter != null
-                        ? "${_lastReadChapter!.name} - ${formatTime(_lastReadChapter!.lastReadAt)}"
-                        : "Reading...",
-                    style: TextStyle(
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                      fontSize: 13,
+                    const SizedBox(height: 4),
+                    Text(
+                      _lastReadChapter != null
+                          ? "${_lastReadChapter!.name} - ${formatTime(_lastReadChapter!.lastReadAt)}"
+                          : "Reading...",
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            if (!widget.isSelectionMode) ...[
-              IconButton(
-                onPressed: () {
-                  if (authProvider.token != null) {
+          ),
+          if (!widget.isSelectionMode) ...[
+            IconButton(
+              onPressed: () {
+                if (authProvider.token != null) {
+                  if (isInLibrary) {
                     offlineLibrary.toggleLibrary(mangaObj);
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Please login to add to library"),
-                      ),
-                    );
+                    _showCategoryBottomSheet(offlineLibrary, mangaObj);
                   }
-                },
-                icon: Icon(
-                  isInLibrary
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_outline_rounded,
-                  size: 20,
-                  color: isInLibrary ? brandColor : textColor,
-                ),
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Please login to add to library"),
+                    ),
+                  );
+                }
+              },
+              icon: Icon(
+                isInLibrary
+                    ? PhosphorIcons.bookBookmark(PhosphorIconsStyle.fill)
+                    : PhosphorIcons.bookBookmark(),
+                color: isInLibrary ? brandColor : textColor,
+                size: 20,
               ),
-              IconButton(
-                onPressed: widget.onDelete,
-                icon: Icon(Icons.delete, size: 20, color: textColor),
+            ),
+            IconButton(
+              onPressed: widget.onDelete,
+              icon: Icon(Icons.delete, size: 20, color: textColor),
+            ),
+          ] else
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Checkbox(
+                value: widget.isSelected,
+                onChanged: (_) => widget.onChapterTap(),
+                activeColor: brandColor,
+                side: BorderSide(color: cs.onSurfaceVariant, width: 2),
               ),
-            ] else
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Checkbox(
-                  value: widget.isSelected,
-                  onChanged: (_) => widget.onTap(),
-                  activeColor: brandColor,
-                  side: BorderSide(color: cs.onSurfaceVariant, width: 2),
-                ),
-              ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

@@ -8,6 +8,10 @@ struct HistoryView: View {
     @State private var selectedEntryIDs: Set<HistoryEntryID> = []
     @State private var deletePrompt: DeletePrompt?
     @State private var searchText = ""
+    @State private var selectedDetails: MangaDetailsSeed?
+    @State private var selectedReaderEntryID: ChapterIdentity?
+    @State private var pendingLibraryManga: Manga?
+    @State private var selectedCategories = Set<UUID>()
 
     private var filteredSections: [HistorySection] {
         collections.historySections(query: searchText.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -99,6 +103,27 @@ struct HistoryView: View {
         .navigationDestination(for: MangaDetailsSeed.self) { seed in
             MangaDetailView(seed: seed, animation: animation, origin: .history)
         }
+        .navigationDestination(item: $selectedDetails) { seed in
+            MangaDetailView(seed: seed, animation: animation, origin: .history)
+        }
+        .navigationDestination(item: $selectedReaderEntryID) { entryID in
+            if let entry = readingHistory.entries.first(where: { $0.id == entryID }) {
+                ReaderEntryView(
+                    manga: entry.manga,
+                    chapters: [entry.chapter],
+                    context: ReaderLaunchContext(
+                        chapter: entry.chapter.id,
+                        origin: .history,
+                        pageIndex: entry.pageIndex
+                    )
+                )
+            }
+        }
+        .sheet(item: $pendingLibraryManga) { manga in
+            categorySheet(for: manga)
+                .presentationDetents([.height(340)])
+                .presentationDragIndicator(.visible)
+        }
         .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search history"))
         .overlay {
             if filteredSections.isEmpty && filteredReadingSections.isEmpty {
@@ -155,20 +180,30 @@ struct HistoryView: View {
                 entry: entry,
                 showCheckbox: true,
                 isSelected: selectedEntryIDs.contains(id),
-                isInLibrary: isInLibrary(entry)
+                isInLibrary: isInLibrary(entry),
+                onCoverTap: { toggleSelection(for: id) },
+                onChapterTap: { toggleSelection(for: id) },
+                onLibraryTap: nil
             )
-            .onTapGesture { toggleSelection(for: id) }
         } else {
             HStack(spacing: 0) {
-                NavigationLink(value: MangaDetailsSeed(manga: entry.manga, fallbackChapters: [entry.chapter])) {
-                    ReadingHistoryRow(
-                        entry: entry,
-                        showCheckbox: false,
-                        isSelected: false,
-                        isInLibrary: isInLibrary(entry)
-                    )
-                }
-                .buttonStyle(.plain)
+                ReadingHistoryRow(
+                    entry: entry,
+                    showCheckbox: false,
+                    isSelected: false,
+                    isInLibrary: isInLibrary(entry),
+                    onCoverTap: {
+                        selectedDetails = MangaDetailsSeed(
+                            manga: entry.manga,
+                            fallbackChapters: [entry.chapter]
+                        )
+                    },
+                    onChapterTap: { selectedReaderEntryID = entry.id },
+                    onLibraryTap: isInLibrary(entry) ? nil : {
+                        selectedCategories.removeAll()
+                        pendingLibraryManga = entry.manga
+                    }
+                )
 
                 Button(role: .destructive) {
                     deletePrompt = .single(id: id, title: entry.manga.title)
@@ -189,6 +224,58 @@ struct HistoryView: View {
     private func beginSelection(with id: HistoryEntryID) {
         selectionMode = true
         selectedEntryIDs = [id]
+    }
+
+    private func categorySheet(for manga: Manga) -> some View {
+        NavigationStack {
+            List {
+                categoryRow("Default", isSelected: selectedCategories.isEmpty) {
+                    selectedCategories.removeAll()
+                }
+                ForEach(collections.snapshot.categories) { category in
+                    categoryRow(
+                        category.name,
+                        isSelected: selectedCategories.contains(category.id)
+                    ) {
+                        if selectedCategories.contains(category.id) {
+                            selectedCategories.remove(category.id)
+                        } else {
+                            selectedCategories.insert(category.id)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Select Categories")
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) {
+                Button("Add to Library") {
+                    _ = collections.addToLibrary(manga, categoryIDs: selectedCategories)
+                    pendingLibraryManga = nil
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding()
+            }
+        }
+    }
+
+    private func categoryRow(
+        _ title: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                Text(title).foregroundStyle(.primary)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     private func isInLibrary(_ entry: ReaderProgressRecord) -> Bool {
@@ -257,6 +344,9 @@ private struct ReadingHistoryRow: View {
     let showCheckbox: Bool
     let isSelected: Bool
     let isInLibrary: Bool
+    let onCoverTap: () -> Void
+    let onChapterTap: () -> Void
+    let onLibraryTap: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 18) {
@@ -266,33 +356,46 @@ private struct ReadingHistoryRow: View {
                     .foregroundStyle(isSelected ? .blue : .secondary)
             }
 
-            CatalogueCover(url: entry.manga.thumbnailURL, referer: entry.manga.url)
-                .frame(width: 78, height: 116)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text(entry.manga.title)
-                    .font(.system(size: 18, weight: .medium))
-                    .lineLimit(1)
-
-                Text(entry.chapter.displayName)
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-
-                Text((entry.updatedAt.formatted(date: .omitted, time: .shortened)))
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
+            Button(action: onCoverTap) {
+                CatalogueCover(url: entry.manga.thumbnailURL, referer: entry.manga.url)
+                    .frame(width: 78, height: 116)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open details for \(entry.manga.title)")
 
-            Spacer(minLength: 0)
+            Button(action: onChapterTap) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(entry.manga.title)
+                        .font(.system(size: 18, weight: .medium))
+                        .lineLimit(1)
+
+                    Text(entry.chapter.displayName)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+
+                    Text((entry.updatedAt.formatted(date: .omitted, time: .shortened)))
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Continue \(entry.chapter.displayName)")
 
             if !showCheckbox {
-                Image(systemName: isInLibrary ? "book.closed.fill" : "book.closed")
-                    .font(.title2)
-                    .foregroundStyle(isInLibrary ? Color.accentColor : .primary)
-                    .accessibilityLabel(isInLibrary ? "In library" : "Not in library")
+                Button {
+                    onLibraryTap?()
+                } label: {
+                    Image(systemName: isInLibrary ? "book.closed.fill" : "book.closed")
+                        .font(.title2)
+                        .foregroundStyle(isInLibrary ? Color.accentColor : .primary)
+                }
+                .buttonStyle(.plain)
+                .disabled(onLibraryTap == nil)
+                .accessibilityLabel(isInLibrary ? "In library" : "Add to library")
             }
         }
         .padding(.horizontal, 14)

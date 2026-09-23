@@ -8,6 +8,7 @@ import '../components/gradient_fade_app_bar.dart';
 import '../components/LibraryDisplaySettingsSheet.dart';
 import '../components/OfflineImage.dart';
 import '../components/library/filter_tabs.dart';
+import '../components/menu/bottom_padding.dart';
 import '../models/local_models.dart';
 import '../models/manga.dart';
 import '../providers/offline_library_provider.dart';
@@ -25,6 +26,7 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen>
     with GradientFadeAppBarMixin {
+  static const double _navClearance = 88;
   final int _currentIndex = 1;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -50,7 +52,8 @@ class _LibraryScreenState extends State<LibraryScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
+        backgroundColor:
+            themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
             ? Colors.black
             : cs.surface,
         title: Text(
@@ -150,33 +153,33 @@ class _LibraryScreenState extends State<LibraryScreen>
         automaticallyImplyLeading: false,
         title: _isSearching
             ? TextField(
-          controller: _searchController,
-          autofocus: true,
-          style: TextStyle(color: textColor),
-          decoration: InputDecoration(
-            hintText: 'Search library...',
-            hintStyle: TextStyle(color: cs.onSurfaceVariant),
-            border: InputBorder.none,
-          ),
-          onChanged: (value) => offlineLibrary.updateFilters(
-            offlineLibrary.filterState.copyWith(search: value),
-          ),
-        )
+                controller: _searchController,
+                autofocus: true,
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  hintText: 'Search library...',
+                  hintStyle: TextStyle(color: cs.onSurfaceVariant),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => offlineLibrary.updateFilters(
+                  offlineLibrary.filterState.copyWith(search: value),
+                ),
+              )
             : Text(
-          'Library',
-          style: GoogleFonts.unbounded(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-            color: textColor,
-            fontSize: 24,
-          ),
-          // style: GoogleFonts.unbounded(
-          //   textStyle: TextStyle(
-          //     color: textColor,
-          //     fontWeight: FontWeight.bold,
-          //   ),
-          // ),
-        ),
+                'Library',
+                style: GoogleFonts.unbounded(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                  color: textColor,
+                  fontSize: 24,
+                ),
+                // style: GoogleFonts.unbounded(
+                //   textStyle: TextStyle(
+                //     color: textColor,
+                //     fontWeight: FontWeight.bold,
+                //   ),
+                // ),
+              ),
         bottom: (prefs?.tabsShowCategories ?? true) && categories.isNotEmpty
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(52),
@@ -244,15 +247,15 @@ class _LibraryScreenState extends State<LibraryScreen>
         onFadeChanged: updateAppBarFade,
         child: FloatingNavScrollScope(
           child: offlineLibrary.isLoading
-          ? Center(child: CircularProgressIndicator(color: brandColor))
-          : offlineLibrary.library.isEmpty
-          ? _buildEmptyState(textColor)
-          : _buildLibraryContent(
-              offlineLibrary.getLibraryForCategory(_selectedCategory),
-              brandColor,
-              textColor,
-              prefs,
-            ),
+              ? Center(child: CircularProgressIndicator(color: brandColor))
+              : offlineLibrary.library.isEmpty
+              ? _buildEmptyState(textColor)
+              : _buildLibraryContent(
+                  offlineLibrary.getLibraryForCategory(_selectedCategory),
+                  brandColor,
+                  textColor,
+                  prefs,
+                ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -268,16 +271,21 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildLibraryContent(
-      List<LocalLibraryEntry> entries,
-      Color brandColor,
-      Color textColor,
-      dynamic prefs,
-      ) {
+    List<LocalLibraryEntry> entries,
+    Color brandColor,
+    Color textColor,
+    dynamic prefs,
+  ) {
     final displayMode = prefs?.categoriesDisplayMode ?? 'comfortable grid';
 
     if (displayMode == 'list') {
       return ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          10,
+          0,
+          BottomPadding.of(context) + _navClearance,
+        ),
         itemCount: entries.length,
         itemBuilder: (context, index) {
           return _buildMangaListItem(
@@ -296,7 +304,12 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (displayMode == 'cover grid') aspectRatio = 0.6;
 
     return GridView.builder(
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.fromLTRB(
+        10,
+        10,
+        10,
+        BottomPadding.of(context) + _navClearance,
+      ),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: prefs?.libraryItemsPerRow ?? 3,
         childAspectRatio: aspectRatio,
@@ -360,11 +373,11 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildSingleBadge(
-      String text,
-      Color color, {
-        Color textColor = Colors.black,
-        IconData? icon,
-      }) {
+    String text,
+    Color color, {
+    Color textColor = Colors.black,
+    IconData? icon,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
@@ -402,12 +415,12 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildMangaListItem(
-      BuildContext context,
-      LocalLibraryEntry entry,
-      Color brandColor,
-      Color textColor,
-      dynamic prefs,
-      ) {
+    BuildContext context,
+    LocalLibraryEntry entry,
+    Color brandColor,
+    Color textColor,
+    dynamic prefs,
+  ) {
     return ListTile(
       onTap: () {
         final manga = Manga(
@@ -453,13 +466,13 @@ class _LibraryScreenState extends State<LibraryScreen>
   }
 
   Widget _buildMangaGridItem(
-      BuildContext context,
-      LocalLibraryEntry entry,
-      Color brandColor,
-      Color textColor,
-      dynamic prefs,
-      String displayMode,
-      ) {
+    BuildContext context,
+    LocalLibraryEntry entry,
+    Color brandColor,
+    Color textColor,
+    dynamic prefs,
+    String displayMode,
+  ) {
     final bool showTitle = displayMode != 'cover grid';
 
     return GestureDetector(
