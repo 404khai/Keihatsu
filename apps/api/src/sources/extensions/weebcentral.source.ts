@@ -22,11 +22,14 @@ export class WeebCentralSource extends HttpSource {
   }
 
   private async fetchPage(url: string, selector: string, wait: number): Promise<string> {
-    const html = await this.puppeteerService.fetchPageContent(url, selector, wait);
-    if (/Attention Required!|Sorry, you have been blocked|Verify you are human|challenge-platform/i.test(html)) {
-      throw new Error('WeebCentral blocked the catalogue request');
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const html = await this.puppeteerService.fetchPageContent(url, selector, wait);
+      if (!/<title>\s*(?:Just a moment|Attention Required|Access denied)/i.test(html)
+          && !/Sorry, you have been blocked|Verify you are human/i.test(html)) {
+        return html;
+      }
     }
-    return html;
+    throw new Error('WeebCentral blocked the catalogue request');
   }
 
   private searchURL(page: number, sort: string, text = ''): string {
@@ -128,7 +131,7 @@ export class WeebCentralSource extends HttpSource {
       const html = await this.fetchPage(
         url,
         'h1',
-        2000,
+        0,
       );
 
       const response: AxiosResponse = {
@@ -311,9 +314,6 @@ export class WeebCentralSource extends HttpSource {
     // Often <h1 class="hidden md:block ...">Title</h1>
     // or just <h1>
 
-    // WeebCentral puts info in a specific section
-    const infoSection = $('section').first();
-
     const title = $('h1').first().text().trim();
     const thumbnail =
       $('img[alt$=" cover"]').first().attr('src') ||
@@ -327,15 +327,13 @@ export class WeebCentralSource extends HttpSource {
 
     // Author/Artist often in specific divs
     // Look for "Author" label
-    const author = $('strong:contains("Author")')
-      .parent()
-      .text()
-      .replace('Author', '')
-      .trim();
+    const author = $('strong:contains("Author")').first().parent().find('a')
+      .map((_, element) => $(element).text().trim()).get().join(', ');
     const status = $('strong:contains("Status")')
       .parent()
       .text()
       .replace('Status', '')
+      .replace(/\s+/g, ' ')
       .trim();
 
     const genres: string[] = [];
@@ -373,11 +371,13 @@ export class WeebCentralSource extends HttpSource {
       const id = new URL(url, this.baseUrl).pathname.match(/^\/chapters\/([^/]+)/)?.[1];
 
       // The text inside the link usually contains "Chapter X" or similar
-      const name =
-        $(element).find('span.grow').text().trim() || $(element).text().trim();
+      const name = ($(element).find('span.grow').text().trim() || $(element).text())
+        .replace(/\bLast Read\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
       // Date often in a sibling span or inside
-      const dateStr = $(element).find('time').text().trim() || '';
+      const dateStr = $(element).find('time').attr('datetime') || '';
 
       chapters.push({
         id: id || '',
@@ -420,6 +420,6 @@ export class WeebCentralSource extends HttpSource {
   }
 
   private parseDate(dateStr: string): number {
-    return new Date(dateStr).getTime() || Date.now();
+    return dateStr ? new Date(dateStr).getTime() || 0 : 0;
   }
 }

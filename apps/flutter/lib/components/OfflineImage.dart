@@ -60,7 +60,11 @@ class OfflineImage extends StatelessWidget {
                 !uri.path.startsWith('/static/')
             ? uri.replace(path: '/static${uri.path}').toString()
             : resolvedUrl;
-        final networkUrl = uri?.host == 'static.mfcdn.nl'
+        final needsProxy =
+            uri?.host == 'static.mfcdn.nl' ||
+            uri?.host == 'batcave.biz' ||
+            uri?.host.endsWith('.batcave.biz') == true;
+        final networkUrl = needsProxy
             ? Uri.parse(
                 '${ApiConstants.baseUrl}/sources/proxy/image',
               ).replace(queryParameters: {'url': resolvedUrl}).toString()

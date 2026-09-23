@@ -17,7 +17,9 @@ class SourcesApi {
     required String imageUrl,
     required String referer,
   }) {
-    if (sourceId.toLowerCase() != 'manhuatop') return imageUrl;
+    if (!{'manhuatop', 'batcave'}.contains(sourceId.toLowerCase())) {
+      return imageUrl;
+    }
 
     return Uri.parse('$baseUrl/sources/proxy/image')
         .replace(queryParameters: {'url': imageUrl, 'referer': referer})

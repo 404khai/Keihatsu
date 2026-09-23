@@ -275,7 +275,7 @@ private struct ReadingHistoryRow: View {
                     .font(.system(size: 18, weight: .medium))
                     .lineLimit(1)
 
-                Text(entry.chapter.name)
+                Text(entry.chapter.displayName)
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
 

@@ -56,7 +56,7 @@ export class SourcesController {
       );
     }
 
-    if (isManhuaTop) {
+    if (isManhuaTop || isBatCave) {
       const safeReferer =
         referer &&
         (() => {
@@ -64,15 +64,16 @@ export class SourcesController {
             const parsedReferer = new URL(referer);
             return (
               parsedReferer.protocol === 'https:' &&
-              (parsedReferer.hostname === 'manhuatop.org' ||
-                parsedReferer.hostname.endsWith('.manhuatop.org'))
+              (isManhuaTop
+                ? parsedReferer.hostname === 'manhuatop.org' || parsedReferer.hostname.endsWith('.manhuatop.org')
+                : parsedReferer.hostname === 'batcave.biz' || parsedReferer.hostname.endsWith('.batcave.biz'))
             );
           } catch {
             return false;
           }
         })()
           ? referer
-          : 'https://manhuatop.org/';
+          : isManhuaTop ? 'https://manhuatop.org/' : 'https://batcave.biz/';
 
       try {
         const image = await this.puppeteerService.fetchBinary(url, safeReferer);
@@ -82,15 +83,9 @@ export class SourcesController {
         res.end(image.data);
         return;
       } catch {
-        throw new BadGatewayException('Failed to proxy ManhuaTop image');
+        throw new BadGatewayException('Failed to proxy source image');
       }
     }
-
-    const safeReferer = isMangaFire
-      ? 'https://mangafire.to/'
-      : referer && referer.startsWith('https://batcave.biz/')
-        ? referer
-        : 'https://batcave.biz/';
 
     try {
       const upstream = await axios.get(url, {
@@ -98,8 +93,8 @@ export class SourcesController {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-          Referer: safeReferer,
-          Origin: isMangaFire ? 'https://mangafire.to' : 'https://batcave.biz',
+          Referer: 'https://mangafire.to/',
+          Origin: 'https://mangafire.to',
           Accept: 'image/webp,image/apng,image/*,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
         },

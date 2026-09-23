@@ -450,8 +450,14 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                       ? page.imageRemoteUrl
                       : page.imageUrl;
                   final referer = page is ReaderPage ? page.url : null;
+                  final repo = Provider.of<MangaRepository>(context, listen: false);
+                  final imageUrl = repo.api.getDownloadImageUrl(
+                    sourceId: widget.manga.sourceId,
+                    imageUrl: url,
+                    referer: referer ?? widget.manga.url,
+                  );
                   imageProvider = NetworkImage(
-                    url,
+                    imageUrl,
                     headers: _buildImageHeaders(referer),
                   );
                 }
