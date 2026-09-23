@@ -122,6 +122,153 @@ class _LibraryScreenState extends State<LibraryScreen>
     );
   }
 
+  Future<void> _showCategoryContextMenu(LocalLibraryEntry entry) async {
+    final offlineLibrary = Provider.of<OfflineLibraryProvider>(
+      context,
+      listen: false,
+    );
+    final selectedCategoryIds = offlineLibrary.categories
+        .where(
+          (category) => offlineLibrary.isMangaInCategory(
+            entry.mangaId,
+            entry.sourceId,
+            category.id,
+          ),
+        )
+        .map((category) => category.id)
+        .toSet();
+
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close category menu',
+      barrierColor: Colors.black.withOpacity(0.62),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (context, setMenuState) {
+            final categories = offlineLibrary.categories;
+            final colorScheme = Theme.of(context).colorScheme;
+
+            return SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Transform.scale(
+                          scale: 1.04,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              width: 168,
+                              height: 248,
+                              child: _LibraryCoverImage(entry: entry),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: 340,
+                            maxHeight: 320,
+                          ),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black38,
+                                  blurRadius: 24,
+                                  offset: Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: categories.isEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Text(
+                                      'No other categories yet',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    shrinkWrap: true,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    itemCount: categories.length,
+                                    separatorBuilder: (context, index) =>
+                                        Divider(
+                                          height: 1,
+                                          color: colorScheme.outlineVariant,
+                                        ),
+                                    itemBuilder: (context, index) {
+                                      final category = categories[index];
+                                      final isSelected = selectedCategoryIds
+                                          .contains(category.id);
+
+                                      return CheckboxListTile(
+                                        value: isSelected,
+                                        controlAffinity:
+                                            ListTileControlAffinity.trailing,
+                                        title: Text(category.name),
+                                        onChanged: (_) async {
+                                          setMenuState(() {
+                                            if (isSelected) {
+                                              selectedCategoryIds.remove(
+                                                category.id,
+                                              );
+                                            } else {
+                                              selectedCategoryIds.add(
+                                                category.id,
+                                              );
+                                            }
+                                          });
+                                          await offlineLibrary
+                                              .toggleCategoryAssignment(
+                                                entry.mangaId,
+                                                entry.sourceId,
+                                                category.id,
+                                              );
+                                        },
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -422,6 +569,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     dynamic prefs,
   ) {
     return ListTile(
+      onLongPress: () => _showCategoryContextMenu(entry),
       onTap: () {
         final manga = Manga(
           id: entry.mangaId,
@@ -476,6 +624,7 @@ class _LibraryScreenState extends State<LibraryScreen>
     final bool showTitle = displayMode != 'cover grid';
 
     return GestureDetector(
+      onLongPress: () => _showCategoryContextMenu(entry),
       onTap: () {
         final manga = Manga(
           id: entry.mangaId,

@@ -217,7 +217,11 @@ struct HistoryView: View {
                 .padding(.trailing, 14)
             }
             .contentShape(Rectangle())
-            .onLongPressGesture { beginSelection(with: id) }
+            .simultaneousGesture(
+                LongPressGesture().onEnded { _ in
+                    beginSelection(with: id)
+                }
+            )
         }
     }
 
