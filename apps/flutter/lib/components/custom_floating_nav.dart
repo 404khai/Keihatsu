@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/SearchScreen.dart';
@@ -20,7 +19,7 @@ class CustomFloatingNav extends StatelessWidget {
   static const double _searchSize = 50;
   static const double _gap = 8;
 
-  static final List<_NavDestination> _destinations = [
+  static const List<_NavDestination> _destinations = [
     // Home is intentionally hidden while the library-first navigation is in
     // use. Keep the destination here so it can be restored without rebuilding
     // its route mapping.
@@ -28,31 +27,31 @@ class CustomFloatingNav extends StatelessWidget {
     //   index: 0,
     //   route: '/home',
     //   label: 'Home',
-    //   icon: PhosphorIcons.house(),
+    //   icon: Icons.home_outlined,
     // ),
     _NavDestination(
       index: 1,
       route: '/library',
       label: 'Library',
-      icon: PhosphorIcons.books(),
+      icon: Icons.library_books_outlined,
     ),
     _NavDestination(
       index: 2,
       route: '/history',
       label: 'History',
-      icon: PhosphorIcons.clockCounterClockwise(),
+      icon: Icons.history_rounded,
     ),
     _NavDestination(
       index: 3,
       route: '/extensions',
       label: 'Extensions',
-      icon: PhosphorIcons.puzzlePiece(),
+      icon: Icons.extension_outlined,
     ),
     _NavDestination(
       index: 4,
       route: '/profile',
       label: 'Profile',
-      icon: PhosphorIcons.user(),
+      icon: Icons.person_outline_rounded,
     ),
   ];
 
@@ -155,7 +154,7 @@ class _NavDestination {
   final int index;
   final String route;
   final String label;
-  final PhosphorIconData icon;
+  final IconData icon;
 }
 
 class _NavItem extends StatelessWidget {
@@ -249,11 +248,7 @@ class _SearchFabButton extends StatelessWidget {
           width: _size,
           height: _size,
           child: Center(
-            child: Icon(
-              PhosphorIcons.magnifyingGlass(),
-              size: 28,
-              color: iconColor,
-            ),
+            child: Icon(Icons.search_rounded, size: 28, color: iconColor),
           ),
         ),
       ),
