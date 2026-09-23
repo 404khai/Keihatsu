@@ -11,11 +11,19 @@ struct BrowsingTests {
     }
 
     @Test func sourceGateAndPreferencesSurviveRefreshAndRelaunch() async {
-        let repository = BrowsingRepositoryStub(sources: [source("manhuatop"), source("batcave")])
+        let repository = BrowsingRepositoryStub(sources: [source("manhuatop"), source("atsumaru"), source("mangafire"), source("batcave")])
         let preferences = defaults()
         let store = SourcePreferencesStore(repository: repository, defaults: preferences)
         await store.load()
-        #expect(store.sources.count == 2)
+        #expect(store.sources.count == 4)
+        #expect(store.isAvailable(source("atsumaru")))
+        #expect(!store.isEnabled(source("atsumaru")))
+        store.setEnabled(true, source: source("atsumaru"))
+        #expect(store.isEnabled(source("atsumaru")))
+        #expect(store.isAvailable(source("mangafire")))
+        #expect(!store.isEnabled(source("mangafire")))
+        store.setEnabled(true, source: source("mangafire"))
+        #expect(store.isEnabled(source("mangafire")))
         #expect(store.enabledSources.map(\.id) == ["manhuatop"])
         store.setEnabled(true, source: source("batcave"))
         #expect(!store.isEnabled(source("batcave")))
@@ -183,6 +191,14 @@ struct BrowsingTests {
         #expect(URLComponents(url: proxy.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value == image.absoluteString)
         #expect(proxy.value(forHTTPHeaderField: "Authorization") == nil)
         let direct = try ImagePipeline.request(url: URL(string: "https://cdn.example.test/cover.jpg")!, referer: nil, configuration: configuration)
+        let mangaFire = try ImagePipeline.request(
+            url: URL(string: "https://m3z.mfcdn3.xyz/page.jpg")!,
+            referer: URL(string: "https://mangafire.to/title/series/chapter/42"),
+            configuration: configuration
+        )
+        #expect(mangaFire.url?.host == "m3z.mfcdn3.xyz")
+        #expect(mangaFire.value(forHTTPHeaderField: "Referer") == "https://mangafire.to/title/series/chapter/42")
+        #expect(mangaFire.value(forHTTPHeaderField: "Authorization") == nil)
         #expect(direct.url?.host == "cdn.example.test")
         #expect(throws: APIError.invalidBaseURL) { try ImagePipeline.request(url: URL(string: "http://cdn.example.test/x")!, referer: nil, configuration: configuration) }
     }

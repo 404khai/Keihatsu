@@ -359,7 +359,7 @@ private struct MangaDetailsContentView: View {
                         .frame(width: 24)
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(chapter.name)
+                    Text(chapter.displayName)
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(state.isRead ? .white.opacity(0.48) : .white)
                         .lineLimit(2)

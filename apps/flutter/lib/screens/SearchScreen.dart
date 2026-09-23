@@ -5,6 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/manga.dart';
 import '../models/source.dart';
 import '../services/sources_api.dart';
+import '../services/sources_repository.dart';
+import '../services/source_rollout.dart';
+import '../components/ExtensionImage.dart';
+import '../components/OfflineImage.dart';
+import '../models/local_models.dart';
 import '../theme_provider.dart';
 import '../providers/offline_library_provider.dart';
 import '../components/CustomBackButton.dart';
@@ -18,17 +23,17 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  static const String _browserUserAgent =
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
   final TextEditingController _searchController = TextEditingController();
   final SourcesApi _sourcesApi = SourcesApi();
-
-  static const Set<String> _allowedSourceIds = {'manhuatop'};
 
   List<Source> _sources = [];
   Map<String, List<Manga>> _results = {};
   Map<String, bool> _loadingSources = {};
+  Map<String, String> _sourceErrors = {};
+  Map<String, bool> _hasNext = {};
+  Map<String, int> _pages = {};
+  List<LocalSource> _enabledSources = [];
+  int _searchGeneration = 0;
   bool _hasSearched = false;
   List<String> _searchHistory = [];
 
@@ -74,62 +79,92 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _loadSources() async {
     try {
       final sources = await _sourcesApi.getSources();
+      if (!mounted) return;
+      final local = await context.read<SourcesRepository>().getSources();
+      if (!mounted) return;
       setState(() {
         _sources = sources;
+        _enabledSources = local
+            .where(
+              (source) =>
+                  source.enabled && SourceRollout.isAvailable(source.sourceId),
+            )
+            .toList();
       });
     } catch (e) {
       debugPrint('Error loading sources: $e');
     }
   }
 
-  void _performSearch(String query) {
+  Future<void> _performSearch(String query) async {
+    query = query.trim();
     if (query.isEmpty) return;
 
     _addToHistory(query);
-
+    await _loadSources();
+    if (!mounted) return;
+    final generation = ++_searchGeneration;
     final searchSources = _sources
-        .where((s) => _allowedSourceIds.contains(s.id.toLowerCase()))
+        .where(
+          (source) => _enabledSources.any(
+            (local) => local.sourceId.toLowerCase() == source.id.toLowerCase(),
+          ),
+        )
         .toList();
 
     setState(() {
       _results = {};
+      _sourceErrors = {};
+      _hasNext = {};
+      _pages = {};
       _loadingSources = {for (var s in searchSources) s.id: true};
       _hasSearched = true;
     });
 
     for (var source in searchSources) {
-      _sourcesApi
-          .getMangaList(source.id, 'search', q: query)
-          .then((page) {
-        if (mounted) {
-          setState(() {
-            if (page.mangas.isNotEmpty) {
-              _results[source.name] = page.mangas;
-            }
-            _loadingSources[source.id] = false;
-          });
-        }
-      })
-          .catchError((e) {
-        if (mounted) {
-          setState(() {
-            _loadingSources[source.id] = false;
-          });
-        }
+      _loadPage(source, query, 1, generation);
+    }
+  }
+
+  Future<void> _loadPage(
+    Source source,
+    String query,
+    int pageNumber,
+    int generation,
+  ) async {
+    try {
+      final page = await _sourcesApi.getMangaList(
+        source.id,
+        'search',
+        page: pageNumber,
+        q: query,
+      );
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() {
+        _results[source.id] = [...?_results[source.id], ...page.mangas];
+        _hasNext[source.id] = page.hasNextPage;
+        _pages[source.id] = pageNumber;
+        _sourceErrors.remove(source.id);
+        _loadingSources[source.id] = false;
+      });
+    } catch (_) {
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() {
+        _sourceErrors[source.id] = 'Could not load ${source.name}';
+        _loadingSources[source.id] = false;
       });
     }
   }
 
-  Map<String, String>? _buildImageHeaders(Manga manga) {
-    if (manga.sourceId.toLowerCase() != 'batcave') {
-      return null;
-    }
-
-    return {
-      'User-Agent': _browserUserAgent,
-      'Referer': manga.url,
-      'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
-    };
+  void _loadMore(Source source) {
+    if (_loadingSources[source.id] == true) return;
+    setState(() => _loadingSources[source.id] = true);
+    _loadPage(
+      source,
+      _searchController.text.trim(),
+      (_pages[source.id] ?? 1) + 1,
+      _searchGeneration,
+    );
   }
 
   @override
@@ -176,41 +211,42 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: !_hasSearched
           ? (_searchHistory.isEmpty
-          ? _buildEmptyState(textColor)
-          : _buildHistoryList(textColor, brandColor))
+                ? _buildEmptyState(textColor)
+                : _buildHistoryList(textColor, brandColor))
           : ListView(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        children: [
-          if (_loadingSources.values.any((loading) => loading))
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Center(
-                child: CircularProgressIndicator(color: brandColor),
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              children: [
+                if (_loadingSources.values.any((loading) => loading))
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Center(
+                      child: CircularProgressIndicator(color: brandColor),
+                    ),
+                  ),
+                ..._sources
+                    .where((source) => _loadingSources.containsKey(source.id))
+                    .map(
+                      (source) => _buildSourceSection(
+                        source,
+                        _results[source.id] ?? [],
+                        brandColor,
+                        textColor,
+                        cardColor,
+                        offlineLibrary,
+                      ),
+                    ),
+                if (_loadingSources.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Text(
+                        'Enable an extension to search',
+                        style: TextStyle(color: cs.onSurfaceVariant),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ..._results.entries.map(
-                (entry) => _buildSourceSection(
-              entry.key,
-              entry.value,
-              brandColor,
-              textColor,
-              cardColor,
-              offlineLibrary,
-            ),
-          ),
-          if (!_loadingSources.values.any((loading) => loading) &&
-              _results.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(40),
-                child: Text(
-                  'No results found',
-                  style: TextStyle(color: cs.onSurfaceVariant),
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
 
@@ -232,7 +268,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
         ..._searchHistory.map(
-              (query) => ListTile(
+          (query) => ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 20),
             title: Text(query, style: TextStyle(color: textColor)),
             trailing: Icon(
@@ -263,10 +299,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 20),
           Text(
             'Search across all sources',
-            style: TextStyle(
-              color: cs.onSurfaceVariant,
-              fontSize: 16,
-            ),
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 16),
           ),
         ],
       ),
@@ -274,60 +307,96 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSourceSection(
-      String sourceName,
-      List<Manga> mangas,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      OfflineLibraryProvider offlineLibrary,
-      ) {
+    Source source,
+    List<Manga> mangas,
+    Color brandColor,
+    Color textColor,
+    Color cardColor,
+    OfflineLibraryProvider offlineLibrary,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-          child: Text(
-            sourceName,
-            style: GoogleFonts.unbounded(
-              textStyle: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: brandColor,
+          child: Row(
+            children: [
+              ExtensionImage(
+                source: _enabledSources.firstWhere(
+                  (local) => local.sourceId == source.id,
+                ),
+                size: 24,
+                borderRadius: 5,
               ),
+              const SizedBox(width: 8),
+              Text(
+                source.name,
+                style: GoogleFonts.unbounded(
+                  textStyle: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: brandColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_sourceErrors[source.id] case final error?)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(error),
+          ),
+        if (mangas.isEmpty &&
+            _loadingSources[source.id] == false &&
+            !_sourceErrors.containsKey(source.id))
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text('No results'),
+          ),
+        if (mangas.isNotEmpty)
+          SizedBox(
+            height: 200,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: mangas.length,
+              itemBuilder: (context, index) {
+                final manga = mangas[index];
+                return _buildMangaCard(
+                  context,
+                  manga,
+                  brandColor,
+                  textColor,
+                  cardColor,
+                  offlineLibrary,
+                );
+              },
             ),
           ),
-        ),
-        SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: mangas.length,
-            itemBuilder: (context, index) {
-              final manga = mangas[index];
-              return _buildMangaCard(
-                context,
-                manga,
-                brandColor,
-                textColor,
-                cardColor,
-                offlineLibrary,
-              );
-            },
+        if (_hasNext[source.id] == true)
+          TextButton(
+            onPressed: _loadingSources[source.id] == true
+                ? null
+                : () => _loadMore(source),
+            child: Text(
+              _loadingSources[source.id] == true
+                  ? 'Loading…'
+                  : 'More from ${source.name}',
+            ),
           ),
-        ),
       ],
     );
   }
 
   Widget _buildMangaCard(
-      BuildContext context,
-      Manga manga,
-      Color brandColor,
-      Color textColor,
-      Color cardColor,
-      OfflineLibraryProvider offlineLibrary,
-      ) {
+    BuildContext context,
+    Manga manga,
+    Color brandColor,
+    Color textColor,
+    Color cardColor,
+    OfflineLibraryProvider offlineLibrary,
+  ) {
     final isInLibrary = offlineLibrary.isInLibrary(manga.id, manga.sourceId);
 
     return GestureDetector(
@@ -354,13 +423,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 borderRadius: BorderRadius.circular(15),
                 child: Stack(
                   children: [
-                    Image.network(
-                      manga.thumbnailUrl,
-                      headers: _buildImageHeaders(manga),
+                    OfflineImage(
+                      imageUrl: manga.thumbnailUrl,
                       width: double.infinity,
                       height: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
+                      fallback: Container(
                         color: Colors.grey[800],
                         child: const Icon(
                           Icons.broken_image,

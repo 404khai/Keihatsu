@@ -347,6 +347,7 @@ class MangaRepository {
             mangaId: mangaId,
             chapterId: chapterId,
             index: page.index,
+            imageUrl: page.imageUrl,
           ),
           referer: page.url,
         );

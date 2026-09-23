@@ -17,7 +17,9 @@ class SourcesApi {
     required String imageUrl,
     required String referer,
   }) {
-    if (sourceId.toLowerCase() != 'manhuatop') return imageUrl;
+    if (!{'manhuatop', 'batcave'}.contains(sourceId.toLowerCase())) {
+      return imageUrl;
+    }
 
     return Uri.parse('$baseUrl/sources/proxy/image')
         .replace(queryParameters: {'url': imageUrl, 'referer': referer})
@@ -32,7 +34,9 @@ class SourcesApi {
 
   Future<List<Source>> getSources() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/sources')).timeout(_defaultTimeout);
+      final response = await http
+          .get(Uri.parse('$baseUrl/sources'))
+          .timeout(_defaultTimeout);
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
         return data.map((json) => Source.fromJson(json)).toList();
@@ -44,15 +48,19 @@ class SourcesApi {
     }
   }
 
-  Future<MangasPage> getMangaList(String sourceId, String type, {int page = 1, String? q}) async {
+  Future<MangasPage> getMangaList(
+    String sourceId,
+    String type, {
+    int page = 1,
+    String? q,
+  }) async {
     try {
-      final queryParams = {
-        'type': type,
-        'page': page.toString(),
-      };
+      final queryParams = {'type': type, 'page': page.toString()};
       if (q != null) queryParams['q'] = q;
 
-      final uri = Uri.parse('$baseUrl/sources/$sourceId/manga').replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        '$baseUrl/sources/$sourceId/manga',
+      ).replace(queryParameters: queryParams);
       final response = await http.get(uri).timeout(_timeoutForSource(sourceId));
 
       if (response.statusCode == 200) {
@@ -86,9 +94,15 @@ class SourcesApi {
       final encodedMangaId = Uri.encodeComponent(mangaId);
       final response = await http
           .get(
-        Uri.parse('$baseUrl/sources/$sourceId/manga/$encodedMangaId/chapters'),
-      )
-          .timeout(_timeoutForSource(sourceId));
+            Uri.parse(
+              '$baseUrl/sources/$sourceId/manga/$encodedMangaId/chapters',
+            ),
+          )
+          .timeout(
+            sourceId.toLowerCase() == 'mangafire'
+                ? const Duration(minutes: 3)
+                : _timeoutForSource(sourceId),
+          );
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
         return data.map((json) => Chapter.fromJson(json)).toList();
@@ -104,7 +118,11 @@ class SourcesApi {
     try {
       final encodedChapterId = Uri.encodeComponent(chapterId);
       final response = await http
-          .get(Uri.parse('$baseUrl/sources/$sourceId/chapters/$encodedChapterId/pages'))
+          .get(
+            Uri.parse(
+              '$baseUrl/sources/$sourceId/chapters/$encodedChapterId/pages',
+            ),
+          )
           .timeout(_timeoutForSource(sourceId));
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);

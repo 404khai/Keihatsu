@@ -48,11 +48,48 @@ export class SourcesController {
     const isManhuaTop =
       parsedUrl.hostname === 'manhuatop.org' ||
       parsedUrl.hostname.endsWith('.manhuatop.org');
+    const isMangaFire = parsedUrl.hostname === 'static.mfcdn.nl';
 
-    if (parsedUrl.protocol !== 'https:' || (!isBatCave && !isManhuaTop)) {
+    if (parsedUrl.protocol !== 'https:' || (!isBatCave && !isManhuaTop && !isMangaFire)) {
       throw new BadRequestException(
-        'Only BatCave and ManhuaTop assets can be proxied',
+        'Unsupported image host',
       );
+    }
+
+    if (isBatCave) {
+      const safeReferer = referer && (() => {
+        try {
+          const parsed = new URL(referer);
+          return parsed.protocol === 'https:' &&
+            (parsed.hostname === 'batcave.biz' || parsed.hostname.endsWith('.batcave.biz'));
+        } catch { return false; }
+      })() ? referer : 'https://batcave.biz/';
+      try {
+        const upstream = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+            Referer: safeReferer,
+            Accept: 'image/webp,image/avif,image/*,*/*;q=0.8',
+          },
+          redirect: 'error',
+          signal: AbortSignal.timeout(30_000),
+        });
+        const contentType = upstream.headers.get('content-type') ?? '';
+        if (!upstream.ok || !contentType.startsWith('image/')) {
+          throw new Error(`BatCave image returned ${upstream.status} (${contentType})`);
+        }
+        const data = Buffer.from(await upstream.arrayBuffer());
+        if (data.length > 20 * 1024 * 1024) {
+          throw new Error('BatCave image is too large');
+        }
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Length', data.length.toString());
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end(data);
+        return;
+      } catch {
+        throw new BadGatewayException('Failed to proxy BatCave image');
+      }
     }
 
     if (isManhuaTop) {
@@ -85,19 +122,14 @@ export class SourcesController {
       }
     }
 
-    const safeReferer =
-      referer && referer.startsWith('https://batcave.biz/')
-        ? referer
-        : 'https://batcave.biz/';
-
     try {
       const upstream = await axios.get(url, {
         responseType: 'stream',
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-          Referer: safeReferer,
-          Origin: 'https://batcave.biz',
+          Referer: 'https://mangafire.to/',
+          Origin: 'https://mangafire.to',
           Accept: 'image/webp,image/apng,image/*,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
         },

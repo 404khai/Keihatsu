@@ -12,6 +12,7 @@ import '../components/gradient_fade_app_bar.dart';
 import '../components/library/filter_tabs.dart';
 import '../models/local_models.dart';
 import '../services/sources_repository.dart';
+import '../services/source_rollout.dart';
 import '../theme_provider.dart';
 import 'ExtensionBrowseScreen.dart';
 
@@ -31,8 +32,6 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
   String _searchQuery = '';
   late TabController _tabController;
   String _selectedTab = 'sources';
-
-  static const Set<String> _availableSourceIds = {'manhuatop'};
 
   @override
   void initState() {
@@ -114,7 +113,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen>
   }
 
   bool _isSourceAvailable(LocalSource source) {
-    return _availableSourceIds.contains(source.sourceId.toLowerCase());
+    return SourceRollout.isAvailable(source.sourceId);
   }
 
   @override

@@ -86,7 +86,7 @@ struct GlobalExtensionSearchView: View {
         VStack(spacing: 12) {
             ForEach(visibleExtensions) { source in
                 HStack(spacing: 14) {
-                    CatalogueCover(url: source.iconURL)
+                    ExtensionImageView(sourceID: source.id, url: source.iconURL, size: 56, cornerRadius: 14)
                         .frame(width: 56, height: 56)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
@@ -125,7 +125,7 @@ struct GlobalExtensionSearchView: View {
                 let source = section.source
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 10) {
-                        CatalogueCover(url: source.iconURL)
+                        ExtensionImageView(sourceID: source.id, url: source.iconURL, size: 28, cornerRadius: 8)
                             .frame(width: 28, height: 28)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
@@ -218,7 +218,7 @@ private struct FilterSourcesSheet: View {
         NavigationStack {
             List(sources) { source in
                 HStack(spacing: 14) {
-                    CatalogueCover(url: source.iconURL)
+                    ExtensionImageView(sourceID: source.id, url: source.iconURL, size: 28, cornerRadius: 8)
                         .frame(width: 44, height: 44)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 

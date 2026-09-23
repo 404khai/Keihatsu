@@ -50,5 +50,18 @@ void main() {
         'downloads/manhuatop/series-name/chapter-61.cbz',
       );
     });
+
+    test('keeps Atsumaru AVIF pages correctly named for CBZ readers', () {
+      expect(
+        fileService.getChapterPageSubPath(
+          sourceId: 'atsumaru',
+          mangaId: '2VgNt',
+          chapterId: '2VgNt/0S_52R',
+          index: 0,
+          imageUrl: 'https://cdn.atsu.moe/static/pages/0.avif',
+        ),
+        'downloads/atsumaru/2VgNt/0S_52R/page000.avif',
+      );
+    });
   });
 }

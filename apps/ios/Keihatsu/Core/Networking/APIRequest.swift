@@ -10,6 +10,7 @@ nonisolated struct APIRequest<Response: Decodable & Sendable>: Sendable {
     var method: Method = .get
     var body: Data? = nil
     var requiresAuthentication = false
+    var timeout: TimeInterval? = nil
 
     func urlRequest(configuration: APIConfiguration, bearerToken: String? = nil) throws -> URLRequest {
         var components = try configuration.origin()
@@ -26,7 +27,7 @@ nonisolated struct APIRequest<Response: Decodable & Sendable>: Sendable {
         components.percentEncodedPath = "/" + ([basePath].filter { !$0.isEmpty } + segments).joined(separator: "/")
         components.queryItems = query.isEmpty ? nil : query
         guard let url = components.url else { throw APIError.invalidPath }
-        var request = URLRequest(url: url, timeoutInterval: configuration.timeout)
+        var request = URLRequest(url: url, timeoutInterval: timeout ?? configuration.timeout)
         request.httpMethod = method.rawValue
         request.httpBody = body
         request.setValue("application/json", forHTTPHeaderField: "Accept")

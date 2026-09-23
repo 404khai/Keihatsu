@@ -38,7 +38,7 @@ final class ImagePipeline {
         guard let scheme = url.scheme?.lowercased(),
               scheme == "https" || (configuration.allowsInsecureHTTP && scheme == "http"),
               let host = url.host?.lowercased(), url.user == nil, url.password == nil else { throw APIError.invalidBaseURL }
-        let proxyHosts = ["manhuatop.org", "batcave.biz"]
+        let proxyHosts = ["manhuatop.org", "batcave.biz", "static.mfcdn.nl"]
         if scheme == "https", proxyHosts.contains(where: { host == $0 || host.hasSuffix("." + $0) }) {
             let endpoint = APIRequest<EmptyAPIResponse>(path: ["sources", "proxy", "image"], query: [
                 URLQueryItem(name: "url", value: url.absoluteString),
@@ -48,8 +48,17 @@ final class ImagePipeline {
             request.setValue("image/*", forHTTPHeaderField: "Accept")
             return request
         }
-        var request = URLRequest(url: url)
+        var imageURL = url
+        if host == "cdn.atsu.moe", !url.path.hasPrefix("/static/") {
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.path = "/static" + url.path
+            imageURL = components?.url ?? url
+        }
+        var request = URLRequest(url: imageURL)
         request.setValue("image/*", forHTTPHeaderField: "Accept")
+        if let referer, referer.scheme?.lowercased() == "https", referer.host != nil {
+            request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
+        }
         return request
     }
 

@@ -3,6 +3,16 @@ import XCTest
 @testable import Keihatsu
 
 final class DownloadTests: XCTestCase {
+    func testNewExtensionChapterIDsMapToPortableCBZPaths() async {
+        let root = FileManager.default.temporaryDirectory.appending(path: "keihatsu-extension-path-test-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = ChapterArchiveStore(documentsRoot: root)
+        let atsumaru = await store.archiveURL(for: .init(sourceID: "atsumaru", mangaID: "2VgNt", chapterID: "2VgNt/0S_52R"))
+        let mangaFire = await store.archiveURL(for: .init(sourceID: "mangafire", mangaID: "ro8ro-title", chapterID: "ro8ro-title/chapter/9436393"))
+        XCTAssertTrue(atsumaru.path.hasSuffix("downloads/atsumaru/2VgNt/0S_52R.cbz"))
+        XCTAssertTrue(mangaFire.path.hasSuffix("downloads/mangafire/ro8ro-title/9436393.cbz"))
+    }
+
     func testPackagesVerifiedPagesAsCBZAtFlutterCompatiblePath() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "keihatsu-download-test-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: root) }

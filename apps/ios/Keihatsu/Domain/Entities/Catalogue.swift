@@ -20,6 +20,14 @@ nonisolated struct Chapter: Identifiable, Hashable, Codable, Sendable {
     let uploadedAt: Date?
     let url: URL?
     let scanlator: String?
+
+    var displayName: String {
+        guard id.manga.sourceID == "weebcentral" else { return name }
+        return name
+            .replacingOccurrences(of: "\\bLast Read\\b", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
 
 nonisolated struct ReaderPage: Identifiable, Hashable, Codable, Sendable {

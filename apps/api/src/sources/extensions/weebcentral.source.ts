@@ -21,28 +21,38 @@ export class WeebCentralSource extends HttpSource {
     super();
   }
 
-  // WeebCentral uses query params for sorting: /search/data?sort=Pop&page=1
+  private async fetchPage(url: string, selector: string, wait: number): Promise<string> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const html = await this.puppeteerService.fetchPageContent(url, selector, wait);
+      if (!/<title>\s*(?:Just a moment|Attention Required|Access denied)/i.test(html)
+          && !/Sorry, you have been blocked|Verify you are human/i.test(html)) {
+        return html;
+      }
+    }
+    throw new Error('WeebCentral blocked the catalogue request');
+  }
+
+  private searchURL(page: number, sort: string, text = ''): string {
+    const params = new URLSearchParams({
+      adult: 'False', display_mode: 'Full Display', official: 'Any',
+      offset: String((page - 1) * 75), order: 'Descending', sort, text,
+    });
+    return `${this.baseUrl}/search/data?${params}`;
+  }
+
 
   async getPopularManga(page: number): Promise<MangasPage> {
     try {
-      const url = `${this.baseUrl}/search/data?sort=Popularity&author=&text=&series_type=All&series_status=All&year_from=&year_to=&tags=&no_tags=&order=Ascending&page=${page}`;
+      const url = this.searchURL(page, 'Popularity');
 
       // WeebCentral SPA: wait for main content container
       // If we wait for a specific link and it's empty, it times out.
       // Wait for 'main' or 'body' and then check content.
-      const html = await this.puppeteerService.fetchPageContent(
+      const html = await this.fetchPage(
         url,
         'section',
         5000,
       );
-
-      if (
-        html.includes('challenge-platform') ||
-        html.includes('Verify you are human')
-      ) {
-        console.warn('WeebCentral: Cloudflare Challenge Detected');
-        return { mangas: [], hasNextPage: false };
-      }
 
       const response: AxiosResponse = {
         data: html,
@@ -52,17 +62,19 @@ export class WeebCentralSource extends HttpSource {
         config: {} as any,
       };
 
-      return this.popularMangaParse(response);
+      const listing = this.popularMangaParse(response);
+      if (!listing.mangas.length) throw new Error('WeebCentral returned no popular manga');
+      return listing;
     } catch (error) {
       console.error(`WeebCentral popularManga error: ${error}`);
-      return { mangas: [], hasNextPage: false };
+      throw error;
     }
   }
 
   async getLatestUpdates(page: number): Promise<MangasPage> {
     try {
-      const url = `${this.baseUrl}/search/data?sort=Latest Update&author=&text=&series_type=All&series_status=All&year_from=&year_to=&tags=&no_tags=&order=Ascending&page=${page}`;
-      const html = await this.puppeteerService.fetchPageContent(
+      const url = this.searchURL(page, 'Latest Updates');
+      const html = await this.fetchPage(
         url,
         'a[href*="/series/"]',
         2000,
@@ -76,10 +88,12 @@ export class WeebCentralSource extends HttpSource {
         config: {} as any,
       };
 
-      return this.latestUpdatesParse(response);
+      const listing = this.latestUpdatesParse(response);
+      if (!listing.mangas.length) throw new Error('WeebCentral returned no latest updates');
+      return listing;
     } catch (error) {
       console.error(`WeebCentral latestUpdates error: ${error}`);
-      return { mangas: [], hasNextPage: false };
+      throw error;
     }
   }
 
@@ -89,8 +103,8 @@ export class WeebCentralSource extends HttpSource {
     filters: any,
   ): Promise<MangasPage> {
     try {
-      const url = `${this.baseUrl}/search/data?text=${encodeURIComponent(query)}&sort=Best Match&author=&series_type=All&series_status=All&year_from=&year_to=&tags=&no_tags=&order=Ascending&page=${page}`;
-      const html = await this.puppeteerService.fetchPageContent(
+      const url = this.searchURL(page, 'Best Match', query);
+      const html = await this.fetchPage(
         url,
         'a[href*="/series/"]',
         2000,
@@ -107,17 +121,17 @@ export class WeebCentralSource extends HttpSource {
       return this.searchMangaParse(response);
     } catch (error) {
       console.error(`WeebCentral searchManga error: ${error}`);
-      return { mangas: [], hasNextPage: false };
+      throw error;
     }
   }
 
   async getMangaDetails(mangaId: string): Promise<Manga> {
     try {
       const url = `${this.baseUrl}/series/${mangaId}/`;
-      const html = await this.puppeteerService.fetchPageContent(
+      const html = await this.fetchPage(
         url,
         'h1',
-        2000,
+        0,
       );
 
       const response: AxiosResponse = {
@@ -138,7 +152,7 @@ export class WeebCentralSource extends HttpSource {
   async getChapterList(mangaId: string): Promise<Chapter[]> {
     try {
       const url = `${this.baseUrl}/series/${mangaId}/full-chapter-list`;
-      const html = await this.puppeteerService.fetchPageContent(
+      const html = await this.fetchPage(
         url,
         'a[href*="/chapters/"]',
         2000,
@@ -163,9 +177,9 @@ export class WeebCentralSource extends HttpSource {
     try {
       const url = `${this.baseUrl}/chapters/${chapterId}/images?is_prev=False&current_page=1&reading_style=long_strip`;
       // WeebCentral loads images dynamically. Wait for images to appear.
-      const html = await this.puppeteerService.fetchPageContent(
+      const html = await this.fetchPage(
         url,
-        'img[src*="weebcentral.com"]',
+        'img[alt^="Page "]',
         3000,
       );
 
@@ -177,7 +191,9 @@ export class WeebCentralSource extends HttpSource {
         config: {} as any,
       };
 
-      return this.pageListParse(response);
+      return this.pageListParse(response).map((page) => ({
+        ...page, url: `${this.baseUrl}/chapters/${chapterId}`,
+      }));
     } catch (error) {
       console.error(`WeebCentral getPageList error: ${error}`);
       throw error;
@@ -199,7 +215,7 @@ export class WeebCentralSource extends HttpSource {
       // Skip if random link or no href
       if (!href || href.includes('/series/random')) return;
 
-      const id = href.split('/').filter(Boolean).pop(); // Handle trailing slash
+      const id = new URL(href, this.baseUrl).pathname.match(/^\/series\/([^/]+)/)?.[1];
       if (!id) return;
 
       // Avoid duplicates
@@ -245,15 +261,15 @@ export class WeebCentralSource extends HttpSource {
       }
 
       // Clean title
-      title = title.replace(/Official/gi, '').trim();
+      title = title.replace(/\s+cover$/i, '').replace(/Official/gi, '').trim();
 
       if (title.length < 1 || !thumbnail) return;
 
       mangas.push({
         id,
-        url: href,
+        url: new URL(href, this.baseUrl).toString(),
         title: title || 'Unknown Title',
-        thumbnailUrl: thumbnail,
+        thumbnailUrl: new URL(thumbnail, this.baseUrl).toString(),
         sourceId: this.id,
       });
     });
@@ -261,7 +277,9 @@ export class WeebCentralSource extends HttpSource {
     return {
       mangas,
       hasNextPage:
-        $('a:contains("Next")').length > 0 || $('a[rel="next"]').length > 0,
+        mangas.length >= 75 ||
+        $('a:contains("View More Results")').length > 0 ||
+        $('a[rel="next"]').length > 0,
     };
   }
 
@@ -296,13 +314,10 @@ export class WeebCentralSource extends HttpSource {
     // Often <h1 class="hidden md:block ...">Title</h1>
     // or just <h1>
 
-    // WeebCentral puts info in a specific section
-    const infoSection = $('section').first();
-
     const title = $('h1').first().text().trim();
     const thumbnail =
-      $('img[alt="' + title + '"]').attr('src') ||
-      $('img').first().attr('src') ||
+      $('img[alt$=" cover"]').first().attr('src') ||
+      $('meta[property="og:image"]').attr('content') ||
       '';
     const description = $('p')
       .filter((i, el) => $(el).text().length > 50)
@@ -312,15 +327,13 @@ export class WeebCentralSource extends HttpSource {
 
     // Author/Artist often in specific divs
     // Look for "Author" label
-    const author = $('strong:contains("Author")')
-      .parent()
-      .text()
-      .replace('Author', '')
-      .trim();
+    const author = $('strong:contains("Author")').first().parent().find('a')
+      .map((_, element) => $(element).text().trim()).get().join(', ');
     const status = $('strong:contains("Status")')
       .parent()
       .text()
       .replace('Status', '')
+      .replace(/\s+/g, ' ')
       .trim();
 
     const genres: string[] = [];
@@ -332,7 +345,7 @@ export class WeebCentralSource extends HttpSource {
       id: mangaId,
       url: `${this.baseUrl}/series/${mangaId}/`,
       title,
-      thumbnailUrl: thumbnail,
+      thumbnailUrl: thumbnail ? new URL(thumbnail, this.baseUrl).toString() : '',
       description,
       author,
       artist: '',
@@ -355,25 +368,27 @@ export class WeebCentralSource extends HttpSource {
       const url = $(element).attr('href');
       if (!url) return;
 
-      const id = url.split('/').filter(Boolean).pop(); // Extract chapter ID
+      const id = new URL(url, this.baseUrl).pathname.match(/^\/chapters\/([^/]+)/)?.[1];
 
       // The text inside the link usually contains "Chapter X" or similar
-      const name =
-        $(element).find('span.grow').text().trim() || $(element).text().trim();
+      const name = ($(element).find('span.grow').text().trim() || $(element).text())
+        .replace(/\bLast Read\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
       // Date often in a sibling span or inside
-      const dateStr = $(element).find('time').text().trim() || '';
+      const dateStr = $(element).find('time').attr('datetime') || '';
 
       chapters.push({
         id: id || '',
-        url,
+        url: new URL(url, this.baseUrl).toString(),
         name: name,
         chapterNumber: this.parseChapterNumber(name),
         dateUpload: this.parseDate(dateStr),
       });
     });
 
-    return chapters;
+    return chapters.sort((a, b) => b.chapterNumber - a.chapterNumber);
   }
 
   pageListRequest(chapterId: string): AxiosRequestConfig {
@@ -384,11 +399,11 @@ export class WeebCentralSource extends HttpSource {
     const $ = cheerio.load(response.data);
     const pages: Page[] = [];
 
-    $('img[src*="weebcentral.com"]').each((index, element) => {
+    $('img[alt^="Page "]').each((index, element) => {
       const url = $(element).attr('src');
       if (url && !url.includes('logo')) {
         pages.push({
-          index,
+          index: pages.length,
           imageUrl: url,
           url: '',
         });
@@ -405,6 +420,6 @@ export class WeebCentralSource extends HttpSource {
   }
 
   private parseDate(dateStr: string): number {
-    return new Date(dateStr).getTime() || Date.now();
+    return dateStr ? new Date(dateStr).getTime() || 0 : 0;
   }
 }
