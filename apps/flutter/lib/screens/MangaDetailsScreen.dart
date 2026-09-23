@@ -12,6 +12,7 @@ import '../models/local_models.dart';
 import '../services/manga_repository.dart';
 import '../providers/offline_library_provider.dart';
 import '../components/OfflineImage.dart';
+import '../components/ExtensionImage.dart';
 import '../components/loading_indicator.dart';
 import 'MangaReaderScreen.dart';
 
@@ -813,8 +814,10 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                     const SizedBox(height: 4),
                                     _buildInfoRow(
                                       PhosphorIcons.clock(),
-                                      "${displayStatus ?? "Ongoing"} • ${widget.manga.sourceId.toUpperCase()}",
+                                      displayStatus ?? "Ongoing",
                                     ),
+                                    const SizedBox(height: 10),
+                                    _buildExtensionRow(widget.manga.sourceId),
                                   ],
                                 ),
                               ),
@@ -1329,6 +1332,27 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
         const SizedBox(width: 5),
         Expanded(
           child: Text(text, style: const TextStyle(color: Colors.white)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExtensionRow(String sourceId) {
+    final source = LocalSource()..sourceId = sourceId;
+
+    return Row(
+      children: [
+        ExtensionImage(source: source, size: 28, borderRadius: 5),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            sourceId.toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ],
     );
