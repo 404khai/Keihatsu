@@ -858,15 +858,6 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                           ),
                           const SizedBox(height: 25),
 
-                          Text(
-                            'Overview',
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -876,6 +867,15 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Text(
+                                  'Overview',
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
                                 if (displayGenres != null)
                                   SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
@@ -1034,6 +1034,21 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                                         onPressed: () => setState(
                                           () => _showAllChapters =
                                               !_showAllChapters,
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          backgroundColor:
+                                              colorScheme.primaryContainer,
+                                          foregroundColor:
+                                              colorScheme.onPrimaryContainer,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
                                         ),
                                         child: Text(
                                           _showAllChapters

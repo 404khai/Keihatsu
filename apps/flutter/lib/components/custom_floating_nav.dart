@@ -15,8 +15,8 @@ class CustomFloatingNav extends StatelessWidget {
   final int currentIndex;
   final Color brandColor;
 
-  static const double _barHeight = 60;
   static const double _searchSize = 50;
+  static const double _barHeight = _searchSize;
   static const double _gap = 8;
 
   static const List<_NavDestination> _destinations = [
@@ -176,42 +176,28 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color iconColor = selected ? brandColor : unselectedColor;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: selected
-                    ? brandColor.withValues(alpha: 0.30)
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Icon(destination.icon, size: 22, color: iconColor),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: destination.label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: selected
+                  ? brandColor.withValues(alpha: 0.30)
+                  : Colors.transparent,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 1),
-            Text(
-              destination.label,
-              maxLines: 1,
-              overflow: TextOverflow.fade,
-              softWrap: false,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: unselectedColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                height: 1,
-              ),
-            ),
-          ],
+            alignment: Alignment.center,
+            child: Icon(destination.icon, size: 26, color: iconColor),
+          ),
         ),
       ),
     );
