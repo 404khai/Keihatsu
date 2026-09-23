@@ -1,5 +1,8 @@
 import SwiftUI
+import Combine
+
 import UIKit
+import AVFoundation
 
 struct ReaderView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -7,6 +10,10 @@ struct ReaderView: View {
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
     @StateObject private var model: ReaderViewModel
     @State private var showsComments = false
+    @State private var showsReaderSettings = false
+    @State private var zoomScale: CGFloat = 1
+    @GestureState private var pinchMagnification: CGFloat = 1
+    @StateObject private var volumeButtons = ReaderVolumeButtons()
     private let imagePipeline: ImagePipeline
 
     init(
@@ -85,6 +92,12 @@ struct ReaderView: View {
                         .lineLimit(1)
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showsReaderSettings = true } label: {
+                    Image(systemName: "gearshape").foregroundStyle(.white)
+                }
+                .accessibilityLabel("Reader settings")
+            }
 
         }
         .toolbar(model.controlsVisible ? .visible : .hidden, for: .navigationBar)
@@ -96,13 +109,22 @@ struct ReaderView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showsReaderSettings) {
+            ReaderOptionsSheet()
+                .environmentObject(preferencesStore)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.thickMaterial)
+        }
         .onAppear {
             navigation.readerDidAppear(chapter: model.currentChapter?.id ?? model.context.chapter)
             updateIdleTimer()
+            updateVolumeButtons()
         }
         .onDisappear {
             navigation.readerDidDisappear()
             UIApplication.shared.isIdleTimerDisabled = false
+            volumeButtons.stop()
             Task { await model.end() }
         }
         .onChange(of: model.currentChapter?.id) { _, chapter in
@@ -110,13 +132,17 @@ struct ReaderView: View {
             navigation.readerDidAppear(chapter: chapter)
         }
         .onChange(of: preferencesStore.preferences.keepScreenAwake) { updateIdleTimer() }
+        .onChange(of: preferencesStore.preferences.readerDirection) { _, _ in zoomScale = 1 }
+        .onChange(of: preferencesStore.preferences.volumeButtonsEnabled) { updateVolumeButtons() }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
                 model.resume()
                 updateIdleTimer()
+                updateVolumeButtons()
             case .inactive, .background:
                 UIApplication.shared.isIdleTimerDisabled = false
+                volumeButtons.stop()
                 Task { await model.suspend() }
             @unknown default:
                 break
@@ -137,7 +163,8 @@ struct ReaderView: View {
             ContentUnavailableView("No pages found", systemImage: "photo.stack", description: Text("This chapter did not return readable pages."))
                 .foregroundStyle(.white)
         } else {
-            ScrollView(.vertical) {
+            if preferencesStore.preferences.readerDirection == .vertical {
+            ScrollView([.vertical, .horizontal]) {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(model.loadedChapters.enumerated()), id: \.element.id) { chapterIndex, loaded in
                         if chapterIndex > 0 {
@@ -170,13 +197,55 @@ struct ReaderView: View {
                             .padding(.vertical, 24)
                     }
                 }
+                .frame(width: viewport.size.width * effectiveZoom)
             }
             .coordinateSpace(name: "reader.viewport")
             .scrollIndicators(.hidden)
             .contentMargins(.vertical, 0, for: .scrollContent)
+            .simultaneousGesture(zoomGesture)
+            .highPriorityGesture(TapGesture(count: 2).onEnded { toggleZoom() })
             .onTapGesture {
                 withAnimation(.easeInOut(duration: 0.18)) { model.controlsVisible.toggle() }
             }
+            } else {
+                let pages = model.currentPages
+                let rtl = preferencesStore.preferences.readerDirection == .rightToLeft
+                let displayedPages = rtl ? Array(pages.reversed()) : pages
+                TabView(selection: Binding(
+                    get: { rtl ? max(pages.count - 1 - model.currentPageIndex, 0) : model.currentPageIndex },
+                    set: { model.scrub(to: rtl ? pages.count - 1 - $0 : $0) }
+                )) {
+                    ForEach(Array(displayedPages.enumerated()), id: \.element.id) { index, page in
+                        ReaderPageView(page: page, pipeline: imagePipeline)
+                            .scaleEffect(effectiveZoom)
+                            .simultaneousGesture(zoomGesture)
+                            .highPriorityGesture(TapGesture(count: 2).onEnded { toggleZoom() })
+                            .tag(index)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+            }
+        }
+    }
+
+    private var effectiveZoom: CGFloat {
+        min(max(zoomScale * (preferencesStore.preferences.pinchToZoom ? pinchMagnification : 1), 1), 4)
+    }
+
+    private var zoomGesture: some Gesture {
+        MagnifyGesture()
+            .updating($pinchMagnification) { value, state, _ in
+                if preferencesStore.preferences.pinchToZoom { state = value.magnification }
+            }
+            .onEnded { value in
+                guard preferencesStore.preferences.pinchToZoom else { return }
+                zoomScale = min(max(zoomScale * value.magnification, 1), 4)
+            }
+    }
+
+    private func toggleZoom() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            zoomScale = zoomScale > 1 ? 1 : 2
         }
     }
 
@@ -205,11 +274,79 @@ struct ReaderView: View {
     private func updateIdleTimer() {
         UIApplication.shared.isIdleTimerDisabled = preferencesStore.preferences.keepScreenAwake && scenePhase == .active
     }
+
+    private func updateVolumeButtons() {
+        guard preferencesStore.preferences.volumeButtonsEnabled, scenePhase == .active else {
+            volumeButtons.stop()
+            return
+        }
+        volumeButtons.start { direction in
+            let step = preferencesStore.preferences.readerDirection == .rightToLeft ? -direction : direction
+            model.scrub(to: model.currentPageIndex + step)
+        }
+    }
+}
+
+@MainActor
+private final class ReaderVolumeButtons: ObservableObject {
+    private var observation: NSKeyValueObservation?
+    private var previousVolume: Float = 0
+
+    func start(onPress: @escaping (Int) -> Void) {
+        stop()
+        let session = AVAudioSession.sharedInstance()
+        try? session.setActive(true)
+        previousVolume = session.outputVolume
+        observation = session.observe(\.outputVolume, options: [.new]) { [weak self] _, change in
+            guard let volume = change.newValue else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let direction = volume > self.previousVolume ? 1 : -1
+                guard volume != self.previousVolume else { return }
+                self.previousVolume = volume
+                onPress(direction)
+            }
+        }
+    }
+
+    func stop() {
+        observation?.invalidate()
+        observation = nil
+    }
 }
 
 private struct ReaderPageFrameKey: PreferenceKey {
     static let defaultValue: [ReaderPage.ID: CGRect] = [:]
     static func reduce(value: inout [ReaderPage.ID: CGRect], nextValue: () -> [ReaderPage.ID: CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+
+private struct ReaderOptionsSheet: View {
+    @EnvironmentObject private var preferencesStore: AppPreferencesStore
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Read mode") {
+                    Picker("Read mode", selection: $preferencesStore.preferences.readerDirection) {
+                        Text("Default").tag(ReaderDirectionPreference.vertical)
+                        Text("Horizontal (RTL)").tag(ReaderDirectionPreference.rightToLeft)
+                        Text("Horizontal (LTR)").tag(ReaderDirectionPreference.leftToRight)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+                Section {
+                    Toggle("Pinch to zoom", isOn: $preferencesStore.preferences.pinchToZoom)
+                    Toggle("Enable volume buttons", isOn: $preferencesStore.preferences.volumeButtonsEnabled)
+                } footer: {
+                    Text("Use volume buttons for switching pages")
+                }
+            }
+            .navigationTitle("Reader settings")
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
 }

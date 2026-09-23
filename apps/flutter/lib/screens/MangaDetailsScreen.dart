@@ -713,7 +713,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                     title: _showTitle
                         ? Text(
                             displayTitle,
-                            style: GoogleFonts.hennyPenny(
+                            style: GoogleFonts.unbounded(
                               textStyle: TextStyle(
                                 color: appBarForeground,
                                 fontSize: 18,
@@ -784,7 +784,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                                   children: [
                                     Text(
                                       displayTitle,
-                                      style: GoogleFonts.hennyPenny(
+                                      style: GoogleFonts.unbounded(
                                         textStyle: const TextStyle(
                                           fontSize: 24,
                                           fontWeight: FontWeight.bold,

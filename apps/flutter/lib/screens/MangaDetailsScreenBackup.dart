@@ -106,7 +106,7 @@ class MangaDetailsScreenBackup extends StatelessWidget {
                               children: [
                                 Text(
                                   manga["title"]!,
-                                  style: GoogleFonts.hennyPenny(
+                                  style: GoogleFonts.unbounded(
                                     textStyle: const TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,

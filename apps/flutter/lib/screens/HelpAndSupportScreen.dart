@@ -63,7 +63,7 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
         leading: const CustomBackButton(),
         title: Text(
           'Help & Support',
-          style: GoogleFonts.hennyPenny(
+          style: GoogleFonts.unbounded(
             textStyle: TextStyle(
               color: textColor,
               fontWeight: FontWeight.bold,
@@ -133,7 +133,7 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
 
             Text(
               "Frequently Asked Questions",
-              style: GoogleFonts.hennyPenny(
+              style: GoogleFonts.unbounded(
                 textStyle: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -235,7 +235,7 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
                 const SizedBox(height: 25),
                 Text(
                   "Report a Bug",
-                  style: GoogleFonts.hennyPenny(
+                  style: GoogleFonts.unbounded(
                     textStyle: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

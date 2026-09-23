@@ -217,7 +217,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                         children: [
                           Text(
                             profile.username,
-                            style: GoogleFonts.hennyPenny(
+                            style: GoogleFonts.unbounded(
                               textStyle: TextStyle(
                                 color: textColor,
                                 fontSize: 32,

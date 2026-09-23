@@ -138,7 +138,7 @@ class _InboxScreenState extends State<InboxScreen> {
             : const CustomBackButton(),
         title: Text(
           _isSelectionMode ? '${_selectedIds.length} Selected' : 'Inbox',
-          style: GoogleFonts.hennyPenny(
+          style: GoogleFonts.unbounded(
             textStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 24),
           ),
         ),

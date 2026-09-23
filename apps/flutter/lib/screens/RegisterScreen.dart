@@ -40,7 +40,7 @@ class RegisterScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   "Create Account",
-                  style: GoogleFonts.hennyPenny(
+                  style: GoogleFonts.unbounded(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: textColor,

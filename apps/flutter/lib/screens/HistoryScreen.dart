@@ -195,7 +195,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                 : null,
             title: Text(
               _isSelectionMode ? '${_selectedIds.length} selected' : 'History',
-              // style: GoogleFonts.hennyPenny(
+              // style: GoogleFonts.unbounded(
               //   textStyle: TextStyle(
               //     fontWeight: FontWeight.bold,
               //     color: textColor,

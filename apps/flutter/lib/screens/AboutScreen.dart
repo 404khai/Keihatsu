@@ -31,7 +31,7 @@ class _AboutScreenState extends State<AboutScreen> {
         leading: const CustomBackButton(),
         title: Text(
           'About',
-          style: GoogleFonts.hennyPenny(
+          style: GoogleFonts.unbounded(
             textStyle: Theme.of(context).textTheme.headlineSmall,
             fontWeight: FontWeight.bold,
           ),
@@ -137,7 +137,7 @@ class _AboutHeroCard extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'Keihatsu',
-            style: GoogleFonts.hennyPenny(
+            style: GoogleFonts.unbounded(
               color: Colors.white,
               fontSize: 38,
               fontWeight: FontWeight.bold,

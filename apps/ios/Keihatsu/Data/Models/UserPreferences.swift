@@ -7,6 +7,8 @@ struct LocalUserPreferences: Codable, Equatable {
     var colorScheme: AppColorSchemePreference
     var readerDirection: ReaderDirectionPreference
     var readerBackground: ReaderBackgroundPreference
+    var pinchToZoom: Bool
+    var volumeButtonsEnabled: Bool
     var keepScreenAwake: Bool
     var incognitoModeEnabled: Bool
     var readingLiveActivitiesEnabled: Bool
@@ -28,6 +30,8 @@ struct LocalUserPreferences: Codable, Equatable {
         colorScheme: AppColorSchemePreference,
         readerDirection: ReaderDirectionPreference,
         readerBackground: ReaderBackgroundPreference,
+        pinchToZoom: Bool,
+        volumeButtonsEnabled: Bool,
         keepScreenAwake: Bool,
         incognitoModeEnabled: Bool,
         readingLiveActivitiesEnabled: Bool,
@@ -48,6 +52,8 @@ struct LocalUserPreferences: Codable, Equatable {
         self.colorScheme = colorScheme
         self.readerDirection = readerDirection
         self.readerBackground = readerBackground
+        self.pinchToZoom = pinchToZoom
+        self.volumeButtonsEnabled = volumeButtonsEnabled
         self.keepScreenAwake = keepScreenAwake
         self.incognitoModeEnabled = incognitoModeEnabled
         self.readingLiveActivitiesEnabled = readingLiveActivitiesEnabled
@@ -73,6 +79,8 @@ struct LocalUserPreferences: Codable, Equatable {
         colorScheme = try container.decodeIfPresent(AppColorSchemePreference.self, forKey: .colorScheme) ?? defaults.colorScheme
         readerDirection = try container.decodeIfPresent(ReaderDirectionPreference.self, forKey: .readerDirection) ?? defaults.readerDirection
         readerBackground = try container.decodeIfPresent(ReaderBackgroundPreference.self, forKey: .readerBackground) ?? defaults.readerBackground
+        pinchToZoom = try container.decodeIfPresent(Bool.self, forKey: .pinchToZoom) ?? defaults.pinchToZoom
+        volumeButtonsEnabled = try container.decodeIfPresent(Bool.self, forKey: .volumeButtonsEnabled) ?? defaults.volumeButtonsEnabled
         keepScreenAwake = try container.decodeIfPresent(Bool.self, forKey: .keepScreenAwake) ?? defaults.keepScreenAwake
         incognitoModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .incognitoModeEnabled) ?? defaults.incognitoModeEnabled
         readingLiveActivitiesEnabled = try container.decodeIfPresent(Bool.self, forKey: .readingLiveActivitiesEnabled) ?? defaults.readingLiveActivitiesEnabled
@@ -95,6 +103,8 @@ struct LocalUserPreferences: Codable, Equatable {
         colorScheme: .system,
         readerDirection: .vertical,
         readerBackground: .system,
+        pinchToZoom: true,
+        volumeButtonsEnabled: false,
         keepScreenAwake: true,
         incognitoModeEnabled: false,
         readingLiveActivitiesEnabled: true,

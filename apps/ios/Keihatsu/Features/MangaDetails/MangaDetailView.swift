@@ -44,7 +44,6 @@ private struct MangaDetailsContentView: View {
     @State private var selectedCategories = Set<UUID>()
     @State private var selectedReader: ReaderLaunchContext?
     @State private var showAccountRequired = false
-    @State private var pendingDownloadDeletion: ChapterDownloadRecord?
 
     private var sourceURL: URL? {
         guard let url = model.manga.url, ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
@@ -120,20 +119,6 @@ private struct MangaDetailsContentView: View {
         } message: {
             Text("Sign in with Google to sync this title and its categories across devices.")
         }
-        .confirmationDialog(
-            "Delete downloaded chapter?",
-            isPresented: Binding(
-                get: { pendingDownloadDeletion != nil },
-                set: { if !$0 { pendingDownloadDeletion = nil } }
-            ),
-            presenting: pendingDownloadDeletion
-        ) { record in
-            Button("Delete \(record.request.chapterName)", role: .destructive) {
-                Task { await downloads.remove(record.id) }
-            }
-        } message: { record in
-            Text("The downloaded CBZ for \(record.request.chapterName) will be removed from this device. Reading history is kept.")
-        }
         .navigationDestination(item: $selectedReader) { context in
             ReaderEntryView(manga: model.manga, chapters: model.chapters, context: context)
         }
@@ -155,15 +140,18 @@ private struct MangaDetailsContentView: View {
         ToolbarItemGroup(placement: .topBarTrailing) {
             if let shareURL = sourceURL {
                 ShareLink(item: shareURL) { Image(systemName: "square.and.arrow.up") }
+                    .tint(.white)
             }
             Button { showFilterSheet = true } label: {
                 Image(systemName: model.activeFilterCount == 0 ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
             }
+            .tint(.white)
             .accessibilityLabel("Filter chapters")
             Menu {
                 Button("Refresh", systemImage: "arrow.clockwise") { Task { await model.refreshAll() } }
                 if let sourceURL { Link("View on source", destination: sourceURL) }
             } label: { Image(systemName: "ellipsis") }
+                .tint(.white)
         }
     }
 
@@ -376,25 +364,31 @@ private struct MangaDetailsContentView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                let record = downloads.visibleRecords.first(where: { $0.request.identity == DownloadIdentity(chapter: chapter.id) })
-                if downloadStatus == .completed {
-                    pendingDownloadDeletion = record
-                } else if downloadStatus == .failed || downloadStatus == .paused || downloadStatus == .waitingForWiFi,
-                          let record {
-                    downloads.resume(record.id)
-                } else if downloadStatus == nil {
-                    enqueue([chapter])
+            if downloadStatus == .completed,
+               let record = downloads.visibleRecords.first(where: { $0.request.identity == DownloadIdentity(chapter: chapter.id) }) {
+                Menu {
+                    Button("Delete", systemImage: "trash", role: .destructive) {
+                        Task { await downloads.remove(record.id) }
+                    }
+                } label: {
+                    downloadIcon(for: downloadStatus, isDownloaded: state.isDownloaded)
                 }
-            } label: {
-                Image(systemName: downloadSymbol(downloadStatus))
-                    .font(.system(size: 30, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(state.isDownloaded ? Color(hex: "B7FF3C") : Color.white.opacity(0.62))
-                    .frame(width: 52, height: 52)
+                .accessibilityLabel("Downloaded chapter options")
+            } else {
+                Button {
+                    let record = downloads.visibleRecords.first(where: { $0.request.identity == DownloadIdentity(chapter: chapter.id) })
+                    if downloadStatus == .failed || downloadStatus == .paused || downloadStatus == .waitingForWiFi,
+                       let record {
+                        downloads.resume(record.id)
+                    } else if downloadStatus == nil {
+                        enqueue([chapter])
+                    }
+                } label: {
+                    downloadIcon(for: downloadStatus, isDownloaded: state.isDownloaded)
+                }
+                .disabled(downloadStatus?.isActive == true)
+                .accessibilityLabel(downloadStatusLabel(downloadStatus))
             }
-            .disabled(downloadStatus?.isActive == true)
-            .accessibilityLabel(downloadStatusLabel(downloadStatus))
         }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -426,6 +420,14 @@ private struct MangaDetailsContentView: View {
 
     private func nextChapters(limit: Int) -> [Chapter] {
         Array(model.chapters.filter { !model.state(for: $0).isDownloaded }.prefix(limit))
+    }
+
+    private func downloadIcon(for status: DownloadStatus?, isDownloaded: Bool) -> some View {
+        Image(systemName: downloadSymbol(status))
+            .font(.system(size: 30, weight: .semibold))
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(isDownloaded ? Color(hex: "B7FF3C") : Color.white.opacity(0.62))
+            .frame(width: 52, height: 52)
     }
 
     private func downloadSymbol(_ status: DownloadStatus?) -> String {
