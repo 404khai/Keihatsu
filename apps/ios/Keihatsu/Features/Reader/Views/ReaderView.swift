@@ -11,7 +11,8 @@ struct ReaderView: View {
     @StateObject private var model: ReaderViewModel
     @State private var showsComments = false
     @State private var showsReaderSettings = false
-    @State private var pinchScale: CGFloat = 1
+    @State private var zoomScale: CGFloat = 1
+    @GestureState private var pinchMagnification: CGFloat = 1
     @StateObject private var volumeButtons = ReaderVolumeButtons()
     private let imagePipeline: ImagePipeline
 
@@ -131,6 +132,7 @@ struct ReaderView: View {
             navigation.readerDidAppear(chapter: chapter)
         }
         .onChange(of: preferencesStore.preferences.keepScreenAwake) { updateIdleTimer() }
+        .onChange(of: preferencesStore.preferences.readerDirection) { _, _ in zoomScale = 1 }
         .onChange(of: preferencesStore.preferences.volumeButtonsEnabled) { updateVolumeButtons() }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -162,7 +164,7 @@ struct ReaderView: View {
                 .foregroundStyle(.white)
         } else {
             if preferencesStore.preferences.readerDirection == .vertical {
-            ScrollView(.vertical) {
+            ScrollView([.vertical, .horizontal]) {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(model.loadedChapters.enumerated()), id: \.element.id) { chapterIndex, loaded in
                         if chapterIndex > 0 {
@@ -173,9 +175,6 @@ struct ReaderView: View {
                         }
                         ForEach(loaded.pages) { page in
                             ReaderPageView(page: page, pipeline: imagePipeline)
-                                .scaleEffect(pinchScale)
-                                .gesture(MagnifyGesture().onChanged { if preferencesStore.preferences.pinchToZoom { pinchScale = $0.magnification } }
-                                    .onEnded { _ in pinchScale = 1 })
                                 .id(page.id)
                                 .background {
                                     GeometryReader { geometry in
@@ -198,30 +197,55 @@ struct ReaderView: View {
                             .padding(.vertical, 24)
                     }
                 }
+                .frame(width: viewport.size.width * effectiveZoom)
             }
             .coordinateSpace(name: "reader.viewport")
             .scrollIndicators(.hidden)
             .contentMargins(.vertical, 0, for: .scrollContent)
+            .simultaneousGesture(zoomGesture)
+            .highPriorityGesture(TapGesture(count: 2).onEnded { toggleZoom() })
             .onTapGesture {
                 withAnimation(.easeInOut(duration: 0.18)) { model.controlsVisible.toggle() }
             }
             } else {
                 let pages = model.currentPages
                 let rtl = preferencesStore.preferences.readerDirection == .rightToLeft
+                let displayedPages = rtl ? Array(pages.reversed()) : pages
                 TabView(selection: Binding(
                     get: { rtl ? max(pages.count - 1 - model.currentPageIndex, 0) : model.currentPageIndex },
                     set: { model.scrub(to: rtl ? pages.count - 1 - $0 : $0) }
                 )) {
-                    ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
+                    ForEach(Array(displayedPages.enumerated()), id: \.element.id) { index, page in
                         ReaderPageView(page: page, pipeline: imagePipeline)
-                            .scaleEffect(pinchScale)
-                            .gesture(MagnifyGesture().onChanged { if preferencesStore.preferences.pinchToZoom { pinchScale = $0.magnification } }
-                                .onEnded { _ in pinchScale = 1 })
-                            .tag(rtl ? pages.count - 1 - index : index)
+                            .scaleEffect(effectiveZoom)
+                            .simultaneousGesture(zoomGesture)
+                            .highPriorityGesture(TapGesture(count: 2).onEnded { toggleZoom() })
+                            .tag(index)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
+        }
+    }
+
+    private var effectiveZoom: CGFloat {
+        min(max(zoomScale * (preferencesStore.preferences.pinchToZoom ? pinchMagnification : 1), 1), 4)
+    }
+
+    private var zoomGesture: some Gesture {
+        MagnifyGesture()
+            .updating($pinchMagnification) { value, state, _ in
+                if preferencesStore.preferences.pinchToZoom { state = value.magnification }
+            }
+            .onEnded { value in
+                guard preferencesStore.preferences.pinchToZoom else { return }
+                zoomScale = min(max(zoomScale * value.magnification, 1), 4)
+            }
+    }
+
+    private func toggleZoom() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            zoomScale = zoomScale > 1 ? 1 : 2
         }
     }
 
