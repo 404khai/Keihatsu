@@ -27,7 +27,7 @@ class PrivacySettingsScreen extends StatelessWidget {
         leading: const CustomBackButton(),
         title: Text(
           'Privacy',
-          style: GoogleFonts.hennyPenny(
+          style: GoogleFonts.unbounded(
             textStyle: TextStyle(
               color: textColor,
               fontWeight: FontWeight.bold,

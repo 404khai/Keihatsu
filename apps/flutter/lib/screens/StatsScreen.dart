@@ -37,7 +37,7 @@ class _StatsScreenState extends State<StatsScreen> {
         leading: const CustomBackButton(),
         title: Text(
           'Statistics',
-          style: GoogleFonts.hennyPenny(
+          style: GoogleFonts.unbounded(
             textStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 24),
           ),
         ),
@@ -95,7 +95,7 @@ class _StatsScreenState extends State<StatsScreen> {
             // Bar Chart Section
             Text(
               "Daily Activity",
-              style: GoogleFonts.hennyPenny(
+              style: GoogleFonts.unbounded(
                 textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
               ),
             ),
@@ -127,7 +127,7 @@ class _StatsScreenState extends State<StatsScreen> {
             // Recently Finished
             Text(
               "Top Genres",
-              style: GoogleFonts.hennyPenny(
+              style: GoogleFonts.unbounded(
                 textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
               ),
             ),

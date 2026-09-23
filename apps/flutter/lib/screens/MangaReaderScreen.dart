@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async'; // Added
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -44,6 +45,10 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
   bool _showControls = true;
   ReaderMode _readMode = ReaderMode.vertical;
   bool _pinchToZoom = true;
+  double _stripZoom = 1;
+  double _pinchStartZoom = 1;
+  double? _pinchStartDistance;
+  final Map<int, Offset> _touches = {};
   bool _volumeButtons = false;
   StreamSubscription<dynamic>? _volumeSubscription;
   bool _isLoading = true;
@@ -143,6 +148,43 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
     });
   }
 
+  void _setStripZoom(double value, {bool preservePosition = false}) {
+    final next = value.clamp(1.0, 4.0);
+    if (next == _stripZoom) return;
+    final previous = _stripZoom;
+    final offset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+    setState(() => _stripZoom = next);
+    if (!preservePosition) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(
+        (offset * next / previous)
+            .clamp(0.0, _scrollController.position.maxScrollExtent),
+      );
+    });
+  }
+
+  void _trackTouch(PointerEvent event) {
+    if (!_pinchToZoom || _readMode != ReaderMode.vertical) return;
+    if (event is PointerDownEvent || event is PointerMoveEvent) {
+      _touches[event.pointer] = event.position;
+    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
+      _touches.remove(event.pointer);
+    }
+    if (_touches.length != 2) {
+      _pinchStartDistance = null;
+      return;
+    }
+    final points = _touches.values.toList();
+    final distance = (points[0] - points[1]).distance;
+    if (_pinchStartDistance == null) {
+      _pinchStartDistance = math.max(distance, 1);
+      _pinchStartZoom = _stripZoom;
+    } else {
+      _setStripZoom(_pinchStartZoom * distance / _pinchStartDistance!);
+    }
+  }
+
   Future<void> _showReaderSettings() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -210,6 +252,7 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
   void dispose() {
     _debounceTimer?.cancel();
     _volumeSubscription?.cancel();
+    _touches.clear();
     final chapterPages = _chapterPages[_currentChapterIndex];
     if (chapterPages != null && chapterPages.isNotEmpty) {
       _saveProgress(_currentChapterIndex, _currentPageIndex, chapterPages.length);
@@ -504,6 +547,12 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
         children: [
           GestureDetector(
             onTap: () => setState(() => _showControls = !_showControls),
+            onDoubleTap: _readMode == ReaderMode.vertical
+                ? () => _setStripZoom(
+                    _stripZoom > 1 ? 1 : 2,
+                    preservePosition: true,
+                  )
+                : null,
             child: _isLoading
                 ? const Center(
               child: CircularProgressIndicator(color: Colors.white),
@@ -515,7 +564,8 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                 style: TextStyle(color: Colors.white),
               ),
             )
-                : ListView.builder(
+                : LayoutBuilder(builder: (context, constraints) {
+              final pages = ListView.builder(
               scrollDirection: _readMode == ReaderMode.vertical ? Axis.vertical : Axis.horizontal,
               reverse: _readMode == ReaderMode.horizontalRtl,
               controller: _scrollController,
@@ -575,12 +625,30 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                 );
                 return SizedBox(
                   width: _readMode == ReaderMode.vertical ? null : MediaQuery.sizeOf(context).width,
-                  child: _pinchToZoom
+                  child: _readMode == ReaderMode.vertical
+                      ? image
+                      : _pinchToZoom
                       ? InteractiveViewer(minScale: 1, maxScale: 4, child: image)
                       : image,
                 );
               },
-            ),
+            );
+              if (_readMode != ReaderMode.vertical) return pages;
+              return Listener(
+                onPointerDown: _trackTouch,
+                onPointerMove: _trackTouch,
+                onPointerUp: _trackTouch,
+                onPointerCancel: _trackTouch,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: constraints.maxWidth * _stripZoom,
+                    height: constraints.maxHeight,
+                    child: pages,
+                  ),
+                ),
+              );
+            }),
           ),
 
           if (_showControls)

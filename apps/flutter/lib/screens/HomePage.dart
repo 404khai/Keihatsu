@@ -147,7 +147,7 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
             color: textColor,
             fontSize: 24,
           ),
-          // style: GoogleFonts.hennyPenny(
+          // style: GoogleFonts.unbounded(
           //   textStyle: TextStyle(
           //     color: textColor,
           //     fontWeight: FontWeight.bold,
@@ -352,7 +352,7 @@ class _HomePageState extends State<HomePage> with GradientFadeAppBarMixin {
               color: textColor,
               fontSize: 24,
             ),
-            // style: GoogleFonts.hennyPenny(
+            // style: GoogleFonts.unbounded(
             //   textStyle: TextStyle(
             //     fontSize: 20,
             //     fontWeight: FontWeight.bold,

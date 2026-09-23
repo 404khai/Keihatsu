@@ -48,7 +48,7 @@ class _OnboardingState extends State<Onboarding> {
             Image.asset('images/keihatsu.png', height: 300),
             Text(
               'Keihatsu',
-              style: GoogleFonts.hennyPenny(
+              style: GoogleFonts.unbounded(
                 textStyle: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,

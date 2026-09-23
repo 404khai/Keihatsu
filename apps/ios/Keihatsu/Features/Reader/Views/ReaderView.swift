@@ -331,7 +331,7 @@ private struct ReaderOptionsSheet: View {
             Form {
                 Section("Read mode") {
                     Picker("Read mode", selection: $preferencesStore.preferences.readerDirection) {
-                        Text("Vertical").tag(ReaderDirectionPreference.vertical)
+                        Text("Default").tag(ReaderDirectionPreference.vertical)
                         Text("Horizontal (RTL)").tag(ReaderDirectionPreference.rightToLeft)
                         Text("Horizontal (LTR)").tag(ReaderDirectionPreference.leftToRight)
                     }

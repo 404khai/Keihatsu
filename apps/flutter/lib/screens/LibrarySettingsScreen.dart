@@ -27,7 +27,7 @@ class LibrarySettingsScreen extends StatelessWidget {
         leading: const CustomBackButton(),
         title: Text(
           'Library Settings',
-          style: GoogleFonts.hennyPenny(
+          style: GoogleFonts.unbounded(
             textStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 24),
           ),
         ),

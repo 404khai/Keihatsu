@@ -279,10 +279,11 @@ private struct ReadingHistoryRow: View {
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
 
-                Text("Page \(entry.displayedPage) of \(max(entry.totalPages, 1)) • \(entry.updatedAt.formatted(date: .omitted, time: .shortened))")
+                Text((entry.updatedAt.formatted(date: .omitted, time: .shortened)))
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+
             }
 
             Spacer(minLength: 0)

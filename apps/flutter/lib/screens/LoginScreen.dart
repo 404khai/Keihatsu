@@ -40,7 +40,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   "Welcome Back!",
-                  style: GoogleFonts.hennyPenny(
+                  style: GoogleFonts.unbounded(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: textColor,

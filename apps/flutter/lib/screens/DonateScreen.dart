@@ -26,7 +26,7 @@ class DonateScreen extends StatelessWidget {
         leading: const CustomBackButton(),
         title: Text(
           'Donate',
-          style: GoogleFonts.hennyPenny(
+          style: GoogleFonts.unbounded(
             textStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 24),
           ),
         ),
