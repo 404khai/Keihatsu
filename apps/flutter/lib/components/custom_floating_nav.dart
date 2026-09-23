@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/SearchScreen.dart';
@@ -16,8 +15,8 @@ class CustomFloatingNav extends StatelessWidget {
   final int currentIndex;
   final Color brandColor;
 
-  static const double _barHeight = 60;
   static const double _searchSize = 50;
+  static const double _barHeight = _searchSize;
   static const double _gap = 8;
 
   static const List<_NavDestination> _destinations = [
@@ -28,31 +27,31 @@ class CustomFloatingNav extends StatelessWidget {
     //   index: 0,
     //   route: '/home',
     //   label: 'Home',
-    //   iconAsset: 'images/icons/libraryIcons/home.svg',
+    //   icon: Icons.home_outlined,
     // ),
     _NavDestination(
       index: 1,
       route: '/library',
       label: 'Library',
-      iconAsset: 'images/icons/libraryIcons/library.svg',
+      icon: Icons.library_books_outlined,
     ),
     _NavDestination(
       index: 2,
       route: '/history',
       label: 'History',
-      iconAsset: 'images/icons/libraryIcons/history.svg',
+      icon: Icons.history_rounded,
     ),
     _NavDestination(
       index: 3,
       route: '/extensions',
       label: 'Extensions',
-      iconAsset: 'images/icons/libraryIcons/puzzle.svg',
+      icon: Icons.extension_outlined,
     ),
     _NavDestination(
       index: 4,
       route: '/profile',
       label: 'Profile',
-      iconAsset: 'images/icons/libraryIcons/profile.svg',
+      icon: Icons.person_outline_rounded,
     ),
   ];
 
@@ -149,13 +148,13 @@ class _NavDestination {
     required this.index,
     required this.route,
     required this.label,
-    required this.iconAsset,
+    required this.icon,
   });
 
   final int index;
   final String route;
   final String label;
-  final String iconAsset;
+  final IconData icon;
 }
 
 class _NavItem extends StatelessWidget {
@@ -177,47 +176,28 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color iconColor = selected ? brandColor : unselectedColor;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: selected
-                    ? brandColor.withValues(alpha: 0.30)
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: SvgPicture.asset(
-                destination.iconAsset,
-                width: 22,
-                height: 22,
-                colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
-              ),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: destination.label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: selected
+                  ? brandColor.withValues(alpha: 0.30)
+                  : Colors.transparent,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 1),
-            Text(
-              destination.label,
-              maxLines: 1,
-              overflow: TextOverflow.fade,
-              softWrap: false,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: unselectedColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                height: 1,
-              ),
-            ),
-          ],
+            alignment: Alignment.center,
+            child: Icon(destination.icon, size: 26, color: iconColor),
+          ),
         ),
       ),
     );
@@ -254,12 +234,7 @@ class _SearchFabButton extends StatelessWidget {
           width: _size,
           height: _size,
           child: Center(
-            child: SvgPicture.asset(
-              'images/icons/libraryIcons/search.svg',
-              width: 28,
-              height: 28,
-              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
-            ),
+            child: Icon(Icons.search_rounded, size: 28, color: iconColor),
           ),
         ),
       ),

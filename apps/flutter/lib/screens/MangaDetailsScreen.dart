@@ -12,6 +12,7 @@ import '../models/local_models.dart';
 import '../services/manga_repository.dart';
 import '../providers/offline_library_provider.dart';
 import '../components/OfflineImage.dart';
+import '../components/ExtensionImage.dart';
 import '../components/loading_indicator.dart';
 import 'MangaReaderScreen.dart';
 
@@ -24,8 +25,7 @@ class MangaDetailsScreen extends StatefulWidget {
   State<MangaDetailsScreen> createState() => _MangaDetailsScreenState();
 }
 
-class _MangaDetailsScreenState extends State<MangaDetailsScreen>
-    with SingleTickerProviderStateMixin {
+class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
   late ScrollController _scrollController;
   bool _showTitle = false;
   late Future<LocalManga?> _mangaDetailsFuture;
@@ -33,8 +33,8 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
   List<LocalChapter>? _cachedChapters;
   late Future<List<Manga>> _recommendedMangaFuture;
   bool _showAllChapters = false;
+  bool _chaptersAscending = false;
   bool _showFullDescription = false;
-  late AnimationController _arrowController;
   bool _filterDownloaded = false;
   bool _filterUnread = false;
   bool _filterBookmarked = false;
@@ -65,17 +65,11 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
     _recommendedMangaFuture = repo.api
         .getMangaList(widget.manga.sourceId, 'popular')
         .then((p) => p.mangas);
-
-    _arrowController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _arrowController.dispose();
     super.dispose();
   }
 
@@ -813,8 +807,10 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                     const SizedBox(height: 4),
                                     _buildInfoRow(
                                       PhosphorIcons.clock(),
-                                      "${displayStatus ?? "Ongoing"} • ${widget.manga.sourceId.toUpperCase()}",
+                                      displayStatus ?? "Ongoing",
                                     ),
+                                    const SizedBox(height: 10),
+                                    _buildExtensionRow(widget.manga.sourceId),
                                   ],
                                 ),
                               ),
@@ -871,6 +867,15 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Text(
+                                  'Overview',
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
                                 if (displayGenres != null)
                                   SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
@@ -882,7 +887,7 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                                 right: 10,
                                               ),
                                               child: _buildTag(
-                                                "# ${genre.toUpperCase()}",
+                                                genre.toUpperCase(),
                                                 brandColor,
                                                 textColor,
                                               ),
@@ -904,21 +909,22 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                       ? TextOverflow.visible
                                       : TextOverflow.ellipsis,
                                 ),
-                                if ((displayDescription?.length ?? 0) >
-                                    100) // Simple heuristic
-                                  GestureDetector(
-                                    onTap: () => setState(
-                                      () => _showFullDescription =
-                                          !_showFullDescription,
-                                    ),
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Icon(
+                                if ((displayDescription?.length ?? 0) > 220)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: TextButton(
+                                      onPressed: () => setState(
+                                        () => _showFullDescription =
+                                            !_showFullDescription,
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        alignment: Alignment.centerLeft,
+                                      ),
+                                      child: Text(
                                         _showFullDescription
-                                            ? Icons.keyboard_arrow_up_rounded
-                                            : Icons.keyboard_arrow_down_rounded,
-                                        color: brandColor,
+                                            ? 'Show less'
+                                            : 'Read more',
                                       ),
                                     ),
                                   ),
@@ -945,14 +951,23 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                 );
                               }
                               final chapters = snapshot.data!;
-                              var filteredChapters = chapters.where((c) {
-                                if (_filterDownloaded && !c.downloaded)
-                                  return false;
-                                if (_filterUnread && c.isRead) return false;
-                                if (_filterBookmarked && !c.isBookmarked)
-                                  return false;
-                                return true;
-                              }).toList();
+                              var filteredChapters =
+                                  chapters.where((c) {
+                                    if (_filterDownloaded && !c.downloaded)
+                                      return false;
+                                    if (_filterUnread && c.isRead) return false;
+                                    if (_filterBookmarked && !c.isBookmarked)
+                                      return false;
+                                    return true;
+                                  }).toList()..sort(
+                                    (a, b) => _chaptersAscending
+                                        ? a.chapterNumber.compareTo(
+                                            b.chapterNumber,
+                                          )
+                                        : b.chapterNumber.compareTo(
+                                            a.chapterNumber,
+                                          ),
+                                  );
 
                               final displayedChapters = _showAllChapters
                                   ? filteredChapters
@@ -967,20 +982,40 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                 child: Column(
                                   children: [
                                     Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(
-                                          "${filteredChapters.length} Chapters",
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
+                                        Expanded(
+                                          child: Text(
+                                            "${filteredChapters.length} Chapters",
+                                            style: TextStyle(
+                                              color: textColor,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
-                                        Icon(
-                                          Icons.chevron_right,
-                                          color: colorScheme.onSurfaceVariant,
+                                        IconButton(
+                                          tooltip: 'Descending order',
+                                          onPressed: () => setState(
+                                            () => _chaptersAscending = false,
+                                          ),
+                                          icon: Icon(
+                                            PhosphorIcons.sortDescending(),
+                                            color: !_chaptersAscending
+                                                ? brandColor
+                                                : colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          tooltip: 'Ascending order',
+                                          onPressed: () => setState(
+                                            () => _chaptersAscending = true,
+                                          ),
+                                          icon: Icon(
+                                            PhosphorIcons.sortAscending(),
+                                            color: _chaptersAscending
+                                                ? brandColor
+                                                : colorScheme.onSurfaceVariant,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -994,29 +1029,31 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
                                         textColor,
                                       ),
                                     ),
-                                    if (!_showAllChapters &&
-                                        chapters.length > 3)
-                                      GestureDetector(
-                                        onTap: () => setState(
-                                          () => _showAllChapters = true,
+                                    if (filteredChapters.length > 3)
+                                      TextButton(
+                                        onPressed: () => setState(
+                                          () => _showAllChapters =
+                                              !_showAllChapters,
                                         ),
-                                        child: AnimatedBuilder(
-                                          animation: _arrowController,
-                                          builder: (context, child) {
-                                            return Transform.translate(
-                                              offset: Offset(
-                                                0,
-                                                10 * _arrowController.value,
-                                              ),
-                                              child: child,
-                                            );
-                                          },
-                                          child: Icon(
-                                            Icons
-                                                .keyboard_double_arrow_down_rounded,
-                                            color: brandColor,
-                                            size: 30,
+                                        style: TextButton.styleFrom(
+                                          backgroundColor:
+                                              colorScheme.primaryContainer,
+                                          foregroundColor:
+                                              colorScheme.onPrimaryContainer,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 12,
                                           ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _showAllChapters
+                                              ? 'Hide chapters'
+                                              : 'Show all chapters',
                                         ),
                                       ),
                                   ],
@@ -1334,6 +1371,27 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
     );
   }
 
+  Widget _buildExtensionRow(String sourceId) {
+    final source = LocalSource()..sourceId = sourceId;
+
+    return Row(
+      children: [
+        ExtensionImage(source: source, size: 28, borderRadius: 5),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            sourceId.toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActionButton(
     PhosphorIconData icon,
     String label,
@@ -1449,24 +1507,13 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen>
             ),
           ).then((_) => setState(() {})); // Refresh on return
         },
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              PhosphorIcons.circle(PhosphorIconsStyle.fill),
-              size: 10,
-              color: isRead ? textColor.withOpacity(0.5) : brandColor,
-            ),
-            if (isBookmarked) ...[
-              const SizedBox(width: 8),
-              Icon(
+        leading: isBookmarked
+            ? Icon(
                 PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill),
                 size: 16,
                 color: Colors.green,
-              ),
-            ],
-          ],
-        ),
+              )
+            : null,
         title: Text(chapter.name, style: TextStyle(color: tileTextColor)),
         subtitle: Text(
           dateStr,
