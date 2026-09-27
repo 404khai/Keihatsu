@@ -144,6 +144,18 @@ struct LibraryView: View {
         .frame(minWidth: 0, maxWidth: .infinity, alignment: .top)
         .matchedTransitionSource(id: entry.id, in: animation)
         .contextMenu {
+            Button {
+                for categoryID in entry.categoryIDs {
+                    collections.assign(categoryID, entry: entry.id, included: false)
+                }
+            } label: {
+                Label(
+                    "Default",
+                    systemImage: entry.categoryIDs.isEmpty ? "checkmark.circle.fill" : "circle"
+                )
+            }
+            .disabled(entry.categoryIDs.isEmpty)
+
             ForEach(collections.snapshot.categories) { category in
                 Button {
                     collections.assign(category.id, entry: entry.id, included: !entry.categoryIDs.contains(category.id))
