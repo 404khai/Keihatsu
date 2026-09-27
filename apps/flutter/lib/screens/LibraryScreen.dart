@@ -188,59 +188,71 @@ class _LibraryScreenState extends State<LibraryScreen>
                                 ),
                               ],
                             ),
-                            child: categories.isEmpty
-                                ? Padding(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Text(
-                                      'No other categories yet',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  )
-                                : ListView.separated(
-                                    shrinkWrap: true,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    itemCount: categories.length,
-                                    separatorBuilder: (context, index) =>
-                                        Divider(
-                                          height: 1,
-                                          color: colorScheme.outlineVariant,
-                                        ),
-                                    itemBuilder: (context, index) {
-                                      final category = categories[index];
-                                      final isSelected = selectedCategoryIds
-                                          .contains(category.id);
-
-                                      return CheckboxListTile(
-                                        value: isSelected,
-                                        controlAffinity:
-                                            ListTileControlAffinity.trailing,
-                                        title: Text(category.name),
-                                        onChanged: (_) async {
-                                          setMenuState(() {
-                                            if (isSelected) {
-                                              selectedCategoryIds.remove(
-                                                category.id,
-                                              );
-                                            } else {
-                                              selectedCategoryIds.add(
-                                                category.id,
-                                              );
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: categories.length + 1,
+                              separatorBuilder: (context, index) => Divider(
+                                height: 1,
+                                color: colorScheme.outlineVariant,
+                              ),
+                              itemBuilder: (context, index) {
+                                if (index == 0) {
+                                  final isDefault = selectedCategoryIds.isEmpty;
+                                  return CheckboxListTile(
+                                    value: isDefault,
+                                    controlAffinity:
+                                        ListTileControlAffinity.trailing,
+                                    title: const Text('Default'),
+                                    onChanged: isDefault
+                                        ? null
+                                        : (_) async {
+                                            final assignedCategoryIds =
+                                                selectedCategoryIds.toList();
+                                            setMenuState(
+                                              selectedCategoryIds.clear,
+                                            );
+                                            for (final categoryId
+                                                in assignedCategoryIds) {
+                                              await offlineLibrary
+                                                  .toggleCategoryAssignment(
+                                                    entry.mangaId,
+                                                    entry.sourceId,
+                                                    categoryId,
+                                                  );
                                             }
-                                          });
-                                          await offlineLibrary
-                                              .toggleCategoryAssignment(
-                                                entry.mangaId,
-                                                entry.sourceId,
-                                                category.id,
-                                              );
-                                        },
-                                      );
-                                    },
-                                  ),
+                                          },
+                                  );
+                                }
+
+                                final category = categories[index - 1];
+                                final isSelected = selectedCategoryIds.contains(
+                                  category.id,
+                                );
+
+                                return CheckboxListTile(
+                                  value: isSelected,
+                                  controlAffinity:
+                                      ListTileControlAffinity.trailing,
+                                  title: Text(category.name),
+                                  onChanged: (_) async {
+                                    setMenuState(() {
+                                      if (isSelected) {
+                                        selectedCategoryIds.remove(category.id);
+                                      } else {
+                                        selectedCategoryIds.add(category.id);
+                                      }
+                                    });
+                                    await offlineLibrary
+                                        .toggleCategoryAssignment(
+                                          entry.mangaId,
+                                          entry.sourceId,
+                                          category.id,
+                                        );
+                                  },
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ],
