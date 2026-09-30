@@ -75,6 +75,10 @@ final class AppEnvironment: ObservableObject {
             ),
             accountData: accountData
         )
+        PushRegistrationCoordinator.shared.configure(api: NotificationsAPI(client: accountClient))
+        accountSession.$bearerToken.compactMap { $0 }.sink { token in
+            Task { await PushRegistrationCoordinator.shared.signedIn(token: token) }
+        }.store(in: &cancellables)
         commentsAPI = CommentsAPI(client: accountClient)
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         downloads = DownloadCoordinator(

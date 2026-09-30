@@ -1,297 +1,220 @@
 import SwiftUI
+import Combine
+
+@MainActor
+final class InboxViewModel: ObservableObject {
+    @Published var items: [InboxNotificationDTO] = []
+    @Published var unreadCount = 0
+    @Published var loading = false
+    @Published var error: String?
+    @Published var category = "All"
+    private var cursor: String?
+    private var api: NotificationsAPI?
+    private var token: String?
+
+    func configure(api: NotificationsAPI, token: String?) {
+        self.api = api
+        self.token = token
+    }
+
+    func refresh() async {
+        guard let api, let token else { error = "Sign in to see your Inbox."; return }
+        loading = true
+        error = nil
+        defer { loading = false }
+        do {
+            let page = try await api.list(token: token, category: category == "All" ? nil : category.uppercased())
+            items = page.items
+            cursor = page.nextCursor
+            unreadCount = try await api.unreadCount(token: token)
+        } catch { self.error = "Could not load Inbox. Check your connection and retry." }
+    }
+
+    func loadMore() async {
+        guard let api, let token, let cursor, !loading else { return }
+        loading = true
+        defer { loading = false }
+        do {
+            let page = try await api.list(token: token, cursor: cursor, category: category == "All" ? nil : category.uppercased())
+            items += page.items
+            self.cursor = page.nextCursor
+        } catch { self.error = "Could not load more notifications." }
+    }
+
+    func markRead(_ item: InboxNotificationDTO) async {
+        guard let api, let token, !item.isRead,
+              let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[index].readAt = ISO8601DateFormatter().string(from: .now)
+        unreadCount = max(0, unreadCount - 1)
+        do { try await api.markRead(item.id, token: token) }
+        catch { items[index] = item; unreadCount += 1; self.error = "Could not mark notification as read." }
+    }
+
+    func delete(_ item: InboxNotificationDTO) async {
+        guard let api, let token, let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items.remove(at: index)
+        if !item.isRead { unreadCount = max(0, unreadCount - 1) }
+        do { try await api.delete(item.id, token: token) }
+        catch { items.insert(item, at: index); if !item.isRead { unreadCount += 1 }; self.error = "Could not delete notification." }
+    }
+
+    func readAll() async {
+        guard let api, let token else { return }
+        let previous = items, previousCount = unreadCount
+        let timestamp = ISO8601DateFormatter().string(from: .now)
+        for index in items.indices { items[index].readAt = timestamp }
+        unreadCount = 0
+        do { try await api.readAll(token: token) }
+        catch { items = previous; unreadCount = previousCount; self.error = "Could not mark all as read." }
+    }
+
+    var hasMore: Bool { cursor != nil }
+}
 
 struct NotificationsSheetView: View {
     var title = "Notifications"
     @EnvironmentObject private var environment: AppEnvironment
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var preferencesStore: AppPreferencesStore
-    @State private var selectedTab: NotificationTab = .all
-    @State private var notifications: [KeihatsuNotification] = []
-    @State private var selectionMode = false
-    @State private var selectedIDs: Set<UUID> = []
-
-    private var accent: Color {
-        Color(hex: preferencesStore.preferences.theme.hex)
-    }
-
-    private var filteredNotifications: [KeihatsuNotification] {
-        notifications.filter { notification in
-            selectedTab == .all || notification.tab == selectedTab
-        }
-    }
+    @StateObject private var model = InboxViewModel()
+    @State private var showsPreferences = false
+    private let categories = ["All", "Updates", "Comments", "System", "Account"]
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("Notifications", selection: $selectedTab) {
-                    ForEach(NotificationTab.allCases) { tab in
-                        Text(tab.title).tag(tab)
-                    }
+                Picker("Category", selection: $model.category) {
+                    ForEach(categories, id: \.self) { Text($0).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 10)
+                .padding()
+                .onChange(of: model.category) { _, _ in Task { await model.refresh() } }
 
-                List {
-                    ForEach(filteredNotifications) { notification in
-                        NotificationRow(
-                            notification: notification,
-                            isSelected: selectedIDs.contains(notification.id),
-                            selectionMode: selectionMode,
-                            accent: accent
-                        ) {
-                            toggleSelection(for: notification.id)
-                        }
-                        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .onTapGesture {
-                            if selectionMode {
-                                toggleSelection(for: notification.id)
-                            } else {
-                                markRead(notification.id)
-                            }
-                        }
-                        .onLongPressGesture {
-                            selectionMode = true
-                            selectedIDs = [notification.id]
-                        }
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deleteNotifications(Set([notification.id]))
-                            } label: {
-                                Label("Delete", systemImage: "trash.fill")
-                            }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                if model.loading && model.items.isEmpty {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error = model.error, model.items.isEmpty {
+                    ContentUnavailableView(error, systemImage: "wifi.slash")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Button("Retry") { Task { await model.refresh() } }.padding()
+                } else if model.items.isEmpty {
+                    ContentUnavailableView("You're All Caught Up", systemImage: "bell.badge.slash")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(model.items) { item in
                             Button {
-                                markRead(notification.id)
+                                Task {
+                                    await model.markRead(item)
+                                    guard let url = URL(string: item.deepLink) else { return }
+                                    _ = environment.navigation.handleNotificationURL(url)
+                                    dismiss()
+                                }
                             } label: {
-                                Label(notification.isRead ? "Mark Unread" : "Mark Read", systemImage: notification.isRead ? "circle" : "checkmark.circle.fill")
+                                HStack(spacing: 12) {
+                                    Image(systemName: item.type == "CHAPTER_UPDATE" ? "book.closed.fill" :
+                                        item.type.hasPrefix("COMMENT_") ? "bubble.left.fill" : "bell.fill")
+                                        .frame(width: 36)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack {
+                                            Text(item.title).font(.headline)
+                                            if !item.isRead { Circle().fill(.tint).frame(width: 7, height: 7) }
+                                        }
+                                        Text(item.body).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                                        Text(item.date, style: .relative).font(.caption).foregroundStyle(.tertiary)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                             }
-                            .tint(notification.isRead ? .gray : accent)
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(item.title). \(item.body). \(item.isRead ? "Read" : "Unread")")
+                            .swipeActions {
+                                Button("Delete", systemImage: "trash", role: .destructive) { Task { await model.delete(item) } }
+                                if !item.isRead {
+                                    Button("Read", systemImage: "checkmark") { Task { await model.markRead(item) } }
+                                }
+                            }
+                        }
+                        if model.hasMore {
+                            ProgressView().frame(maxWidth: .infinity)
+                                .task { await model.loadMore() }
                         }
                     }
-                    // .tint(.primary)
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .overlay {
-                    if filteredNotifications.isEmpty {
-                        ContentUnavailableView(
-                            "You're All Caught Up",
-                            systemImage: "bell.badge.slash",
-                            description: Text("Notifications will appear here when updates are available.")
-                        )
-                    }
+                    .refreshable { await model.refresh() }
                 }
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .task {
-                if environment.services.isPreview && notifications.isEmpty { notifications = KeihatsuNotification.samples }
-            }
-            .navigationTitle(title)
+            .navigationTitle("\(title)\(model.unreadCount > 0 ? " (\(model.unreadCount))" : "")")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        if selectionMode {
-                            selectionMode = false
-                            selectedIDs.removeAll()
-                        } else {
-                            dismiss()
-                        }
-                    } label: {
-                        if selectionMode {
-                            Text("Done")
-                        } else {
-                            Image(systemName: "xmark")
-                                .font(.headline.weight(.semibold))
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                }
-
+                ToolbarItem(placement: .topBarLeading) { Button("Close") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if selectionMode {
-                        Button(role: .destructive) {
-                            deleteNotifications(selectedIDs)
-                        } label: {
-                            Image(systemName: "trash.fill")
-                        }
-                        .disabled(selectedIDs.isEmpty)
-                    }
+                    Button("Read all") { Task { await model.readAll() } }.disabled(model.unreadCount == 0)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Preferences", systemImage: "slider.horizontal.3") { showsPreferences = true }
                 }
             }
+        }
+        .task {
+            let client = environment.services.apiClient ?? APIClient(configuration: APIConfiguration(baseURLString: "https://preview.invalid"))
+            model.configure(api: NotificationsAPI(client: client), token: environment.accountSession.bearerToken)
+            await model.refresh()
         }
         .presentationDragIndicator(.visible)
-    }
-
-    private func markRead(_ id: UUID) {
-        guard let index = notifications.firstIndex(where: { $0.id == id }) else { return }
-        notifications[index].isRead.toggle()
-    }
-
-    private func toggleSelection(for id: UUID) {
-        if selectedIDs.contains(id) {
-            selectedIDs.remove(id)
-        } else {
-            selectedIDs.insert(id)
-        }
-    }
-
-    private func deleteNotifications(_ ids: Set<UUID>) {
-        notifications.removeAll { ids.contains($0.id) }
-        selectedIDs.subtract(ids)
-        if selectedIDs.isEmpty {
-            selectionMode = false
+        .sheet(isPresented: $showsPreferences) {
+            NotificationPreferencesView()
+                .environmentObject(environment)
         }
     }
 }
 
-private struct NotificationRow: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let notification: KeihatsuNotification
-    let isSelected: Bool
-    let selectionMode: Bool
-    let accent: Color
-    let onToggleSelection: () -> Void
+private struct NotificationPreferencesView: View {
+    @EnvironmentObject private var environment: AppEnvironment
+    @Environment(\.dismiss) private var dismiss
+    @State private var values: NotificationPreferencesDTO?
+    @State private var error: String?
+
+    private var api: NotificationsAPI {
+        NotificationsAPI(client: environment.services.apiClient ?? APIClient(configuration: APIConfiguration(baseURLString: "https://preview.invalid")))
+    }
 
     var body: some View {
-        HStack(spacing: 14) {
-            if selectionMode {
-                Button(action: onToggleSelection) {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isSelected ? accent : .secondary)
-                }
-                .buttonStyle(.plain)
+        NavigationStack {
+            Group {
+                if values != nil {
+                    Form {
+                        Toggle("New chapters", isOn: binding(\.libraryUpdates))
+                        Toggle("Replies", isOn: binding(\.commentReplies))
+                        Toggle("Mentions", isOn: binding(\.commentMentions))
+                        Toggle("Likes", isOn: binding(\.commentLikes))
+                        Toggle("Source status", isOn: binding(\.sourceStatus))
+                        Toggle("Product announcements", isOn: binding(\.productAnnouncements))
+                        Text("These switches control push alerts. Important events remain in Inbox.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                } else if let error {
+                    ContentUnavailableView(error, systemImage: "wifi.slash")
+                } else { ProgressView() }
             }
-
-            leadingVisual
-
-            notificationContent
-
-            Spacer(minLength: 0)
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(isSelected ? accent.opacity(0.12) : Color(.secondarySystemGroupedBackground))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(isSelected ? accent.opacity(0.38) : Color(.separator).opacity(0.25), lineWidth: 1)
-        }
-    }
-
-    @ViewBuilder
-    private var leadingVisual: some View {
-        if let imageName = notification.imageName {
-            Image(imageName)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 54, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        } else {
-            Image(systemName: notification.icon)
-                .font(.title3.weight(.semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(systemIconForeground)
-                .frame(width: 44, height: 44)
-                .background(systemIconBackground, in: Circle())
-                .glassEffect(.regular.interactive(), in: .circle)
-        }
-    }
-
-    private var notificationContent: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 8) {
-                Text(notification.displayTitle)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                if !notification.isRead {
-                    Circle()
-                        .fill(accent)
-                        .frame(width: 7, height: 7)
-                }
+            .navigationTitle("Notification preferences")
+            .toolbar { Button("Done") { dismiss() } }
+            .task {
+                guard let token = environment.accountSession.bearerToken else { return }
+                do { values = try await api.preferences(token: token) }
+                catch { self.error = "Could not load preferences." }
             }
-
-            Text(notification.displayMessage)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-
-            Text(notification.time)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
     }
 
-    private var systemIconForeground: Color {
-        colorScheme == .dark ? notification.systemColor : (notification.usesDarkSystemSymbol ? .black : .white)
+    private func binding(_ keyPath: WritableKeyPath<NotificationPreferencesDTO, Bool>) -> Binding<Bool> {
+        Binding(get: { values?[keyPath: keyPath] ?? false }, set: { newValue in
+            guard var current = values, let token = environment.accountSession.bearerToken else { return }
+            let previous = current
+            current[keyPath: keyPath] = newValue
+            values = current
+            Task {
+                do { values = try await api.updatePreferences(current, token: token) }
+                catch { values = previous; self.error = "Could not save preference." }
+            }
+        })
     }
-
-    private var systemIconBackground: Color {
-        colorScheme == .dark ? .black : notification.systemColor
-    }
-}
-
-private enum NotificationTab: String, CaseIterable, Identifiable {
-    case all
-    case updates
-    case system
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .all: return "All"
-        case .updates: return "Updates"
-        case .system: return "System"
-        }
-    }
-}
-
-private struct KeihatsuNotification: Identifiable {
-    let id = UUID()
-    let tab: NotificationTab
-    let icon: String
-    let title: String
-    let message: String
-    let time: String
-    var imageName: String?
-    var mangaTitle: String?
-    var chapters: [String] = []
-    var systemColor: Color = Color(hex: "42D9F5")
-    var usesDarkSystemSymbol = false
-    var isRead: Bool
-
-    var displayTitle: String {
-        guard !chapters.isEmpty else { return title }
-        return mangaTitle ?? "Manwha Name Not Available"
-        // return chapters.count == 1 ? "New Chapter" : "New Chapters"
-    }
-
-    var displayMessage: String {
-        guard !chapters.isEmpty else { return message }
-        let chapterLabel = chapters.count == 1 ? "chapter" : "chapters"
-        return "\(chapters.count) \(chapterLabel) • \(chapters.joined(separator: ", "))\(chapters.count > 2 ? "..." : "")"
-    }
-
-    static let samples: [KeihatsuNotification] = [
-        KeihatsuNotification(tab: .updates, icon: "book.closed.fill", title: "Ordeal", message: "", time: "2m ago", imageName: "Image5", mangaTitle: "Ordeal", chapters: ["Chapter 132", "145", "155"], isRead: false),
-        KeihatsuNotification(tab: .updates, icon: "book.closed.fill", title: "Latna Saga", message: "", time: "18m ago", imageName: "Image2", mangaTitle: "Latna Saga", chapters: ["Chapter 88"], isRead: false),
-        KeihatsuNotification(tab: .updates, icon: "book.closed.fill", title: "The World After the Fall", message: "", time: "Yesterday", imageName: "Image3", mangaTitle: "The World After the Fall", chapters: ["Chapter 71", "72", "73"], isRead: true),
-        KeihatsuNotification(tab: .system, icon: "arrow.down.to.line.compact", title: "Update Available", message: "A new Keihatsu build is ready with reader and plugin improvements.", time: "1h ago", systemColor: Color(hex: "8DE328"), usesDarkSystemSymbol: true, isRead: true),
-        KeihatsuNotification(tab: .system, icon: "arrow.trianglehead.2.clockwise.rotate.90.icloud.fill", title: "Sync Queued", message: "Reading history will sync when your account session refreshes.", time: "2h ago", systemColor: Color(hex: "42D9F5"), usesDarkSystemSymbol: true, isRead: true),
-        KeihatsuNotification(tab: .system, icon: "puzzlepiece.extension.fill", title: "Source Warning", message: "MangaFire is responding slowly. Try again later if pages fail.", time: "3h ago", systemColor: Color(hex: "FF7A3D"), isRead: false)
-    ]
-}
-
-#Preview {
-    NotificationsSheetView().appEnvironment(.preview())
 }

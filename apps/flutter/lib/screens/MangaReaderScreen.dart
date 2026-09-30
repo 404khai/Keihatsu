@@ -24,12 +24,14 @@ class MangaReaderScreen extends StatefulWidget {
   final Manga manga;
   final List<dynamic> chapters; // Can be List<Chapter> or List<LocalChapter>
   final int initialChapterIndex;
+  final bool openComments;
 
   const MangaReaderScreen({
     super.key,
     required this.manga,
     required this.chapters,
     required this.initialChapterIndex,
+    this.openComments = false,
   });
 
   @override
@@ -73,6 +75,11 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
     _bottomChapterIndex = _currentChapterIndex;
     _loadLocalManga();
     _loadInitialChapter();
+    if (widget.openComments) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showComments();
+      });
+    }
 
     _scrollController.addListener(() {
       if (_items.isNotEmpty) {
@@ -848,7 +855,20 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                         PhosphorIcons.chatCircle(),
                         color: Colors.white,
                       ),
-                      onPressed: () {
+                      onPressed: _showComments,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showComments() {
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
@@ -884,17 +904,6 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                             },
                           ),
                         );
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
   }
 
   Widget _buildChapterButton({

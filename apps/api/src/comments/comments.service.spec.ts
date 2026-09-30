@@ -9,7 +9,8 @@ describe('CommentsService source scoping', () => {
     },
   };
   const cloudinary = { uploadImage: jest.fn() };
-  const service = new CommentsService(prisma as any, cloudinary as any);
+  const notifications = { create: jest.fn(), recordLike: jest.fn() };
+  const service = new CommentsService(prisma as any, cloudinary as any, notifications as any);
 
   beforeEach(() => jest.clearAllMocks());
 

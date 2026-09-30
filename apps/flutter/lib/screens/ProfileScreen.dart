@@ -23,6 +23,7 @@ import 'package:keihatsu/screens/DownloadQueueScreen.dart';
 import 'package:keihatsu/screens/EditProfileScreen.dart';
 import 'package:keihatsu/screens/HelpAndSupportScreen.dart';
 import 'package:keihatsu/screens/InboxScreen.dart';
+import '../services/push_coordinator.dart';
 import 'package:keihatsu/screens/LibrarySettingsScreen.dart';
 import 'package:keihatsu/screens/SettingsScreen.dart';
 import 'package:keihatsu/screens/StatsScreen.dart';
@@ -394,6 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 }),
                             onChanged: (enabled) {
                               setState(() => _incognitoMode = enabled);
+                              context.read<PushCoordinator>().setIncognito(enabled);
                               if (enabled) {
                                 NotificationPill.showPersistent(
                                   context,

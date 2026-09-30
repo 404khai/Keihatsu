@@ -44,12 +44,15 @@ model User {
   role             Role  @default(USER)
 
   // Relations
-  comments          Comment[]
-  library           LibraryEntry[]
-  categories        Category[]
-  history           HistoryEntry[]
-  historySyncEvents HistorySyncEvent[]
-  commentLikes      CommentLike[]
+  comments               Comment[]
+  library                LibraryEntry[]
+  categories             Category[]
+  history                HistoryEntry[]
+  historySyncEvents      HistorySyncEvent[]
+  commentLikes           CommentLike[]
+  notifications          Notification[]
+  pushDevices            PushDevice[]
+  notificationPreference NotificationPreference?
 
   @@map("users")
 }
@@ -144,6 +147,151 @@ model CommentLike {
 
   @@unique([userId, commentId])
   @@map("comment_likes")
+}
+
+enum NotificationType {
+  CHAPTER_UPDATE
+  COMMENT_REPLY
+  COMMENT_MENTION
+  COMMENT_LIKE
+  COMMENT_MODERATION
+  SYSTEM_ANNOUNCEMENT
+  SOURCE_OUTAGE
+  SOURCE_RESTORED
+  APP_UPDATE_REQUIRED
+  ACCOUNT_SECURITY
+  SYNC_FAILURE
+}
+
+enum PushPlatform {
+  IOS
+  ANDROID
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  body        String
+  actorUserId String?
+  sourceId    String?
+  mangaId     String?
+  chapterId   String?
+  commentId   String?
+  threadId    String?
+  deepLink    String
+  data        Json             @default("{}")
+  groupingKey String?
+  dedupeKey   String?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  expiresAt   DateTime?
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, createdAt, id])
+  @@index([userId, readAt, createdAt])
+  @@index([userId, type, createdAt])
+  @@map("notifications")
+}
+
+model PushDevice {
+  id             String         @id @default(uuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform       PushPlatform
+  token          String         @unique
+  installationId String         @unique
+  appVersion     String
+  enabled        Boolean        @default(true)
+  lastSeenAt     DateTime       @default(now())
+  invalidatedAt  DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deliveries     PushDelivery[]
+
+  @@index([userId, enabled])
+  @@map("push_devices")
+}
+
+model PushDelivery {
+  id             String     @id @default(uuid())
+  notificationId String
+  deviceId       String
+  device         PushDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  status         String     @default("PENDING")
+  attempts       Int        @default(0)
+  nextAttemptAt  DateTime   @default(now())
+  deliveredAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([notificationId, deviceId])
+  @@index([status, nextAttemptAt])
+  @@map("push_deliveries")
+}
+
+model NotificationPreference {
+  userId               String   @id
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  libraryUpdates       Boolean  @default(true)
+  commentReplies       Boolean  @default(true)
+  commentMentions      Boolean  @default(true)
+  commentLikes         Boolean  @default(false)
+  moderation           Boolean  @default(true)
+  sourceStatus         Boolean  @default(true)
+  productAnnouncements Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
+
+model ChapterSnapshot {
+  id            String   @id @default(uuid())
+  sourceId      String
+  mangaId       String
+  chapterIds    Json
+  lastSuccessAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([sourceId, mangaId])
+  @@map("chapter_snapshots")
+}
+
+model SystemAnnouncement {
+  id            String        @id @default(uuid())
+  title         String
+  body          String
+  platform      PushPlatform?
+  minAppVersion String?
+  maxAppVersion String?
+  deepLink      String?
+  severity      String
+  pushEnabled   Boolean       @default(true)
+  publishAt     DateTime
+  expiresAt     DateTime?
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([publishAt, publishedAt])
+  @@map("system_announcements")
+}
+
+model SourceHealth {
+  sourceId          String    @id
+  failureCount      Int       @default(0)
+  lastSuccessAt     DateTime?
+  lastFailureAt     DateTime?
+  outageAnnouncedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("source_health")
 }
 
 model HistoryEntry {

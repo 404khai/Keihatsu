@@ -121,6 +121,7 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func logout() async {
+        await PushRegistrationCoordinator.shared.signedOut(token: bearerToken)
         generation = UUID()
         restoreTask?.cancel()
         restoreTask = nil
