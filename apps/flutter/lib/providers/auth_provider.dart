@@ -84,11 +84,15 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> refreshUserStats() async {
     if (_token == null || _user == null) return;
+    final token = _token!;
+    final userId = _user!.id;
     try {
-      final stats = await _authApi.getUserStats(_token!);
+      final stats = await _authApi.getUserStats(token);
+      if (_token != token || _user?.id != userId) return;
       _user = _user!.copyWith(stats: stats);
       notifyListeners();
     } catch (e) {
+      if (_token != token || _user?.id != userId) return;
       debugPrint('Failed to refresh user stats: $e');
       rethrow;
     }

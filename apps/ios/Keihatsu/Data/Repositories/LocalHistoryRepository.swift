@@ -27,6 +27,8 @@ actor LocalHistoryRepository: HistoryRepository {
         )
     }
 
+    func allProgress() async -> [ReaderProgressRecord] { await progressStore.all() }
+
     func recentProgress() async -> [ReaderProgressRecord] {
         await progressStore.recent()
     }

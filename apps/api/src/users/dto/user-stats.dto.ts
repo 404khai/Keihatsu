@@ -4,4 +4,5 @@ export class UserStatsDto {
   mangasReadToday: number; // Number of unique mangas read today
   commentsCount: number; // Total comments count
   points: number;
+  dailyReadingTimeMinutes: Record<string, number>; // UTC date keys (YYYY-MM-DD)
 }

@@ -1,3 +1,10 @@
+import 'dart:async';
+import 'package:isar/isar.dart';
+import '../models/local_models.dart';
+import '../models/reading_statistics.dart';
+import '../providers/auth_provider.dart';
+import '../services/manga_repository.dart';
+import '../services/history_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:keihatsu/components/CustomBackButton.dart';
@@ -14,20 +21,130 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   String _selectedFilter = 'Last Week';
-  final List<String> _filters = ['Last Week', 'Last Month', 'Last Year', 'All Time'];
+  final List<String> _filters = [
+    'Last Week',
+    'Last Month',
+    'Last Year',
+    'All Time',
+  ];
 
-  // Mock data for the chart
-  final List<double> _weeklyData = [2.5, 4.0, 3.2, 5.5, 4.8, 6.0, 3.5];
-  final List<String> _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  List<LocalChapter> _chapters = [];
+  List<LocalManga> _mangas = [];
+  String? _owner;
+  String? _error;
+  bool _loading = true;
+  int _loadGeneration = 0;
+  StreamSubscription<void>? _chapterSubscription;
+  StreamSubscription<void>? _mangaSubscription;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = context.watch<AuthProvider>();
+    final owner = auth.localScopeUserId;
+    if (_owner == owner) return;
+    _owner = owner;
+    _chapters = [];
+    _mangas = [];
+    _error = null;
+    _loading = true;
+    _chapterSubscription?.cancel();
+    _mangaSubscription?.cancel();
+    final isar = context.read<MangaRepository>().isar;
+    _chapterSubscription = isar.collection<LocalChapter>().watchLazy().listen(
+      (_) => _loadLocal(),
+    );
+    _mangaSubscription = isar.collection<LocalManga>().watchLazy().listen(
+      (_) => _loadLocal(),
+    );
+    _loadLocal();
+    unawaited(_refresh());
+  }
+
+  Future<void> _loadLocal() async {
+    final generation = ++_loadGeneration;
+    final owner = _owner;
+    final isar = context.read<MangaRepository>().isar;
+    try {
+      final chapters = await isar
+          .collection<LocalChapter>()
+          .filter()
+          .ownerUserIdEqualTo(owner!)
+          .lastReadAtIsNotNull()
+          .findAll();
+      final mangas = await isar
+          .collection<LocalManga>()
+          .filter()
+          .ownerUserIdEqualTo(owner)
+          .findAll();
+      if (!mounted || _owner != owner || generation != _loadGeneration) return;
+      setState(() {
+        _chapters = chapters;
+        _mangas = mangas;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted || _owner != owner || generation != _loadGeneration) return;
+      setState(() {
+        _loading = false;
+        _error = 'Could not load reading history.';
+      });
+    }
+  }
+
+  Future<void> _refresh() async {
+    final auth = context.read<AuthProvider>();
+    final owner = _owner;
+    final token = auth.token;
+    final repository = context.read<HistoryRepository>();
+    try {
+      if (token != null) {
+        await Future.wait([
+          repository.refreshHistoryFromServer(token, ownerUserId: owner),
+          auth.refreshUserStats(),
+        ]);
+      }
+      if (!mounted || _owner != owner) return;
+      setState(() {
+        _error = null;
+      });
+    } catch (_) {
+      if (!mounted || _owner != owner) return;
+      setState(() {
+        _error = 'Could not refresh stats. Showing saved data.';
+      });
+    }
+    if (mounted && _owner == owner) await _loadLocal();
+  }
+
+  @override
+  void dispose() {
+    _chapterSubscription?.cancel();
+    _mangaSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final account = context.watch<AuthProvider>().user?.stats;
+    final stats = ReadingStatistics.calculate(
+      chapters: _chapters,
+      mangas: _mangas,
+      period: _selectedFilter,
+      account: account,
+    );
+    final maxMinutes = stats.activity.fold(
+      1.0,
+      (value, day) => day.minutes > value ? day.minutes : value,
+    );
     final themeProvider = Provider.of<ThemeProvider>(context);
     final brandColor = themeProvider.brandColor;
     final bgColor = themeProvider.effectiveBgColor;
     final bool isDarkMode = themeProvider.themeMode == ThemeMode.dark;
     final Color textColor = isDarkMode ? Colors.white : Colors.black87;
-    final Color cardColor = isDarkMode ? Colors.white10 : Colors.white.withOpacity(0.5);
+    final Color cardColor = isDarkMode
+        ? Colors.white10
+        : Colors.white.withValues(alpha: 0.5);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -38,7 +155,11 @@ class _StatsScreenState extends State<StatsScreen> {
         title: Text(
           'Statistics',
           style: GoogleFonts.unbounded(
-            textStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 24),
+            textStyle: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
           ),
         ),
         actions: [
@@ -47,7 +168,11 @@ class _StatsScreenState extends State<StatsScreen> {
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedFilter,
-                icon: Icon(PhosphorIcons.caretDown(), color: textColor, size: 16),
+                icon: Icon(
+                  PhosphorIcons.caretDown(),
+                  color: textColor,
+                  size: 16,
+                ),
                 dropdownColor: bgColor,
                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
                 onChanged: (String? newValue) {
@@ -68,82 +193,200 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Summary Cards
-            Row(
-              children: [
-                Expanded(child: _buildSummaryCard("Reading Time", "24.5h", PhosphorIcons.clock(), brandColor, cardColor, textColor)),
-                const SizedBox(width: 15),
-                Expanded(child: _buildSummaryCard("Titles Read", "12", PhosphorIcons.bookOpen(), brandColor, cardColor, textColor)),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
-                Expanded(child: _buildSummaryCard("Comments", "48", PhosphorIcons.chatCircleText(), brandColor, cardColor, textColor)),
-                const SizedBox(width: 15),
-                Expanded(child: _buildSummaryCard("Chapters", "342", PhosphorIcons.listBullets(), brandColor, cardColor, textColor)),
-              ],
-            ),
-            
-            const SizedBox(height: 30),
-            
-            // Bar Chart Section
-            Text(
-              "Daily Activity",
-              style: GoogleFonts.unbounded(
-                textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Column(
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_loading) const LinearProgressIndicator(),
+              if (_error != null)
+                TextButton(onPressed: _refresh, child: Text(_error!)),
+              if (!_loading && stats.activeDays == 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'Start reading to build your stats.',
+                    style: TextStyle(color: textColor),
+                  ),
+                ),
+              // Summary Cards
+              Row(
                 children: [
-                  SizedBox(
-                    height: 200,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(_weeklyData.length, (index) {
-                        return _buildBar(_weeklyData[index], _days[index], brandColor, textColor);
-                      }),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      "Reading Time",
+                      "${(stats.readingMinutes / 60).toStringAsFixed(1)}h",
+                      PhosphorIcons.clock(),
+                      brandColor,
+                      cardColor,
+                      textColor,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      "Titles Read",
+                      "${stats.titlesOpened}",
+                      PhosphorIcons.bookOpen(),
+                      brandColor,
+                      cardColor,
+                      textColor,
                     ),
                   ),
                 ],
               ),
-            ),
-            
-            const SizedBox(height: 30),
-            
-            // Recently Finished
-            Text(
-              "Top Genres",
-              style: GoogleFonts.unbounded(
-                textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryCard(
+                      "Comments (all time)",
+                      "${account?.commentsCount ?? 0}",
+                      PhosphorIcons.chatCircleText(),
+                      brandColor,
+                      cardColor,
+                      textColor,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      "Chapters read",
+                      "${stats.chaptersRead}",
+                      PhosphorIcons.listBullets(),
+                      brandColor,
+                      cardColor,
+                      textColor,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 15),
-            _buildGenreStats("Action", 0.8, brandColor, cardColor, textColor),
-            _buildGenreStats("Fantasy", 0.6, brandColor, cardColor, textColor),
-            _buildGenreStats("Romance", 0.4, brandColor, cardColor, textColor),
-            
-            const SizedBox(height: 100),
-          ],
+
+              if (account != null)
+                Text(
+                  'All time: ${(account.totalReadingTimeMinutes / 60).toStringAsFixed(1)}h',
+                  style: TextStyle(color: textColor),
+                ),
+              if (account != null &&
+                  account.dailyReadingTimeMinutes.isEmpty &&
+                  account.totalReadingTimeMinutes > 0)
+                Text(
+                  'Daily reading time is unavailable. Pull to refresh.',
+                  style: TextStyle(color: textColor),
+                ),
+              if (account == null)
+                Text(
+                  'Sign in to load reading time and comments.',
+                  style: TextStyle(color: textColor),
+                ),
+              const SizedBox(height: 30),
+
+              // Bar Chart Section
+              Text(
+                "Reading Time (UTC)",
+                style: GoogleFonts.unbounded(
+                  textStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 200,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: List.generate(stats.activity.length, (
+                            index,
+                          ) {
+                            final day = stats.activity[index];
+                            return SizedBox(
+                              width: 40,
+                              child: Tooltip(
+                                message:
+                                    "${day.label}: ${day.minutes.toStringAsFixed(1)} min",
+                                child: _buildBar(
+                                  day.minutes / maxMinutes * 6,
+                                  day.label,
+                                  brandColor,
+                                  textColor,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // Recently Finished
+              Text(
+                "Top Genres",
+                style: GoogleFonts.unbounded(
+                  textStyle: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              if (stats.genres.isEmpty)
+                Text(
+                  'No completed chapters yet.',
+                  style: TextStyle(color: textColor),
+                ),
+              for (final genre in stats.genres.entries)
+                _buildGenreStats(
+                  genre.key,
+                  genre.value,
+                  brandColor,
+                  cardColor,
+                  textColor,
+                ),
+              Text(
+                'Completed chapters may have multiple genres. Unknown means genre metadata is unavailable.',
+                style: TextStyle(
+                  color: textColor.withValues(alpha: 0.5),
+                  fontSize: 12,
+                ),
+              ),
+
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, PhosphorIconData icon, Color brandColor, Color cardColor, Color textColor) {
+  Widget _buildSummaryCard(
+    String title,
+    String value,
+    PhosphorIconData icon,
+    Color brandColor,
+    Color cardColor,
+    Color textColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -158,19 +401,31 @@ class _StatsScreenState extends State<StatsScreen> {
           Text(
             value,
             style: GoogleFonts.denkOne(
-              textStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+              textStyle: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
             ),
           ),
           Text(
             title,
-            style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12),
+            style: TextStyle(
+              color: textColor.withValues(alpha: 0.5),
+              fontSize: 12,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBar(double value, String label, Color brandColor, Color textColor) {
+  Widget _buildBar(
+    double value,
+    String label,
+    Color brandColor,
+    Color textColor,
+  ) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -185,13 +440,23 @@ class _StatsScreenState extends State<StatsScreen> {
         const SizedBox(height: 8),
         Text(
           label,
-          style: TextStyle(color: textColor.withOpacity(0.6), fontSize: 10, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: textColor.withValues(alpha: 0.6),
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildGenreStats(String genre, double percent, Color brandColor, Color cardColor, Color textColor) {
+  Widget _buildGenreStats(
+    String genre,
+    double percent,
+    Color brandColor,
+    Color cardColor,
+    Color textColor,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -200,8 +465,17 @@ class _StatsScreenState extends State<StatsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(genre, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-              Text("${(percent * 100).toInt()}%", style: TextStyle(color: textColor.withOpacity(0.5), fontSize: 12)),
+              Text(
+                genre,
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                "${(percent * 100).toInt()}%",
+                style: TextStyle(
+                  color: textColor.withValues(alpha: 0.5),
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),

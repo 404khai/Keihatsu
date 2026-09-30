@@ -21,6 +21,7 @@ nonisolated struct UserStatistics: Codable, Equatable, Sendable {
     var mangasReadToday: Int
     var commentsCount: Int
     var points: Int
+    var dailyReadingTimeMinutes: [String: Double]? = nil
 
     static let empty = Self(libraryCount: 0, totalReadingTimeMinutes: 0, mangasReadToday: 0, commentsCount: 0, points: 0)
 }

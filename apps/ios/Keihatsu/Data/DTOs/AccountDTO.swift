@@ -42,6 +42,7 @@ nonisolated struct UserStatisticsDTO: Codable, Sendable {
     let mangasReadToday: Int?
     let commentsCount: Int?
     let points: Int?
+    var dailyReadingTimeMinutes: [String: Double]? = nil
 
     var domain: UserStatistics {
         UserStatistics(
@@ -49,7 +50,8 @@ nonisolated struct UserStatisticsDTO: Codable, Sendable {
             totalReadingTimeMinutes: totalReadingTimeMinutes ?? 0,
             mangasReadToday: mangasReadToday ?? 0,
             commentsCount: commentsCount ?? 0,
-            points: points ?? 0
+            points: points ?? 0,
+            dailyReadingTimeMinutes: dailyReadingTimeMinutes
         )
     }
 }

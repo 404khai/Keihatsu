@@ -86,6 +86,15 @@ final class AccountDataCoordinator: CollectionMutationHandling {
         await task.value
     }
 
+    func refreshReadingHistory() async {
+        guard let userID = currentUserID, let token else { return }
+        let requestGeneration = generation
+        await processOutbox()
+        guard generation == requestGeneration else { return }
+        await refreshHistory(userID: userID, token: token, generation: requestGeneration)
+        await readingHistory.refresh()
+    }
+
     func refreshCollections() async {
         guard let userID = currentUserID, let token else { return }
         let requestGeneration = generation

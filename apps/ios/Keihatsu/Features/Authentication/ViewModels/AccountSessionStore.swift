@@ -87,6 +87,21 @@ final class AccountSessionStore: ObservableObject {
         } catch { handle(error) }
     }
 
+    func refreshStatistics() async {
+        guard let token = bearerToken, let userID = account?.id else { return }
+        let requestGeneration = generation
+        do {
+            let statistics = try await users.statistics(token: token)
+            guard generation == requestGeneration, bearerToken == token, account?.id == userID else { return }
+            account?.statistics = statistics
+            if let account { try? await cache.save(account) }
+            error = nil
+        } catch {
+            guard generation == requestGeneration, bearerToken == token else { return }
+            handle(error)
+        }
+    }
+
     func updateProfile(_ update: ProfileUpdate) async throws {
         guard let token = bearerToken else { throw APIError.authenticationRequired }
         var updated = try await users.updateProfile(update, token: token)
