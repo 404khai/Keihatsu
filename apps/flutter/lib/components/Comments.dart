@@ -17,8 +17,8 @@ import 'dart:io';
 class CommentsBottomSheet extends StatefulWidget {
   final ScrollController scrollController;
   final int currentChapterIndex;
+  final String sourceId;
   final String mangaId;
-  final String chapterId;
   final List<dynamic> chapters;
   final Function(int) onChapterChange;
 
@@ -26,8 +26,8 @@ class CommentsBottomSheet extends StatefulWidget {
     super.key,
     required this.scrollController,
     required this.currentChapterIndex,
+    required this.sourceId,
     required this.mangaId,
-    required this.chapterId,
     required this.chapters,
     required this.onChapterChange,
   });
@@ -47,6 +47,13 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   String? _replyingToCommentId;
   String? _replyingToUsername;
   Set<String> _expandedComments = {};
+
+  String get _currentChapterId {
+    final chapter = widget.chapters[_currentIndex];
+    return chapter is Chapter
+        ? chapter.id
+        : (chapter as LocalChapter).chapterId;
+  }
 
   String _formatCount(int count) {
     if (count < 1000) return count.toString();
@@ -88,15 +95,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
   void _fetchCommentsForCurrentChapter() {
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final chapter = widget.chapters[_currentIndex];
-    final chapterId = chapter is Chapter
-        ? chapter.id
-        : (chapter as LocalChapter).chapterId;
-
-    Provider.of<CommentsProvider>(
-      context,
-      listen: false,
-    ).fetchComments(widget.mangaId, chapterId, auth.token);
+    Provider.of<CommentsProvider>(context, listen: false).fetchComments(
+      widget.sourceId,
+      widget.mangaId,
+      _currentChapterId,
+      auth.token,
+    );
   }
 
   void _goToNextChapter() {
@@ -185,14 +189,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         context,
         listen: false,
       );
-      final chapter = widget.chapters[_currentIndex];
-      final chapterId = chapter is Chapter
-          ? chapter.id
-          : (chapter as LocalChapter).chapterId;
-
       await commentsProvider.postComment(
+        widget.sourceId,
         widget.mangaId,
-        chapterId,
+        _currentChapterId,
         content,
         auth.token ?? '',
         parentId: parentId,
@@ -862,8 +862,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           commentsProvider.likeComment(
                             comment.id,
                             auth.token!,
+                            widget.sourceId,
                             widget.mangaId,
-                            widget.chapterId,
+                            _currentChapterId,
                           );
                         }
                       },

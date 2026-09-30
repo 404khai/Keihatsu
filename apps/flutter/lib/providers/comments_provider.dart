@@ -5,6 +5,8 @@ import '../models/comment.dart';
 import '../services/api_constants.dart';
 
 class CommentsProvider with ChangeNotifier {
+  final http.Client _client;
+  final bool _ownsClient;
   List<Comment> _comments = [];
   bool _isLoading = false;
   String? _error;
@@ -13,7 +15,12 @@ class CommentsProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  CommentsProvider({http.Client? client})
+    : _client = client ?? http.Client(),
+      _ownsClient = client == null;
+
   Future<void> fetchComments(
+    String sourceId,
     String mangaId,
     String chapterId,
     String? token, {
@@ -31,13 +38,8 @@ class CommentsProvider with ChangeNotifier {
         headers['Authorization'] = 'Bearer $token';
       }
 
-      final encodedMangaId = Uri.encodeComponent(mangaId);
-      final encodedChapterId = Uri.encodeComponent(chapterId);
-
-      final response = await http.get(
-        Uri.parse(
-          '${ApiConstants.baseUrl}/comments/$encodedMangaId/$encodedChapterId',
-        ),
+      final response = await _client.get(
+        _commentsUri(sourceId, mangaId, chapterId),
         headers: headers,
       );
 
@@ -61,6 +63,7 @@ class CommentsProvider with ChangeNotifier {
   }
 
   Future<void> postComment(
+    String sourceId,
     String mangaId,
     String chapterId,
     String content,
@@ -69,12 +72,7 @@ class CommentsProvider with ChangeNotifier {
     List<String> imagePaths = const [],
   }) async {
     try {
-      final encodedMangaId = Uri.encodeComponent(mangaId);
-      final encodedChapterId = Uri.encodeComponent(chapterId);
-
-      final uri = Uri.parse(
-        '${ApiConstants.baseUrl}/comments/$encodedMangaId/$encodedChapterId',
-      );
+      final uri = _commentsUri(sourceId, mangaId, chapterId);
       final request = http.MultipartRequest('POST', uri);
 
       request.headers['Authorization'] = 'Bearer $token';
@@ -91,12 +89,12 @@ class CommentsProvider with ChangeNotifier {
         request.files.add(await http.MultipartFile.fromPath('images', path));
       }
 
-      final streamedResponse = await request.send();
+      final streamedResponse = await _client.send(request);
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 201) {
         // Refresh comments
-        await fetchComments(mangaId, chapterId, token);
+        await fetchComments(sourceId, mangaId, chapterId, token);
       } else {
         throw Exception(
           'Failed to post comment: ${response.statusCode} - ${response.body}',
@@ -110,11 +108,12 @@ class CommentsProvider with ChangeNotifier {
   Future<void> likeComment(
     String commentId,
     String token,
+    String sourceId,
     String mangaId,
     String chapterId,
   ) async {
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('${ApiConstants.baseUrl}/comments/like/$commentId'),
         headers: {
           'Content-Type': 'application/json',
@@ -124,12 +123,38 @@ class CommentsProvider with ChangeNotifier {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         // Refresh comments seamlessly
-        await fetchComments(mangaId, chapterId, token, showLoader: false);
+        await fetchComments(
+          sourceId,
+          mangaId,
+          chapterId,
+          token,
+          showLoader: false,
+        );
       } else {
         throw Exception('Failed to like: ${response.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
+  }
+
+  Uri _commentsUri(String sourceId, String mangaId, String chapterId) =>
+      Uri.parse(ApiConstants.baseUrl).replace(
+        pathSegments: [
+          ...Uri.parse(
+            ApiConstants.baseUrl,
+          ).pathSegments.where((segment) => segment.isNotEmpty),
+          'comments',
+          'source',
+          sourceId,
+          mangaId,
+          chapterId,
+        ],
+      );
+
+  @override
+  void dispose() {
+    if (_ownsClient) _client.close();
+    super.dispose();
   }
 }
