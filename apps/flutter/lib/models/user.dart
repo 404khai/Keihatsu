@@ -152,6 +152,7 @@ class UserStats {
   final int mangasReadToday;
   final int commentsCount;
   final int points;
+  final Map<String, double> dailyReadingTimeMinutes;
 
   UserStats({
     required this.libraryCount,
@@ -159,6 +160,7 @@ class UserStats {
     required this.mangasReadToday,
     required this.commentsCount,
     required this.points,
+    this.dailyReadingTimeMinutes = const {},
   });
 
   factory UserStats.fromJson(Map<String, dynamic> json) {
@@ -168,6 +170,10 @@ class UserStats {
       mangasReadToday: json['mangasReadToday'] ?? 0,
       commentsCount: json['commentsCount'] ?? 0,
       points: json['points'] ?? 0,
+      dailyReadingTimeMinutes:
+          (json['dailyReadingTimeMinutes'] as Map<String, dynamic>? ?? {}).map(
+            (key, value) => MapEntry(key, (value as num).toDouble()),
+          ),
     );
   }
 
@@ -178,6 +184,7 @@ class UserStats {
       'mangasReadToday': mangasReadToday,
       'commentsCount': commentsCount,
       'points': points,
+      'dailyReadingTimeMinutes': dailyReadingTimeMinutes,
     };
   }
 }

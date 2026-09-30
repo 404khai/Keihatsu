@@ -46,6 +46,12 @@ actor ReaderProgressStore {
         return records[chapter]
     }
 
+    func all() -> [ReaderProgressRecord] {
+        loadIfNeeded()
+        return records.values.filter { $0.totalPages > 0 || $0.isRead || $0.pageIndex > 0 || $0.activeReadingSeconds > 0 }
+            .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
     func recent() -> [ReaderProgressRecord] {
         loadIfNeeded()
         var seenManga = Set<MangaIdentity>()

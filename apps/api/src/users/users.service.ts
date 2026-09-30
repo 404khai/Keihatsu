@@ -57,8 +57,19 @@ export class UsersService {
     });
 
     let totalReadingTimeMinutes = 0;
+    const dailyReadingTimeMinutes: Record<string, number> = {};
     if (user?.readingStats) {
       const stats = user.readingStats as Record<string, number>;
+      for (const [date, milliseconds] of Object.entries(stats)) {
+        if (
+          /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+          typeof milliseconds === 'number' &&
+          Number.isFinite(milliseconds) &&
+          milliseconds > 0
+        ) {
+          dailyReadingTimeMinutes[date] = milliseconds / 60000;
+        }
+      }
       const totalMs = Object.values(stats).reduce(
         (acc, curr) => acc + (typeof curr === 'number' ? curr : 0),
         0,
@@ -68,6 +79,7 @@ export class UsersService {
 
     return {
       libraryCount,
+      dailyReadingTimeMinutes,
       commentsCount,
       mangasReadToday,
       totalReadingTimeMinutes,

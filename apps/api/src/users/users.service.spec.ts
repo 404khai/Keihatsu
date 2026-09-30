@@ -19,6 +19,9 @@ describe('UsersService', () => {
     user: { delete: jest.fn() },
   };
   const prismaService = {
+    libraryEntry: { count: jest.fn().mockResolvedValue(2) },
+    comment: { count: jest.fn().mockResolvedValue(3) },
+    historyEntry: { groupBy: jest.fn().mockResolvedValue([]) },
     user: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
@@ -41,6 +44,25 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
+  });
+
+  it('exposes fractional daily minutes using stored UTC date keys', async () => {
+    prismaService.user.findUnique.mockResolvedValue({
+      readingStats: { '2026-09-30': 90000, '2026-10-01': 60000 },
+      points: 5,
+    });
+    await expect(service.getUserStats('user-1')).resolves.toMatchObject({
+      totalReadingTimeMinutes: 2,
+      dailyReadingTimeMinutes: { '2026-09-30': 1.5, '2026-10-01': 1 },
+    });
+  });
+
+  it('returns an empty daily map for accounts without reading time', async () => {
+    prismaService.user.findUnique.mockResolvedValue({ readingStats: null });
+    await expect(service.getUserStats('user-1')).resolves.toMatchObject({
+      totalReadingTimeMinutes: 0,
+      dailyReadingTimeMinutes: {},
+    });
   });
 
   it('should be defined', () => {

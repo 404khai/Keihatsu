@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class ReadingHistoryModel: ObservableObject {
     @Published private(set) var entries: [ReaderProgressRecord] = []
+    @Published private(set) var chapterEntries: [ReaderProgressRecord] = []
     private let repository: any HistoryRepository
     weak var syncCoordinator: AccountDataCoordinator?
 
@@ -13,6 +14,12 @@ final class ReadingHistoryModel: ObservableObject {
 
     func refresh() async {
         entries = await repository.recentProgress()
+        chapterEntries = await repository.allProgress()
+    }
+
+    func refreshFromAccount() async {
+        await refresh()
+        await syncCoordinator?.refreshReadingHistory()
     }
 
     func progress(for chapter: ChapterIdentity) async -> ReaderProgressRecord? {

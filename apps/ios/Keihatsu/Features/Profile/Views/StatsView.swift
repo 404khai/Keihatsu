@@ -4,15 +4,28 @@ import SwiftUI
 struct StatsView: View {
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
 
-    private let dailyReading = ReadingDay.preview
-    private let genres = GenreSlice.preview
-    private let monthlyReading = ReadingMonth.preview
+    @EnvironmentObject private var session: AccountSessionStore
+    @EnvironmentObject private var history: ReadingHistoryModel
+
+    private var stats: ReadingStatistics {
+        ReadingStatistics(statistics: session.account?.statistics ?? .empty, history: history.chapterEntries)
+    }
+    private var dailyReading: [ReadingStatistics.Day] { stats.daily }
+    private var genres: [ReadingStatistics.Genre] { stats.genres }
+    private var monthlyReading: [ReadingStatistics.Month] { stats.monthly }
+    private var genreColors: [Color] { genres.indices.map { [accent, .blue, .purple, .orange, .pink, .teal][$0 % 6] } }
 
     private var accent: Color { Color(hex: preferencesStore.preferences.theme.hex) }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
+                if let error = session.error {
+                    CatalogueMessage(message: error) { Task { await refresh() } }
+                }
+                if history.chapterEntries.isEmpty && stats.activeDays == 0 {
+                    Text("Start reading to build your stats.").foregroundStyle(.secondary)
+                }
                 overviewCard
                 metricGrid
                 weeklyChartCard
@@ -28,36 +41,37 @@ struct StatsView: View {
         .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+        .task(id: session.account?.id) { await refresh() }
+        .refreshable { await refresh() }
     }
 
     private var overviewCard: some View {
         VStack(alignment: .leading, spacing: 24) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Reading this week")
+                    Text("Reading in the last 7 days")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Text("12 hr 24 min")
+                    Text(ReadingStatistics.duration(stats.weekMinutes))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
-                    Text("2 hr 18 min more than last week")
+                    Text("Previous 7 days: \(ReadingStatistics.duration(stats.previousWeekMinutes))")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(accent)
                 }
 
                 Spacer()
-
-                Text("PREVIEW DATA")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
-                    .background(.thinMaterial, in: Capsule())
             }
 
+            Text("All time: \(ReadingStatistics.duration(Double(session.account?.statistics.totalReadingTimeMinutes ?? 0)))")
+                .font(.footnote).foregroundStyle(.secondary)
+            if session.account?.statistics.dailyReadingTimeMinutes == nil {
+                Text("Daily reading time is unavailable. Sign in or pull to refresh account stats.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             HStack(spacing: 8) {
                 Image(systemName: "flame.fill")
                     .foregroundStyle(.orange)
-                Text("7 day reading streak")
+                Text("\(stats.streak) day reading streak")
                     .font(.headline)
                 Spacer()
                 Image(systemName: "chevron.up.right")
@@ -80,25 +94,25 @@ struct StatsView: View {
             StatMetricCard(
                 icon: "books.vertical.fill",
                 color: accent,
-                value: "38",
+                value: String(stats.chaptersRead),
                 label: "Chapters read"
             )
             StatMetricCard(
                 icon: "rectangle.stack.fill",
                 color: .blue,
-                value: "11",
+                value: String(stats.titlesOpened),
                 label: "Titles opened"
             )
             StatMetricCard(
                 icon: "clock.fill",
                 color: .purple,
-                value: "20 min",
+                value: ReadingStatistics.duration(stats.dailyAverage),
                 label: "Daily average"
             )
             StatMetricCard(
                 icon: "calendar.badge.checkmark",
                 color: .orange,
-                value: "24",
+                value: String(stats.activeDays),
                 label: "Active days"
             )
         }
@@ -106,7 +120,7 @@ struct StatsView: View {
 
     private var weeklyChartCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            chartHeader(title: "Daily reading", subtitle: "Minutes read this week", icon: "chart.bar.fill", color: accent)
+            chartHeader(title: "Daily reading", subtitle: "Last 7 days • Minutes (UTC)", icon: "chart.bar.fill", color: accent)
 
             Chart(dailyReading) { day in
                 BarMark(
@@ -123,22 +137,26 @@ struct StatsView: View {
                 .cornerRadius(7)
             }
             .chartYAxis {
-                AxisMarks(position: .leading, values: [0, 30, 60, 90]) {
+                AxisMarks(position: .leading, values: .automatic) {
                     AxisGridLine().foregroundStyle(.quaternary)
                     AxisValueLabel()
                 }
             }
             .chartXAxis { AxisMarks { AxisValueLabel() } }
             .frame(height: 190)
-            .accessibilityLabel("Daily reading preview: 744 minutes total this week")
+            .accessibilityLabel("Daily reading: \(ReadingStatistics.duration(stats.weekMinutes)) in the last 7 days")
         }
         .statsCard()
     }
 
     private var genreChartCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            chartHeader(title: "Reading mix", subtitle: "Chapters by genre", icon: "chart.pie.fill", color: .pink)
+            chartHeader(title: "Reading mix", subtitle: "Completed chapters • Multiple genres may apply", icon: "chart.pie.fill", color: .pink)
 
+            if genres.isEmpty {
+                Text("Complete a chapter to see your reading mix.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
             HStack(spacing: 22) {
                 ZStack {
                     Chart(genres) { slice in
@@ -152,12 +170,12 @@ struct StatsView: View {
                     }
                     .chartForegroundStyleScale(
                         domain: genres.map(\.genre),
-                        range: [accent, .blue, .purple, .orange]
+                        range: genreColors
                     )
                     .chartLegend(.hidden)
 
                     VStack(spacing: 2) {
-                        Text("38")
+                        Text(String(stats.chaptersRead))
                             .font(.title.bold())
                             .fontDesign(.rounded)
                         Text("chapters")
@@ -166,10 +184,10 @@ struct StatsView: View {
                     }
                 }
                 .frame(width: 156, height: 156)
-                .accessibilityLabel("Reading mix preview: Action 42 percent, Fantasy 29 percent, Romance 18 percent, Mystery 11 percent")
+                .accessibilityLabel("Reading mix: \(stats.chaptersRead) completed chapters")
 
                 VStack(alignment: .leading, spacing: 13) {
-                    ForEach(Array(zip(genres, [accent, .blue, .purple, .orange])), id: \.0.id) { item, color in
+                    ForEach(Array(zip(genres, genreColors)), id: \.0.id) { item, color in
                         HStack(spacing: 8) {
                             Circle().fill(color).frame(width: 9, height: 9)
                             Text(item.genre).font(.subheadline)
@@ -188,7 +206,7 @@ struct StatsView: View {
 
     private var monthlyChartCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            chartHeader(title: "Six month trend", subtitle: "Reading hours", icon: "waveform.path.ecg", color: .blue)
+            chartHeader(title: "Six month trend", subtitle: "Reading hours (UTC)", icon: "waveform.path.ecg", color: .blue)
 
             Chart(monthlyReading) { month in
                 AreaMark(
@@ -222,9 +240,14 @@ struct StatsView: View {
             .chartYAxis(.hidden)
             .chartXAxis { AxisMarks { AxisValueLabel() } }
             .frame(height: 170)
-            .accessibilityLabel("Six month reading trend preview, increasing from 19 to 48 hours")
+            .accessibilityLabel("Reading hours over the last six months")
         }
         .statsCard()
+    }
+
+    private func refresh() async {
+        await history.refreshFromAccount()
+        await session.refreshStatistics()
     }
 
     private func chartHeader(title: String, subtitle: String, icon: String, color: Color) -> some View {
@@ -279,54 +302,12 @@ private extension View {
     }
 }
 
-private struct ReadingDay: Identifiable {
-    let day: String
-    let minutes: Int
-    var id: String { day }
-
-    static let preview = [
-        ReadingDay(day: "Mon", minutes: 72),
-        ReadingDay(day: "Tue", minutes: 48),
-        ReadingDay(day: "Wed", minutes: 95),
-        ReadingDay(day: "Thu", minutes: 64),
-        ReadingDay(day: "Fri", minutes: 126),
-        ReadingDay(day: "Sat", minutes: 181),
-        ReadingDay(day: "Sun", minutes: 158)
-    ]
-}
-
-private struct GenreSlice: Identifiable {
-    let genre: String
-    let chapters: Int
-    let percent: Int
-    var id: String { genre }
-
-    static let preview = [
-        GenreSlice(genre: "Action", chapters: 16, percent: 42),
-        GenreSlice(genre: "Fantasy", chapters: 11, percent: 29),
-        GenreSlice(genre: "Romance", chapters: 7, percent: 18),
-        GenreSlice(genre: "Mystery", chapters: 4, percent: 11)
-    ]
-}
-
-private struct ReadingMonth: Identifiable {
-    let month: String
-    let hours: Double
-    var id: String { month }
-
-    static let preview = [
-        ReadingMonth(month: "Apr", hours: 19),
-        ReadingMonth(month: "May", hours: 25),
-        ReadingMonth(month: "Jun", hours: 22),
-        ReadingMonth(month: "Jul", hours: 34),
-        ReadingMonth(month: "Aug", hours: 39),
-        ReadingMonth(month: "Sep", hours: 48)
-    ]
-}
-
 #Preview {
+    let environment = AppEnvironment(services: .preview())
     NavigationStack {
         StatsView()
-            .environmentObject(AppPreferencesStore(userDefaults: .standard))
+            .environmentObject(environment.preferencesStore)
+            .environmentObject(environment.accountSession)
+            .environmentObject(environment.readingHistory)
     }
 }
