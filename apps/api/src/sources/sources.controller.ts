@@ -1,4 +1,10 @@
 import {
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+  ApiOkResponse,
+} from '@nestjs/swagger';
+import {
   Controller,
   Get,
   Param,
@@ -17,6 +23,7 @@ import { UsersService } from '../users/users.service';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { MangasPageDTO, MangaDTO, ChapterDTO, PageDTO } from './dto/manga.dto';
 
+@ApiTags('Sources')
 @Controller('sources')
 export class SourcesController {
   constructor(
@@ -26,6 +33,22 @@ export class SourcesController {
   ) {}
 
   @Get('proxy/image')
+  @ApiOperation({ summary: 'Proxy a supported source image' })
+  @ApiQuery({
+    name: 'url',
+    required: true,
+    description: 'HTTPS image URL from a supported source host.',
+    schema: { type: 'string', format: 'uri' },
+  })
+  @ApiQuery({
+    name: 'referer',
+    required: false,
+    description: 'Optional source page referer.',
+  })
+  @ApiOkResponse({
+    description: 'Proxied image bytes.',
+    content: { 'image/*': { schema: { type: 'string', format: 'binary' } } },
+  })
   async proxyImage(
     @Query('url') url: string,
     @Query('referer') referer: string | undefined,
@@ -50,24 +73,35 @@ export class SourcesController {
       parsedUrl.hostname.endsWith('.manhuatop.org');
     const isMangaFire = parsedUrl.hostname === 'static.mfcdn.nl';
 
-    if (parsedUrl.protocol !== 'https:' || (!isBatCave && !isManhuaTop && !isMangaFire)) {
-      throw new BadRequestException(
-        'Unsupported image host',
-      );
+    if (
+      parsedUrl.protocol !== 'https:' ||
+      (!isBatCave && !isManhuaTop && !isMangaFire)
+    ) {
+      throw new BadRequestException('Unsupported image host');
     }
 
     if (isBatCave) {
-      const safeReferer = referer && (() => {
-        try {
-          const parsed = new URL(referer);
-          return parsed.protocol === 'https:' &&
-            (parsed.hostname === 'batcave.biz' || parsed.hostname.endsWith('.batcave.biz'));
-        } catch { return false; }
-      })() ? referer : 'https://batcave.biz/';
+      const safeReferer =
+        referer &&
+        (() => {
+          try {
+            const parsed = new URL(referer);
+            return (
+              parsed.protocol === 'https:' &&
+              (parsed.hostname === 'batcave.biz' ||
+                parsed.hostname.endsWith('.batcave.biz'))
+            );
+          } catch {
+            return false;
+          }
+        })()
+          ? referer
+          : 'https://batcave.biz/';
       try {
         const upstream = await fetch(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
             Referer: safeReferer,
             Accept: 'image/webp,image/avif,image/*,*/*;q=0.8',
           },
@@ -76,7 +110,9 @@ export class SourcesController {
         });
         const contentType = upstream.headers.get('content-type') ?? '';
         if (!upstream.ok || !contentType.startsWith('image/')) {
-          throw new Error(`BatCave image returned ${upstream.status} (${contentType})`);
+          throw new Error(
+            `BatCave image returned ${upstream.status} (${contentType})`,
+          );
         }
         const data = Buffer.from(await upstream.arrayBuffer());
         if (data.length > 20 * 1024 * 1024) {
@@ -168,6 +204,10 @@ export class SourcesController {
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({
+    summary: 'List available sources',
+    security: [{}, { bearer: [] }],
+  })
   async getSources(@Req() req: Request & { user?: any }) {
     let sources = this.sourcesService.getSources();
     const baseUrl = `${req.protocol}://${req.get('host')}`;
@@ -207,6 +247,27 @@ export class SourcesController {
   }
 
   @Get(':sourceId/manga')
+  @ApiOperation({ summary: 'Browse or search source manga' })
+  @ApiQuery({
+    name: 'type',
+    required: true,
+    enum: ['popular', 'latest', 'search'],
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    schema: { type: 'integer', default: 1 },
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Search text when type=search.',
+  })
+  @ApiQuery({
+    name: 'filters',
+    required: false,
+    description: 'Source-specific search filters.',
+  })
   async getMangaList(
     @Param('sourceId') sourceId: string,
     @Query('type') type: string,
@@ -230,6 +291,7 @@ export class SourcesController {
   }
 
   @Get(':sourceId/manga/:mangaId')
+  @ApiOperation({ summary: 'Get manga details' })
   async getMangaDetails(
     @Param('sourceId') sourceId: string,
     @Param('mangaId') mangaId: string,
@@ -238,6 +300,7 @@ export class SourcesController {
   }
 
   @Get(':sourceId/manga/:mangaId/chapters')
+  @ApiOperation({ summary: 'List manga chapters' })
   async getChapterList(
     @Param('sourceId') sourceId: string,
     @Param('mangaId') mangaId: string,
@@ -246,6 +309,7 @@ export class SourcesController {
   }
 
   @Get(':sourceId/chapters/:chapterId/pages')
+  @ApiOperation({ summary: 'List chapter pages' })
   async getPageList(
     @Param('sourceId') sourceId: string,
     @Param('chapterId') chapterId: string,

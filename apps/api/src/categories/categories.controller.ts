@@ -1,4 +1,10 @@
 import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
+import {
   Controller,
   Get,
   Post,
@@ -14,22 +20,33 @@ import { CategoriesService } from './categories.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@ApiTags('Categories')
 @Controller('user/categories')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a library category' })
   create(@Req() req: any, @Body() createDto: CreateCategoryDto) {
     return this.categoriesService.create(req.user.id, createDto);
   }
 
   @Get()
+  @ApiOperation({ summary: 'List library categories' })
+  @ApiQuery({
+    name: 'include_count',
+    required: false,
+    enum: ['true', 'false'],
+    description: 'Include the number of library entries in each category.',
+  })
   findAll(@Req() req: any, @Query('include_count') includeCount: string) {
     return this.categoriesService.findAll(req.user.id, includeCount === 'true');
   }
 
   @Put(':id')
+  @ApiOperation({ summary: 'Rename a library category' })
   update(
     @Req() req: any,
     @Param('id') id: string,
@@ -39,6 +56,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete a library category' })
   remove(@Req() req: any, @Param('id') id: string) {
     return this.categoriesService.remove(id, req.user.id);
   }

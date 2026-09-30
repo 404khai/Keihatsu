@@ -1,4 +1,14 @@
 import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+  ApiExtraModels,
+  getSchemaPath,
+  ApiNoContentResponse,
+} from '@nestjs/swagger';
+import {
   Controller,
   Patch,
   Get,
@@ -26,22 +36,27 @@ type AuthenticatedRequest = Request & {
   };
 };
 
+@ApiTags('User profile')
 @Controller('user/profile')
 export class UserProfileController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('stats')
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get account statistics' })
   async getStats(@Req() req: AuthenticatedRequest) {
     return this.usersService.getUserStats(req.user.id);
   }
 
   @Get('public/:userId')
+  @ApiOperation({ summary: 'Get a public profile' })
   getPublicProfile(@Param('userId') userId: string) {
     return this.usersService.getPublicProfile(userId);
   }
 
   @Patch()
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileFieldsInterceptor(
@@ -54,6 +69,31 @@ export class UserProfileController {
       },
     ),
   )
+  @ApiOperation({ summary: 'Update profile fields and images' })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @ApiExtraModels(UpdateUserProfileDto)
+  @ApiBody({
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(UpdateUserProfileDto) },
+        {
+          type: 'object',
+          properties: {
+            avatar: {
+              type: 'string',
+              format: 'binary',
+              description: 'Optional avatar upload; multipart only.',
+            },
+            banner: {
+              type: 'string',
+              format: 'binary',
+              description: 'Optional banner upload; multipart only.',
+            },
+          },
+        },
+      ],
+    },
+  })
   updateProfile(
     @Req() req: AuthenticatedRequest,
     @Body() updateDto: UpdateUserProfileDto,
@@ -64,7 +104,9 @@ export class UserProfileController {
   }
 
   @Patch('visibility')
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Change public profile visibility' })
   updateProfileVisibility(
     @Req() req: AuthenticatedRequest,
     @Body() updateDto: UpdateProfileVisibilityDto,
@@ -77,7 +119,10 @@ export class UserProfileController {
 
   @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Delete the signed-in account' })
+  @ApiNoContentResponse({ description: 'Account deleted.' })
   async deleteAccount(@Req() req: AuthenticatedRequest): Promise<void> {
     await this.usersService.deleteAccount(req.user.id);
   }
