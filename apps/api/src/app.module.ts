@@ -17,12 +17,15 @@ import { DownloadsModule } from './downloads/downloads.module';
 import { HistoryModule } from './history/history.module';
 import { SupportModule } from './support/support.module';
 import { AdminModule } from './admin/admin.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 30 }]),
     ServeStaticModule.forRoot(
       {
         rootPath: join(process.cwd(), 'src', 'images'),
@@ -46,6 +49,7 @@ import { AdminModule } from './admin/admin.module';
     HistoryModule,
     SupportModule,
     AdminModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

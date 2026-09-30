@@ -3,9 +3,11 @@ import { CommentsService } from './comments.service';
 import { CommentsController } from './comments.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
+    NotificationsModule,
     MulterModule.register({
       storage: memoryStorage(),
     }),

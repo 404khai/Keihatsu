@@ -13,6 +13,7 @@ final class AppNavigation: ObservableObject {
     @Published var extensionsPath = NavigationPath()
     @Published var profilePath = NavigationPath()
     @Published var searchPath = NavigationPath()
+    @Published var inboxRequested = false
     private var visibleReaderChapter: ChapterIdentity?
 
     func reset() {
@@ -37,6 +38,34 @@ final class AppNavigation: ObservableObject {
         selectedTab = .library
         libraryPath = NavigationPath()
         libraryPath.append(destination)
+        return true
+    }
+
+    @discardableResult
+    func handleNotificationURL(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "keihatsu",
+              let host = url.host?.lowercased() else { return false }
+        let parts = url.pathComponents.filter { $0 != "/" }
+        if host == "inbox" || host == "announcement" { inboxRequested = true; return true }
+        guard ((host == "manga" && parts.count == 2) ||
+               (host == "chapter" && parts.count == 3) ||
+               (host == "comment" && parts.count == 4)),
+              parts.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) else {
+            inboxRequested = true
+            return true
+        }
+        if host == "chapter" || host == "comment" {
+            let manga = MangaIdentity(sourceID: parts[0], mangaID: parts[1])
+            let chapter = ChapterIdentity(manga: manga, chapterID: parts[2])
+            selectedTab = .library
+            libraryPath = NavigationPath()
+            libraryPath.append(LiveActivityDestination.reader(manga: manga,
+                context: ReaderLaunchContext(chapter: chapter, origin: .history, pageIndex: nil)))
+            return true
+        }
+        selectedTab = .library
+        libraryPath = NavigationPath()
+        libraryPath.append(MangaIdentity(sourceID: parts[0], mangaID: parts[1]))
         return true
     }
 

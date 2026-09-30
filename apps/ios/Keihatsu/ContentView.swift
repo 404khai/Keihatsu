@@ -72,6 +72,9 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.background)
         }
+        .sheet(isPresented: $navigation.inboxRequested) {
+            NotificationsSheetView(title: "Inbox")
+        }
     }
 
     @ViewBuilder
@@ -86,6 +89,9 @@ struct ContentView: View {
                     LibraryView(animation: animation)
                         .navigationDestination(for: LiveActivityDestination.self) { destination in
                             LiveActivityDestinationView(destination: destination)
+                        }
+                        .navigationDestination(for: MangaIdentity.self) { identity in
+                            NotificationMangaDestinationView(identity: identity)
                         }
                 }
             }

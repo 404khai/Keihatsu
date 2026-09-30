@@ -17,6 +17,7 @@ final class AppEnvironment: ObservableObject {
     let syncQueueStore: SyncQueueStore
     let accountData: AccountDataCoordinator
     let accountSession: AccountSessionStore
+    let notificationUnread: NotificationUnreadStore
     let commentsAPI: any CommentsServicing
     let downloads: DownloadCoordinator
     let liveActivities: LiveActivityCoordinator
@@ -75,6 +76,20 @@ final class AppEnvironment: ObservableObject {
             ),
             accountData: accountData
         )
+        let notificationsAPI = NotificationsAPI(client: accountClient)
+        let notificationUnread = NotificationUnreadStore { token in
+            try await notificationsAPI.unreadCount(token: token)
+        }
+        self.notificationUnread = notificationUnread
+        PushRegistrationCoordinator.shared.configure(api: notificationsAPI)
+        accountSession.$bearerToken.removeDuplicates().sink { token in
+            notificationUnread.setSession(token)
+            guard let token else { return }
+            Task {
+                await notificationUnread.refresh()
+                if !services.isPreview { await PushRegistrationCoordinator.shared.signedIn(token: token) }
+            }
+        }.store(in: &cancellables)
         commentsAPI = CommentsAPI(client: accountClient)
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         downloads = DownloadCoordinator(
@@ -163,6 +178,7 @@ private struct AppEnvironmentModifier: ViewModifier {
             .environmentObject(environment.preferencesStore)
             .environmentObject(environment.syncQueueStore)
             .environmentObject(environment.accountSession)
+            .environmentObject(environment.notificationUnread)
             .environmentObject(environment.downloads)
             .environmentObject(environment.liveActivities)
             .environment(\.keihatsuTheme, KeihatsuTheme.accented(Color(hex: preferences.preferences.theme.hex)))

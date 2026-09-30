@@ -9,6 +9,7 @@ import 'dart:ui';
 
 import 'theme_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/notification_unread_provider.dart';
 import 'providers/offline_library_provider.dart';
 import 'providers/download_provider.dart';
 import 'providers/floating_nav_provider.dart';
@@ -27,6 +28,8 @@ import 'services/library_repository.dart';
 import 'services/session_bootstrap_service.dart';
 import 'services/user_repository.dart';
 import 'services/seasonal_branding_service.dart';
+import 'services/push_coordinator.dart';
+import 'screens/InboxScreen.dart';
 
 // Screens
 import 'screens/Onboarding.dart';
@@ -131,9 +134,15 @@ void main() async {
   );
 
   // Create AuthProvider and wire up the token getter for SyncManager
-  final authProvider = AuthProvider(
+  final notificationUnread = NotificationUnreadProvider();
+  final pushCoordinator = PushCoordinator(unread: notificationUnread);
+  await pushCoordinator.initialize();
+  late AuthProvider authProvider;
+  authProvider = AuthProvider(
     userRepository: userRepo,
-    onLogout: (_) async {},
+    onLogout: (_) async {
+      await pushCoordinator.signedOut(authProvider.token);
+    },
   );
 
   // NOW wire the SyncManager's token getter to the real AuthProvider
@@ -142,8 +151,14 @@ void main() async {
 
   // When auth state changes (login/logout), trigger the sync queue
   String? lastBootstrappedUserId;
+  String? lastPushToken;
   authProvider.addListener(() {
+    notificationUnread.setSession(authProvider.token);
     if (authProvider.token != null && authProvider.user != null) {
+      if (lastPushToken != authProvider.token) {
+        lastPushToken = authProvider.token;
+        pushCoordinator.signedIn(authProvider.token!);
+      }
       final currentUserId = authProvider.user!.id;
       if (lastBootstrappedUserId != currentUserId) {
         lastBootstrappedUserId = currentUserId;
@@ -155,6 +170,7 @@ void main() async {
       syncManager.processSyncQueue();
     } else {
       lastBootstrappedUserId = null;
+      lastPushToken = null;
     }
   });
 
@@ -168,6 +184,8 @@ void main() async {
         Provider.value(value: mangaRepo),
         Provider.value(value: libraryRepo),
         Provider.value(value: historyRepo),
+        Provider.value(value: pushCoordinator),
+        ChangeNotifierProvider.value(value: notificationUnread),
         Provider.value(value: userRepo),
         // Providers using Repositories
         ChangeNotifierProxyProvider<AuthProvider, OfflineLibraryProvider>(
@@ -184,12 +202,16 @@ void main() async {
         ),
         ChangeNotifierProvider(create: (_) => FloatingNavProvider()),
         ChangeNotifierProxyProvider<AuthProvider, DownloadProvider>(
-          create: (context) => DownloadProvider(
-            isar: isar,
-            mangaRepo: mangaRepo,
-            getToken: () =>
-                Provider.of<AuthProvider>(context, listen: false).token,
-          ),
+          create: (context) {
+            final provider = DownloadProvider(
+              isar: isar,
+              mangaRepo: mangaRepo,
+              getToken: () =>
+                  Provider.of<AuthProvider>(context, listen: false).token,
+            );
+            pushCoordinator.watchDownloads(provider);
+            return provider;
+          },
           update: (context, auth, previous) => previous!,
         ),
       ],
@@ -239,6 +261,7 @@ class MyApp extends StatelessWidget {
         ).apply(bodyColor: Colors.white, displayColor: Colors.white),
         useMaterial3: true,
       ),
+      navigatorKey: context.read<PushCoordinator>().navigatorKey,
       initialRoute: authProvider.isAuthenticated ? '/library' : '/onboarding',
       routes: {
         '/onboarding': (context) => const Onboarding(),
@@ -253,6 +276,10 @@ class MyApp extends StatelessWidget {
         '/updates': (context) => const UpdatesScreen(),
         '/extensions': (context) => const ExtensionsScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/inbox': (context) => InboxScreen(
+          initialNotificationId:
+              ModalRoute.of(context)?.settings.arguments as String?,
+        ),
       },
     );
   }

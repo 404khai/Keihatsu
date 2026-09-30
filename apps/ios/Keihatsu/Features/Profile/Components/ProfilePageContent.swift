@@ -5,6 +5,7 @@ struct ProfilePageContent: View {
     @EnvironmentObject private var accountSession: AccountSessionStore
     @EnvironmentObject private var bootstrap: AppBootstrap
     @EnvironmentObject private var downloads: DownloadCoordinator
+    @EnvironmentObject private var notificationUnread: NotificationUnreadStore
     @EnvironmentObject private var preferencesStore: AppPreferencesStore
     @State private var showsInbox = false
     @State private var showsSignIn = false
@@ -44,7 +45,11 @@ struct ProfilePageContent: View {
                     NavigationLink { StatsView() } label: { ProfileRow(icon: "chart.bar", title: "Stats", showsChevron: true) }
                         .buttonStyle(.plain)
                     ProfileDivider()
-                    Button { showsInbox = true } label: { ProfileRow(icon: "tray", title: "Inbox", showsChevron: true) }
+                    Button { showsInbox = true } label: {
+                        ProfileRow(icon: "tray", title: "Inbox", showsChevron: true,
+                                   badgeCount: notificationUnread.count, badgeColor: accent,
+                                   badgeDescription: "unread notifications")
+                    }
                         .buttonStyle(.plain)
                 }
                 ProfileGroup {
@@ -395,6 +400,7 @@ struct ProfileRow: View {
     var showsChevron = false
     var badgeCount: Int = 0
     var badgeColor: Color = .accentColor
+    var badgeDescription = "active downloads"
     var body: some View {
         HStack(spacing: 18) {
             ProfileIcon(symbol: icon)
@@ -407,7 +413,7 @@ struct ProfileRow: View {
                     .padding(.horizontal, 7)
                     .frame(minWidth: 24, minHeight: 24)
                     .background(badgeColor, in: Capsule())
-                    .accessibilityLabel("\(badgeCount) active downloads")
+                    .accessibilityLabel("\(badgeCount) \(badgeDescription)")
             }
             if showsChevron { Image(systemName: "chevron.right").foregroundStyle(.tertiary) }
         }

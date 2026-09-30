@@ -7,12 +7,16 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { notificationLinks } from '../notifications/notification-links';
+import { NotificationType } from '@prisma/client';
 
 @Injectable()
 export class CommentsService {
   constructor(
     private prisma: PrismaService,
     private cloudinary: CloudinaryService,
+    private notifications: NotificationsService,
   ) {}
 
   async create(
@@ -31,7 +35,7 @@ export class CommentsService {
           mangaId,
           chapterId,
         },
-        select: { id: true },
+        select: { id: true, userId: true, parentId: true },
       });
       if (!parent) {
         throw new BadRequestException('Reply parent is not in this thread');
@@ -45,7 +49,7 @@ export class CommentsService {
     const uploadResults = await Promise.all(uploadPromises);
     const imageUrls = uploadResults.map((result) => result.secure_url);
 
-    return this.prisma.comment.create({
+    const comment = await this.prisma.comment.create({
       data: {
         content: createCommentDto.content || '',
         images: imageUrls,
@@ -68,6 +72,35 @@ export class CommentsService {
         },
       },
     });
+    const link = notificationLinks.comment(sourceId, mangaId, chapterId, comment.id);
+    if (createCommentDto.parentId) {
+      const parent = await this.prisma.comment.findUnique({ where: { id: createCommentDto.parentId },
+        select: { userId: true, parentId: true } });
+      if (parent && parent.userId !== userId) {
+        await this.notifications.create({ userId: parent.userId, type: NotificationType.COMMENT_REPLY,
+          title: `${comment.user.username} replied to your comment`, body: 'Open the conversation to read the reply.',
+          actorUserId: userId, sourceId, mangaId, chapterId, commentId: comment.id,
+          threadId: parent.parentId || createCommentDto.parentId,
+          deepLink: link, groupingKey: `thread:${parent.parentId || createCommentDto.parentId}`,
+          dedupeKey: `reply:${comment.id}` });
+      }
+    }
+    const mentioned = [...new Set(((comment.content || '').match(/@([A-Za-z0-9_]{2,32})/g) || [])
+      .map((mention) => mention.slice(1)))];
+    if (mentioned.length) {
+      const users = await this.prisma.user.findMany({ where: { username: { in: mentioned } },
+        select: { id: true } });
+      for (const mentionedUser of users) {
+        if (mentionedUser.id === userId) continue;
+        await this.notifications.create({ userId: mentionedUser.id, type: NotificationType.COMMENT_MENTION,
+          title: `${comment.user.username} mentioned you`, body: 'Open the conversation to read the mention.',
+          actorUserId: userId, sourceId, mangaId, chapterId, commentId: comment.id,
+          threadId: createCommentDto.parentId || comment.id, deepLink: link,
+          groupingKey: `thread:${createCommentDto.parentId || comment.id}`,
+          dedupeKey: `mention:${comment.id}:${mentionedUser.id}` });
+      }
+    }
+    return comment;
   }
 
   async findAll(
@@ -186,6 +219,12 @@ export class CommentsService {
           likes: { increment: 1 },
         },
       });
+      const comment = await this.prisma.comment.findUnique({ where: { id: commentId },
+        select: { userId: true, sourceId: true, mangaId: true, chapterId: true, parentId: true } });
+      if (comment && comment.userId !== userId) {
+        const actor = await this.prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+        await this.notifications.recordLike({ ...comment, id: commentId }, userId, actor?.username || 'Someone');
+      }
       return { status: 'added' };
     }
   }
