@@ -9,6 +9,7 @@ import 'dart:ui';
 
 import 'theme_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/notification_unread_provider.dart';
 import 'providers/offline_library_provider.dart';
 import 'providers/download_provider.dart';
 import 'providers/floating_nav_provider.dart';
@@ -133,12 +134,15 @@ void main() async {
   );
 
   // Create AuthProvider and wire up the token getter for SyncManager
-  final pushCoordinator = PushCoordinator();
+  final notificationUnread = NotificationUnreadProvider();
+  final pushCoordinator = PushCoordinator(unread: notificationUnread);
   await pushCoordinator.initialize();
   late AuthProvider authProvider;
   authProvider = AuthProvider(
     userRepository: userRepo,
-    onLogout: (_) async { await pushCoordinator.signedOut(authProvider.token); },
+    onLogout: (_) async {
+      await pushCoordinator.signedOut(authProvider.token);
+    },
   );
 
   // NOW wire the SyncManager's token getter to the real AuthProvider
@@ -149,6 +153,7 @@ void main() async {
   String? lastBootstrappedUserId;
   String? lastPushToken;
   authProvider.addListener(() {
+    notificationUnread.setSession(authProvider.token);
     if (authProvider.token != null && authProvider.user != null) {
       if (lastPushToken != authProvider.token) {
         lastPushToken = authProvider.token;
@@ -180,6 +185,7 @@ void main() async {
         Provider.value(value: libraryRepo),
         Provider.value(value: historyRepo),
         Provider.value(value: pushCoordinator),
+        ChangeNotifierProvider.value(value: notificationUnread),
         Provider.value(value: userRepo),
         // Providers using Repositories
         ChangeNotifierProxyProvider<AuthProvider, OfflineLibraryProvider>(
@@ -198,10 +204,10 @@ void main() async {
         ChangeNotifierProxyProvider<AuthProvider, DownloadProvider>(
           create: (context) {
             final provider = DownloadProvider(
-            isar: isar,
-            mangaRepo: mangaRepo,
-            getToken: () =>
-                Provider.of<AuthProvider>(context, listen: false).token,
+              isar: isar,
+              mangaRepo: mangaRepo,
+              getToken: () =>
+                  Provider.of<AuthProvider>(context, listen: false).token,
             );
             pushCoordinator.watchDownloads(provider);
             return provider;
@@ -270,7 +276,10 @@ class MyApp extends StatelessWidget {
         '/updates': (context) => const UpdatesScreen(),
         '/extensions': (context) => const ExtensionsScreen(),
         '/settings': (context) => const SettingsScreen(),
-        '/inbox': (context) => InboxScreen(initialNotificationId: ModalRoute.of(context)?.settings.arguments as String?),
+        '/inbox': (context) => InboxScreen(
+          initialNotificationId:
+              ModalRoute.of(context)?.settings.arguments as String?,
+        ),
       },
     );
   }

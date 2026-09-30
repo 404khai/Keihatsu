@@ -6,7 +6,7 @@ Run `cd apps/api && npx prisma migrate deploy && npx prisma generate` before sta
 
 | Variable | Purpose |
 | --- | --- |
-| `PUSH_PROVIDER` | `noop` for local development and tests; set to `remote` to use APNs/FCM. Defaults to `noop`. |
+| `PUSH_PROVIDER` | `noop` for local development and tests; set to `remote` to use APNs/FCM. Defaults to `noop`. Restart the API after changing credentials or provider mode. |
 | `APNS_PRIVATE_KEY_PATH` | Absolute path to an Apple `.p8` provider key. |
 | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID` | Apple key ID, team ID and app bundle identifier. |
 | `APNS_ENV` | `production` for App Store builds; any other value selects the sandbox endpoint. |
@@ -19,7 +19,7 @@ Run `cd apps/api && npx prisma migrate deploy && npx prisma generate` before sta
 
 The iOS target has development and production APNs entitlements. Enable Push Notifications for the app identifier and provisioning profiles in Apple Developer. Set the corresponding Firebase project in the Android `google-services.json`. Android 13 and newer asks for notification permission at sign-in. Native iOS uses APNs directly; Flutter/Android uses FCM.
 
-The scheduler is enabled only when `CHAPTER_CHECK_INTERVAL_MS` is set. Run one scheduler instance per database; multiple API replicas can serve HTTP with the check interval disabled. The first successful chapter check establishes a baseline without alerting readers. Empty or failed source responses retain the prior snapshot. Delivery retries are persisted in `push_deliveries`, back off exponentially and disable permanently invalid tokens. Logs contain notification IDs and platforms, never push tokens.
+The scheduler is enabled only when `CHAPTER_CHECK_INTERVAL_MS` is set. Run one scheduler instance per database; multiple API replicas can serve HTTP with the check interval disabled. The first successful chapter check establishes a baseline without alerting readers. Empty or failed source responses retain the prior snapshot. No-op deliveries have status `SKIPPED`; `SENT` means a remote provider accepted the request, rather than proof of phone presentation. Delivery retries are persisted in `push_deliveries`, back off exponentially and disable permanently invalid tokens. Logs contain notification IDs and platforms, never push tokens.
 
 ## API and payload
 
@@ -42,3 +42,9 @@ curl -X POST "$API_BASE_URL/admin/announcements" \
 ```
 
 Use `PUSH_PROVIDER=noop` to test synchronized Inbox behavior without APNs/FCM credentials. For a real push, set `PUSH_PROVIDER=remote`, register a device from the signed-in app, then send the announcement. The admin route and device registration route are rate limited.
+
+## Inbox badges and device presentation
+
+Both Profile Inbox rows display the account-wide unread count, capped visually at `99+`. Counts refresh at sign-in, on foreground pushes, when the app resumes, and every 30 seconds while active. Read, read-all and delete mutations update the shared badge optimistically and roll back on failure. Offline refreshes preserve the last known count; logout clears it.
+
+Android foreground pushes are presented once with a local system notification; background notification payloads are presented by FCM. Both paths use the `ic_notification` drawable and the normal category channels. Visible FCM messages use high transport priority for prompt delivery; channel importance controls presentation and ordinary announcements retain normal importance. Check the notification shade as well as system notification permissions; normal channels do not request a heads-up banner. Required iOS APNs credentials and developer-team access are still needed for real iOS pushes.

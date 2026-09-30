@@ -58,4 +58,7 @@ final class PushRegistrationCoordinator {
     }
 }
 
-extension Notification.Name { static let keihatsuPushOpened = Notification.Name("keihatsuPushOpened") }
+extension Notification.Name {
+    static let keihatsuPushOpened = Notification.Name("keihatsuPushOpened")
+    static let keihatsuPushReceived = Notification.Name("keihatsuPushReceived")
+}

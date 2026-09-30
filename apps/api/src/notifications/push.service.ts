@@ -6,14 +6,14 @@ import { readFileSync } from 'fs';
 import { Notification, PushDevice } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type PushResult = 'sent' | 'invalid' | 'retry';
+export type PushResult = 'sent' | 'invalid' | 'retry' | 'skipped';
 export interface PushProvider {
   send(device: PushDevice, payload: Record<string, unknown>): Promise<PushResult>;
 }
 
 @Injectable()
 export class NoopPushProvider implements PushProvider {
-  async send(): Promise<PushResult> { return 'sent'; }
+  async send(): Promise<PushResult> { return 'skipped'; }
 }
 
 @Injectable()
@@ -82,9 +82,12 @@ export class FcmPushProvider implements PushProvider {
         body: JSON.stringify({ message: { token: device.token,
           notification: { title: payload.title, body: payload.body }, data,
           android: { collapse_key: String(payload.groupingKey || payload.notificationId),
-            priority: payload.type === 'APP_UPDATE_REQUIRED' ? 'HIGH' : 'NORMAL',
+            // Visible pushes should reach the phone promptly, including during Doze.
+            // Channel importance still controls how prominently Android presents them.
+            priority: 'HIGH',
             notification: { channel_id: payload.type === 'CHAPTER_UPDATE' ? 'library_updates' :
               String(payload.type).startsWith('COMMENT_') ? 'comments_social' : 'system_announcements',
+              icon: 'ic_notification', sound: 'default',
               tag: String(payload.groupingKey || payload.notificationId) } } } }),
       });
       if (response.ok) return 'sent';
@@ -103,7 +106,11 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
     private apns: ApnsPushProvider, private fcm: FcmPushProvider,
     private noop: NoopPushProvider) {}
 
-  onModuleInit() { this.timer = setInterval(() => void this.processPending(), 15000); }
+  onModuleInit() {
+    const mode = this.config.get('PUSH_PROVIDER') || 'noop';
+    this.logger.log(`Push provider mode=${mode}`);
+    this.timer = setInterval(() => void this.processPending(), 15000);
+  }
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 
   async deliver(notification: Notification, pushEnabled: boolean): Promise<void> {
@@ -148,7 +155,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
       const result = await provider.send(device, payload);
       if (result === 'invalid') await this.prisma.pushDevice.update({ where: { id: device.id }, data: { enabled: false, invalidatedAt: new Date() } });
       await this.prisma.pushDelivery.update({ where: { id: deliveryId }, data: {
-        attempts: attempts + 1, status: result === 'sent' ? 'SENT' : result === 'invalid' || attempts >= 7 ? 'FAILED' : 'PENDING',
+        attempts: attempts + 1, status: result === 'sent' ? 'SENT' : result === 'skipped' ? 'SKIPPED' : result === 'invalid' || attempts >= 7 ? 'FAILED' : 'PENDING',
         deliveredAt: result === 'sent' ? new Date() : null,
         nextAttemptAt: new Date(Date.now() + Math.min(3600000, 15000 * 2 ** attempts)),
       } });

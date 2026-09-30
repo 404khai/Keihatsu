@@ -13,7 +13,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     func userNotificationCenter(_ center: UNUserNotificationCenter,
         willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        [.list, .banner, .sound]
+        NotificationCenter.default.post(name: .keihatsuPushReceived, object: nil)
+        return [.list, .banner, .sound]
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter,

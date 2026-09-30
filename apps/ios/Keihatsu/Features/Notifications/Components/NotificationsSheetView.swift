@@ -4,17 +4,22 @@ import Combine
 @MainActor
 final class InboxViewModel: ObservableObject {
     @Published var items: [InboxNotificationDTO] = []
-    @Published var unreadCount = 0
+    @Published var unreadCount = 0 {
+        didSet { unreadStore?.setCount(unreadCount) }
+    }
     @Published var loading = false
     @Published var error: String?
     @Published var category = "All"
     private var cursor: String?
     private var api: NotificationsAPI?
     private var token: String?
+    private var unreadStore: NotificationUnreadStore?
 
-    func configure(api: NotificationsAPI, token: String?) {
+    func configure(api: NotificationsAPI, token: String?, unreadStore: NotificationUnreadStore? = nil) {
         self.api = api
         self.token = token
+        self.unreadStore = unreadStore
+        unreadCount = unreadStore?.count ?? 0
     }
 
     func refresh() async {
@@ -156,7 +161,8 @@ struct NotificationsSheetView: View {
         }
         .task {
             let client = environment.services.apiClient ?? APIClient(configuration: APIConfiguration(baseURLString: "https://preview.invalid"))
-            model.configure(api: NotificationsAPI(client: client), token: environment.accountSession.bearerToken)
+            model.configure(api: NotificationsAPI(client: client), token: environment.accountSession.bearerToken,
+                            unreadStore: environment.notificationUnread)
             await model.refresh()
         }
         .presentationDragIndicator(.visible)

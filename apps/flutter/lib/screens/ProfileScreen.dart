@@ -15,6 +15,7 @@ import 'package:keihatsu/components/menu/version_indicator.dart';
 import 'package:keihatsu/components/notification_pill.dart';
 import 'package:keihatsu/components/user_blobatar.dart';
 import 'package:keihatsu/providers/auth_provider.dart';
+import 'package:keihatsu/providers/notification_unread_provider.dart';
 import 'package:keihatsu/providers/download_provider.dart';
 import 'package:keihatsu/screens/AboutScreen.dart';
 import 'package:keihatsu/screens/DonateScreen.dart';
@@ -126,6 +127,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final activeDownloadCount = context.select<DownloadProvider, int>(
       (provider) => provider.activeDownloadCount,
+    );
+    final unreadCount = context.select<NotificationUnreadProvider, int>(
+      (provider) => provider.count,
     );
     final user = authProvider.user;
     final ColorScheme cs = Theme.of(context).colorScheme;
@@ -379,6 +383,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         MenuTile(
                           icon: Icons.inbox_outlined,
                           title: 'Inbox',
+                          trailing: unreadCount > 0
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Semantics(
+                                      label:
+                                          '$unreadCount unread notifications',
+                                      child: Container(
+                                        constraints: const BoxConstraints(
+                                          minWidth: 24,
+                                          minHeight: 24,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 5,
+                                        ),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: cs.primary,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          unreadCount > 99
+                                              ? '99+'
+                                              : '$unreadCount',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall
+                                              ?.copyWith(
+                                                color: cs.onPrimary,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ),
+                                    ),
+                                    8.gap,
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ],
+                                )
+                              : null,
                           onTap: () => _push(context, const InboxScreen()),
                         ),
                         MenuTile(
@@ -395,7 +443,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 }),
                             onChanged: (enabled) {
                               setState(() => _incognitoMode = enabled);
-                              context.read<PushCoordinator>().setIncognito(enabled);
+                              context.read<PushCoordinator>().setIncognito(
+                                enabled,
+                              );
                               if (enabled) {
                                 NotificationPill.showPersistent(
                                   context,

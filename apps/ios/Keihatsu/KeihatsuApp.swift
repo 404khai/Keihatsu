@@ -18,10 +18,15 @@ struct KeihatsuApp: App {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .keihatsuPushOpened)) { event in
                     if let url = event.object as? URL { _ = environment.navigation.handleNotificationURL(url) }
+                    Task { await environment.notificationUnread.refresh() }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .keihatsuPushReceived)) { _ in
+                    Task { await environment.notificationUnread.refresh() }
                 }
                 .task(id: scenePhase) {
                     guard scenePhase == .active else { return }
                     await SeasonalAppIconManager.shared.sync()
+                    await environment.notificationUnread.pollWhileActive()
                 }
         }
     }
