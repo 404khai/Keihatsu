@@ -54,6 +54,30 @@ A progressive and scalable manga aggregation backend built with **NestJS**, **Pr
    npm run start:dev
    ```
 
+## API documentation
+
+Swagger is enabled by default when the API starts:
+
+- Interactive endpoint explorer: [http://localhost:3000/docs](http://localhost:3000/docs)
+- OpenAPI JSON: [http://localhost:3000/docs-json](http://localhost:3000/docs-json)
+
+Use the same paths on your LAN or deployed API address. The explorer includes
+authentication, profiles, preferences, sources, library, categories, comments,
+history, downloads, support, Inbox notifications, and admin endpoints. Expand a
+group or use the filter to find an endpoint and inspect its request schema.
+
+To try authenticated endpoints, execute `POST /auth/login` with your email and
+password, copy `accessToken` from the response, then click **Authorize** and paste
+the token without a `Bearer` prefix. Google accounts can use `POST /auth/google`
+with a Google ID token. Admin endpoints require an account with the `ADMIN` role;
+Swagger does not change endpoint authorization. Write requests act on the
+database connected to that API instance.
+
+Set `SWAGGER_ENABLED=false` to disable the UI and JSON endpoint, then restart the
+API. No migrations or client configuration changes are needed. The Nest Swagger
+compiler plugin derives schemas from DTO types and validation rules during
+`npm run build` and `npm run start:dev`.
+
 ## 📂 Project Structure
 
 ```text
