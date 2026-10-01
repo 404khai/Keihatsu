@@ -878,19 +878,13 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
                             minChildSize: 0.4,
                             maxChildSize: 0.95,
                             builder: (context, scrollController) {
-                              final currentChapter =
-                              widget.chapters[_currentChapterIndex];
-                              final chapterId = currentChapter is Chapter
-                                  ? currentChapter.id
-                                  : (currentChapter as LocalChapter).chapterId;
-
                               return ChangeNotifierProvider(
                                 create: (_) => CommentsProvider(),
                                 child: CommentsBottomSheet(
                                   scrollController: scrollController,
                                   currentChapterIndex: _currentChapterIndex,
+                                  sourceId: widget.manga.sourceId,
                                   mangaId: widget.manga.id,
-                                  chapterId: chapterId,
                                   chapters: widget.chapters,
                                   onChapterChange: (index) {
                                     setState(() {
