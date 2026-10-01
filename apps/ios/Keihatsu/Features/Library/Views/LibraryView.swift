@@ -86,11 +86,11 @@ struct LibraryView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
-                    LibraryUpdatesCalendarView()
+                    LibraryUpdatesView(animation: animation)
                 } label: {
                     Image(systemName: "calendar")
                 }
-                .accessibilityLabel("Upcoming updates")
+                .accessibilityLabel("Library updates")
             }
 
             ToolbarSpacer(.fixed, placement: .topBarTrailing)

@@ -30,6 +30,7 @@ struct MangaDetailView: View {
 }
 
 private struct MangaDetailsContentView: View {
+    @Environment(\.keihatsuTheme) private var theme
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var collections: CollectionStore
     @EnvironmentObject private var accountSession: AccountSessionStore
@@ -426,7 +427,7 @@ private struct MangaDetailsContentView: View {
         Image(systemName: downloadSymbol(status))
             .font(.system(size: 30, weight: .semibold))
             .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(isDownloaded ? Color(hex: "B7FF3C") : Color.white.opacity(0.62))
+            .foregroundStyle(isDownloaded ? theme.colors.accent : Color.white.opacity(0.62))
             .frame(width: 52, height: 52)
     }
 
