@@ -16,6 +16,7 @@ import '../providers/auth_provider.dart';
 import '../services/manga_repository.dart';
 import '../theme_provider.dart';
 import 'MangaDetailsScreen.dart';
+import 'UpdatesScreen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -374,8 +375,14 @@ class _LibraryScreenState extends State<LibraryScreen>
             : null,
         actions: [
           IconButton(
-            onPressed: () => offlineLibrary.refresh(true),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(builder: (_) => const UpdatesScreen()),
+              );
+            },
             icon: Icon(Icons.calendar_month_rounded, color: textColor),
+            tooltip: 'Library updates',
           ),
           IconButton(
             onPressed: () {

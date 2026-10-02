@@ -13,6 +13,7 @@ import 'providers/notification_unread_provider.dart';
 import 'providers/offline_library_provider.dart';
 import 'providers/download_provider.dart';
 import 'providers/floating_nav_provider.dart';
+import 'providers/library_updates_provider.dart';
 
 import 'models/local_models.dart';
 import 'services/sources_api.dart';
@@ -201,6 +202,9 @@ void main() async {
           },
         ),
         ChangeNotifierProvider(create: (_) => FloatingNavProvider()),
+        ChangeNotifierProvider(
+          create: (_) => LibraryUpdatesProvider(mangaRepository: mangaRepo),
+        ),
         ChangeNotifierProxyProvider<AuthProvider, DownloadProvider>(
           create: (context) {
             final provider = DownloadProvider(

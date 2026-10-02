@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:keihatsu/components/CustomBackButton.dart';
-import 'package:keihatsu/components/keihatsu_refresh_indicator.dart';
-import 'package:keihatsu/data/mock_updates_feed.dart';
-import 'package:keihatsu/screens/UpcomingCalendarScreen.dart';
-import 'package:keihatsu/theme_provider.dart';
-import 'package:material_shapes/material_shapes.dart';
 import 'package:provider/provider.dart';
+
+import '../components/CustomBackButton.dart';
+import '../components/OfflineImage.dart';
+import '../components/keihatsu_refresh_indicator.dart';
+import '../models/manga.dart';
+import '../providers/download_provider.dart';
+import '../providers/library_updates_provider.dart';
+import '../providers/offline_library_provider.dart';
+import '../theme_provider.dart';
+import 'MangaDetailsScreen.dart';
+import 'UpcomingCalendarScreen.dart';
 
 class UpdatesScreen extends StatefulWidget {
   const UpdatesScreen({super.key});
@@ -17,22 +22,30 @@ class UpdatesScreen extends StatefulWidget {
 }
 
 class _UpdatesScreenState extends State<UpdatesScreen> {
-  Future<void> _refresh() async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (mounted) setState(() {});
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final updates = context.read<LibraryUpdatesProvider>();
+      if (updates.items.isEmpty) _refresh();
+    });
+  }
+
+  Future<void> _refresh() {
+    return context.read<LibraryUpdatesProvider>().refresh(
+      context.read<OfflineLibraryProvider>(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = context.watch<ThemeProvider>();
+    final updates = context.watch<LibraryUpdatesProvider>();
     final ColorScheme cs = Theme.of(context).colorScheme;
-    final bool isDarkTheme = themeProvider.isDarkTheme;
-    final Color backgroundColor = themeProvider.pureBlackDarkMode && isDarkTheme
+    final backgroundColor =
+        themeProvider.pureBlackDarkMode && themeProvider.isDarkTheme
         ? Colors.black
         : cs.surface;
-    final Color textColor = cs.onSurface;
-    final Color mutedColor = cs.onSurfaceVariant;
-    final Color brandColor = themeProvider.brandColor;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -56,16 +69,38 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   style: GoogleFonts.unbounded(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
-                    color: textColor,
+                    color: cs.onSurface,
                     fontSize: 24,
                   ),
                 ),
                 actions: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: Icon(Icons.filter_list_rounded, color: textColor),
+                  PopupMenuButton<LibraryUpdatesFilter>(
+                    initialValue: updates.filter,
+                    tooltip: 'Filter updates',
+                    onSelected: updates.setFilter,
+                    icon: Icon(
+                      updates.filter == LibraryUpdatesFilter.all
+                          ? Icons.filter_list_rounded
+                          : Icons.filter_list_off_rounded,
+                      color: cs.onSurface,
+                    ),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: LibraryUpdatesFilter.all,
+                        child: Text('All chapters'),
+                      ),
+                      PopupMenuItem(
+                        value: LibraryUpdatesFilter.unread,
+                        child: Text('Unread'),
+                      ),
+                      PopupMenuItem(
+                        value: LibraryUpdatesFilter.downloaded,
+                        child: Text('Downloaded'),
+                      ),
+                    ],
                   ),
                   IconButton(
+                    tooltip: 'Upcoming releases',
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -74,66 +109,64 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                         ),
                       );
                     },
-                    icon: Icon(Icons.calendar_month_outlined, color: textColor),
+                    icon: Icon(
+                      Icons.calendar_month_outlined,
+                      color: cs.onSurface,
+                    ),
                   ),
                 ],
                 bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(52),
+                  preferredSize: const Size.fromHeight(48),
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cs.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          'Last updated 14hrs ago',
-                          style: TextStyle(
-                            color: mutedColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _LastUpdatedPill(
+                      value: updates.lastUpdatedAt,
+                      isRefreshing: updates.isLoading,
                     ),
                   ),
                 ),
               ),
-              for (final UpdatesDayGroup group in mockUpdatesFeed) ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                    child: Text(
-                      DateFormat('dd MMM yyyy').format(group.date),
-                      style: TextStyle(
-                        color: mutedColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+              if (updates.error != null && updates.items.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _UpdatesMessage(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Could not refresh updates',
+                    action: _refresh,
+                  ),
+                )
+              else if (!updates.isLoading && updates.groups.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _UpdatesMessage(
+                    icon: Icons.update_rounded,
+                    title: updates.filter == LibraryUpdatesFilter.all
+                        ? 'No chapter updates yet'
+                        : 'No matching updates',
+                    action: _refresh,
+                  ),
+                )
+              else
+                for (final group in updates.groups) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+                      child: Text(
+                        DateFormat('dd MMM yyyy').format(group.date),
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final MangaUpdateChapter chapter = group.chapters[index];
-                      return _UpdateChapterRow(
-                        chapter: chapter,
-                        textColor: textColor,
-                        mutedColor: mutedColor,
-                        brandColor: brandColor,
-                        iconColor: cs.onSurfaceVariant,
-                      );
-                    },
-                    childCount: group.chapters.length,
+                  SliverList.builder(
+                    itemCount: group.items.length,
+                    itemBuilder: (_, index) =>
+                        _UpdateChapterRow(item: group.items[index]),
                   ),
-                ),
-              ],
+                ],
               const SliverToBoxAdapter(child: SizedBox(height: 32)),
             ],
           ),
@@ -143,110 +176,195 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   }
 }
 
-class _UpdateChapterRow extends StatelessWidget {
-  const _UpdateChapterRow({
-    required this.chapter,
-    required this.textColor,
-    required this.mutedColor,
-    required this.brandColor,
-    required this.iconColor,
-  });
+class _LastUpdatedPill extends StatelessWidget {
+  const _LastUpdatedPill({required this.value, required this.isRefreshing});
 
-  final MangaUpdateChapter chapter;
-  final Color textColor;
-  final Color mutedColor;
-  final Color brandColor;
-  final Color iconColor;
+  final DateTime? value;
+  final bool isRefreshing;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipPath(
-            clipper: ShapeBorderClipper(
-              shape: MaterialShapeBorder(shape: chapter.shape),
-            ),
-            child: Image.asset(
-              chapter.thumbnailAsset,
-              width: 52,
-              height: 52,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 52,
-                height: 52,
-                color: Colors.grey.shade800,
-                child: const Icon(
-                  Icons.image_not_supported_outlined,
-                  color: Colors.white54,
-                  size: 20,
-                ),
+    final cs = Theme.of(context).colorScheme;
+    final label = isRefreshing
+        ? 'Checking for new chapters…'
+        : value == null
+        ? 'Pull to refresh'
+        : 'Updated ${DateFormat.jm().format(value!)}';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: cs.onSurfaceVariant,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _UpdateChapterRow extends StatelessWidget {
+  const _UpdateChapterRow({required this.item});
+
+  final LibraryUpdateItem item;
+
+  Manga get manga => Manga(
+    id: item.libraryEntry.mangaId,
+    url: '',
+    title: item.libraryEntry.title,
+    thumbnailUrl: item.libraryEntry.thumbnailUrl ?? '',
+    author: item.libraryEntry.author,
+    sourceId: item.libraryEntry.sourceId,
+    lang: item.libraryEntry.language,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final brandColor = context.watch<ThemeProvider>().brandColor;
+    final downloads = context.watch<DownloadProvider>();
+    final queued = downloads.queue.where(
+      (entry) => entry.chapterId == item.chapter.chapterId,
+    );
+    final queueItem = queued.isEmpty ? null : queued.first;
+    final downloaded = item.chapter.downloaded || queueItem?.status == 2;
+
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => MangaDetailsScreen(manga: manga),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Opacity(
+          opacity: item.chapter.isRead ? 0.48 : 1,
+          child: Row(
+            children: [
+              OfflineImage(
+                imageUrl: item.libraryEntry.thumbnailUrl,
+                width: 54,
+                height: 70,
+                fit: BoxFit.cover,
+                borderRadius: BorderRadius.circular(10),
               ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  chapter.mangaTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: brandColor,
-                        shape: BoxShape.circle,
+                    Text(
+                      item.libraryEntry.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: cs.onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        chapter.chapterLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: mutedColor,
-                          fontSize: 14,
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: brandColor,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            item.chapter.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: cs.onSurfaceVariant,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    if (chapter.pageInfo != null) ...[
-                      Text(
-                        ' • ',
-                        style: TextStyle(color: mutedColor, fontSize: 14),
-                      ),
-                      Text(
-                        chapter.pageInfo!,
-                        style: TextStyle(
-                          color: mutedColor,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: downloaded ? 'Downloaded' : 'Download chapter',
+                onPressed: downloaded || queueItem != null
+                    ? null
+                    : () => downloads.addToQueue(
+                        item.chapter.mangaId,
+                        item.chapter.sourceId,
+                        item.chapter.chapterId,
+                        item.libraryEntry.title,
+                        item.chapter.name,
+                        item.chapter.chapterNumber,
+                        item.chapter.sourceId,
+                        item.libraryEntry.thumbnailUrl,
+                      ),
+                icon: queueItem?.status == 1
+                    ? SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: brandColor,
+                        ),
+                      )
+                    : Icon(
+                        downloaded
+                            ? Icons.download_done_rounded
+                            : queueItem == null
+                            ? Icons.download_for_offline_outlined
+                            : Icons.schedule_rounded,
+                        color: downloaded ? brandColor : cs.onSurfaceVariant,
+                        size: 28,
+                      ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.download_for_offline_outlined, color: iconColor),
+        ),
+      ),
+    );
+  }
+}
+
+class _UpdatesMessage extends StatelessWidget {
+  const _UpdatesMessage({
+    required this.icon,
+    required this.title,
+    required this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final Future<void> Function() action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 42,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
+          const SizedBox(height: 12),
+          Text(title),
+          const SizedBox(height: 12),
+          FilledButton.tonal(onPressed: action, child: const Text('Refresh')),
         ],
       ),
     );
