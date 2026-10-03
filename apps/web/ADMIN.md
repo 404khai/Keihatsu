@@ -1,6 +1,6 @@
 # Admin workspace
 
-Run the API on port 3000 and the web app on port 3001 (`npm run dev -- --port 3001`). Copy `.env.example` to `.env.local`. Set API_URL to the server-only API origin. NEXT_PUBLIC_GOOGLE_CLIENT_ID_WEB must match the API GOOGLE_CLIENT_ID_WEB. Add the web origin to the Google OAuth client's authorized JavaScript origins. Production requires HTTPS.
+Run the API on port 3000 and the web app on port 3001 (`npm run dev -- --port 3001`). Copy `.env.example` to `.env.local`. Set API_URL to the server-only API origin. The login page uses NEXT_PUBLIC_GOOGLE_CLIENT_ID_WEB or GOOGLE_CLIENT_ID_WEB when set on the web server, otherwise it loads the public client ID from the API auth/google/client endpoint. Any web override must match the API GOOGLE_CLIENT_ID_WEB. Add the web origin to the Google OAuth client's authorized JavaScript origins. Production requires HTTPS.
 
 Google Identity Services exchanges its ID token with the existing API. Only ADMIN accounts receive a web session. Use apps/api/promote-user.ts to grant access. Tokens stay in an HttpOnly, SameSite cookie; every protected render revalidates the database role. Login and logout require same-origin POSTs. The API independently protects analytics with JWT and role guards.
 

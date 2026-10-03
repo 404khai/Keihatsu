@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Script from "next/script";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -23,6 +24,7 @@ declare global {
 export function GoogleSignIn({ clientId }: { clientId: string }) {
   const button = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   function initialize() {
@@ -56,6 +58,7 @@ export function GoogleSignIn({ clientId }: { clientId: string }) {
       width: 320,
       text: "signin_with",
     });
+    setReady(true);
   }
   return (
     <>
@@ -66,10 +69,35 @@ export function GoogleSignIn({ clientId }: { clientId: string }) {
           setError("Google sign-in could not load. Please refresh to retry.")
         }
       />
-      <div ref={button} className="google-sign-in" aria-busy={busy} />
+      {!ready && (
+        <button
+          className="google-sign-in-fallback"
+          type="button"
+          disabled={Boolean(clientId) && !error}
+          onClick={() => {
+            if (!clientId)
+              setError(
+                "Google sign-in is not configured yet. Please contact the workspace administrator.",
+              );
+            else {
+              setError("");
+              initialize();
+            }
+          }}
+        >
+          <Image src="/google.png" alt="" width={20} height={20} />
+          Sign in with Google
+        </button>
+      )}
+      <div
+        ref={button}
+        className="google-sign-in"
+        aria-busy={busy}
+        hidden={!ready}
+      />
       {busy && <p role="status">Verifying your access…</p>}
-      {!clientId && (
-        <p role="alert">Google sign-in has not been configured yet.</p>
+      {!ready && clientId && !error && (
+        <p role="status">Loading Google sign-in…</p>
       )}
       {error && <p role="alert">{error}</p>}
     </>
