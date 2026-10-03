@@ -40,6 +40,12 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
+  @Get('google/client')
+  @ApiOperation({ summary: 'Get the public Google web sign-in client ID' })
+  googleWebClient() {
+    return this.authService.getGoogleWebClientId();
+  }
+
   @Post('google')
   @ApiOperation({ summary: 'Sign in with a Google ID token' })
   @ApiCreatedResponse({
