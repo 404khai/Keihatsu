@@ -21,6 +21,12 @@ import { AdminStatsDto } from './dto/admin-stats.dto';
 export class AdminController {
   constructor(private adminService: AdminService) {}
 
+  @Get('analytics')
+  @ApiOperation({ summary: 'Get live admin analytics and source health' })
+  getAnalytics() {
+    return this.adminService.getAnalytics();
+  }
+
   @Get('stats')
   @ApiOperation({ summary: 'Get administrator dashboard statistics' })
   async getStats(): Promise<AdminStatsDto> {

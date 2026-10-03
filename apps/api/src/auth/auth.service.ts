@@ -84,6 +84,10 @@ export class AuthService {
         audiences.push(iosClientId);
       }
 
+      if (!audiences.length) {
+        throw new UnauthorizedException('Google sign-in is not configured');
+      }
+
       let audience: string | string[] | undefined;
       if (audiences.length === 1) {
         audience = audiences[0];
