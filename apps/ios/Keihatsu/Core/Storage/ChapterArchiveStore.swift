@@ -8,6 +8,7 @@ actor ChapterArchiveStore {
         case invalidArchive
         case unsupportedCompression
         case invalidDirectory
+        case unsafePath
 
         var errorDescription: String? {
             switch self {
@@ -16,6 +17,7 @@ actor ChapterArchiveStore {
             case .invalidArchive: "The CBZ archive is incomplete or corrupt."
             case .unsupportedCompression: "This CBZ uses an unsupported compression method."
             case .invalidDirectory: "Choose a folder outside the current download directory."
+            case .unsafePath: "The file path is outside its storage directory."
             }
         }
     }
@@ -68,6 +70,7 @@ actor ChapterArchiveStore {
 
     func stagingDirectory(for recordID: UUID) throws -> URL {
         let url = stagingRoot.appending(path: recordID.uuidString, directoryHint: .isDirectory)
+        try requireContained(url, in: stagingRoot)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
@@ -78,6 +81,7 @@ actor ChapterArchiveStore {
 
     func storeStagedDownload(_ temporaryURL: URL, recordID: UUID, pageIndex: Int) throws -> URL {
         let destination = try stagedPageURL(recordID: recordID, pageIndex: pageIndex)
+        try requireContained(destination, in: stagingRoot)
         if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
         try FileManager.default.moveItem(at: temporaryURL, to: destination)
         guard ((try? destination.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) > 0 else {
@@ -105,6 +109,7 @@ actor ChapterArchiveStore {
         let sourceURLs: [(DownloadPageRecord, URL)] = try ordered.enumerated().map { offset, page in
             guard let filename = page.stagedFilename else { throw ArchiveError.missingPage(offset + 1) }
             let url = try stagingDirectory(for: record.id).appending(path: filename)
+            try requireContained(url, in: stagingRoot.appending(path: record.id.uuidString))
             guard FileManager.default.fileExists(atPath: url.path),
                   ((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) > 0 else {
                 throw ArchiveError.missingPage(offset + 1)
@@ -113,8 +118,10 @@ actor ChapterArchiveStore {
         }
 
         let output = archiveURL(for: record.request.identity)
+        try requireContained(output, in: downloadsRoot)
         try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
         let partial = output.appendingPathExtension("part")
+        try requireContained(partial, in: downloadsRoot)
         if FileManager.default.fileExists(atPath: partial.path) { try FileManager.default.removeItem(at: partial) }
         FileManager.default.createFile(atPath: partial.path, contents: nil)
         let handle = try FileHandle(forWritingTo: partial)
@@ -153,6 +160,7 @@ actor ChapterArchiveStore {
 
     func contains(_ identity: DownloadIdentity) -> Bool {
         let url = archiveURL(for: identity)
+        guard (try? requireContained(url, in: downloadsRoot)) != nil else { return false }
         guard FileManager.default.fileExists(atPath: url.path), let values = try? url.resourceValues(forKeys: [.fileSizeKey]) else { return false }
         return (values.fileSize ?? 0) > 0 && ((try? entries(in: url).isEmpty) == false)
     }
@@ -160,6 +168,7 @@ actor ChapterArchiveStore {
     func readerPages(for chapter: ChapterIdentity) throws -> [ReaderPage] {
         let identity = DownloadIdentity(chapter: chapter)
         let archive = archiveURL(for: identity)
+        try requireContained(archive, in: downloadsRoot)
         guard FileManager.default.fileExists(atPath: archive.path) else { return [] }
         return try entries(in: archive).enumerated().map { index, entry in
             var components = URLComponents()
@@ -185,6 +194,7 @@ actor ChapterArchiveStore {
             throw ArchiveError.invalidArchive
         }
         let archive = archiveURL(for: DownloadIdentity(sourceID: source, mangaID: manga, chapterID: chapter))
+        try requireContained(archive, in: downloadsRoot)
         guard let entry = try entries(in: archive).first(where: { $0.name == name }), entry.compression == 0 else {
             throw ArchiveError.unsupportedCompression
         }
@@ -202,12 +212,14 @@ actor ChapterArchiveStore {
 
     func delete(_ identity: DownloadIdentity) throws {
         let url = archiveURL(for: identity)
+        try requireContained(url, in: downloadsRoot)
         if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
         removeEmptyParents(startingAt: url.deletingLastPathComponent())
     }
 
     func discardStaging(recordID: UUID) throws {
         let url = stagingRoot.appending(path: recordID.uuidString, directoryHint: .isDirectory)
+        try requireContained(url, in: stagingRoot)
         if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
     }
 
@@ -295,9 +307,25 @@ actor ChapterArchiveStore {
         return result.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
+    private func requireContained(_ url: URL, in root: URL) throws {
+        let base = root.standardizedFileURL.path
+        let target = url.standardizedFileURL.path
+        let resolvedBase = root.resolvingSymlinksInPath().standardizedFileURL.path
+        let resolvedTarget = url.resolvingSymlinksInPath().standardizedFileURL.path
+        guard target.hasPrefix(base + "/"), resolvedTarget.hasPrefix(resolvedBase + "/") else {
+            throw ArchiveError.unsafePath
+        }
+    }
+
     nonisolated private func safe(_ value: String) -> String {
         let forbidden = CharacterSet(charactersIn: "<>:\"/\\|?*")
-        return value.components(separatedBy: forbidden).joined(separator: "_").trimmingCharacters(in: .whitespacesAndNewlines)
+        let component = value.components(separatedBy: forbidden).joined(separator: "_").trimmingCharacters(in: .whitespacesAndNewlines)
+        switch component {
+        case "": return "_empty_"
+        case ".": return "_dot_"
+        case "..": return "_parent_"
+        default: return component
+        }
     }
 
     nonisolated private func chapterComponent(_ value: String) -> String {
@@ -375,7 +403,8 @@ actor ChapterArchiveStore {
 
     private func removeEmptyParents(startingAt url: URL) {
         var current = url
-        while current.path.hasPrefix(downloadsRoot.path), current != downloadsRoot {
+        while current.path.hasPrefix(downloadsRoot.path + "/"), current != downloadsRoot {
+            guard (try? requireContained(current, in: downloadsRoot)) != nil else { break }
             guard let children = try? FileManager.default.contentsOfDirectory(atPath: current.path), children.isEmpty else { break }
             try? FileManager.default.removeItem(at: current)
             current.deleteLastPathComponent()

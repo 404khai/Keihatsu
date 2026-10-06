@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../services/secure_api_client.dart';
 import 'dart:convert';
 import '../models/comment.dart';
 import '../services/api_constants.dart';
@@ -16,7 +17,7 @@ class CommentsProvider with ChangeNotifier {
   String? get error => _error;
 
   CommentsProvider({http.Client? client})
-    : _client = client ?? http.Client(),
+    : _client = SecureApiClient(client: client),
       _ownsClient = client == null;
 
   Future<void> fetchComments(

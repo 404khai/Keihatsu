@@ -72,7 +72,7 @@ class FileService {
   Future<Directory> getDownloadsDirectory() async {
     final baseDirectory = await _getBaseDirectory('downloads/');
     final downloadsDirectory = Directory(
-      p.join(baseDirectory.path, 'downloads'),
+      await _storagePath(baseDirectory, 'downloads'),
     );
     if (!await downloadsDirectory.exists()) {
       await downloadsDirectory.create(recursive: true);
@@ -90,7 +90,10 @@ class FileService {
     if (!await directory.exists()) return 0;
 
     var total = 0;
-    await for (final entity in directory.list(recursive: true)) {
+    await for (final entity in directory.list(
+      recursive: true,
+      followLinks: false,
+    )) {
       if (entity is File) {
         total += await entity.length();
       }
@@ -101,13 +104,15 @@ class FileService {
   Future<void> cleanupArchivedChapterDirectories() async {
     final downloadsDirectory = await getDownloadsDirectory();
 
-    await for (final sourceEntity in downloadsDirectory.list()) {
+    await for (final sourceEntity in downloadsDirectory.list(
+      followLinks: false,
+    )) {
       if (sourceEntity is! Directory) continue;
 
-      await for (final mangaEntity in sourceEntity.list()) {
+      await for (final mangaEntity in sourceEntity.list(followLinks: false)) {
         if (mangaEntity is! Directory) continue;
 
-        final entries = await mangaEntity.list().toList();
+        final entries = await mangaEntity.list(followLinks: false).toList();
         final archivedChapterNames = entries
             .whereType<File>()
             .where((file) => p.extension(file.path).toLowerCase() == '.cbz')
@@ -156,7 +161,8 @@ class FileService {
       chapterId: chapterId,
     );
     final baseDir = await _getBaseDirectory('downloads/');
-    final output = File(p.join(baseDir.path, subPath));
+    final output = File(await _storagePath(baseDir, subPath));
+    await _storagePath(baseDir, '$subPath.part');
     final partialOutput = File('${output.path}.part');
     await output.parent.create(recursive: true);
 
@@ -213,7 +219,7 @@ class FileService {
       // If _getBaseDirectory returns internal AppDocs, result is AppDocs/downloads/...
       // This is also consistent.
 
-      final fullPath = p.join(baseDir.path, subPath);
+      final fullPath = await _storagePath(baseDir, subPath);
       final file = File(fullPath);
 
       if (!await file.parent.exists()) {
@@ -262,12 +268,15 @@ class FileService {
 
   Future<String> getSourceIconPath(String sourceId) async {
     final appDir = await getAppDirectory();
-    return p.join(appDir, 'icons', '$sourceId.png');
+    return _storagePath(Directory(appDir), p.join('icons', '$sourceId.png'));
   }
 
   Future<String> getMangaThumbnailPath(String sourceId, String mangaId) async {
     final appDir = await getAppDirectory();
-    return p.join(appDir, 'thumbnails', sourceId, '$mangaId.jpg');
+    return _storagePath(
+      Directory(appDir),
+      p.join('thumbnails', sourceId, '$mangaId.jpg'),
+    );
   }
 
   Future<String> getChapterPagePath(
@@ -283,7 +292,7 @@ class FileService {
       index: index,
     );
     final baseDir = await _getBaseDirectory(subPath);
-    return p.join(baseDir.path, subPath);
+    return _storagePath(baseDir, subPath);
   }
 
   Future<String> getChapterCbzPath(
@@ -297,7 +306,7 @@ class FileService {
       chapterId: chapterId,
     );
     final baseDir = await _getBaseDirectory('downloads/');
-    return p.join(baseDir.path, subPath);
+    return _storagePath(baseDir, subPath);
   }
 
   Future<List<Uint8List>> readChapterCbzPages(
@@ -379,8 +388,42 @@ class FileService {
     return '${chapterDownloadSubPath(sourceId: sourceId, mangaId: mangaId, chapterId: chapterId)}.cbz';
   }
 
+  /// Reject traversal and existing symlinks that leave the selected storage root.
+  /// Valid paths retain their old names so offline downloads remain readable.
+  Future<String> _storagePath(Directory root, String subPath) async {
+    final parts = subPath.replaceAll('\\', '/').split('/');
+    if (p.isAbsolute(subPath) ||
+        parts.any((part) => part == '.' || part == '..')) {
+      throw ArgumentError('Unsafe storage path');
+    }
+    final rootPath = p.normalize(p.absolute(root.path));
+    final target = p.normalize(p.join(rootPath, subPath));
+    if (!p.isWithin(rootPath, target)) {
+      throw ArgumentError('Storage path escapes its directory');
+    }
+    await root.create(recursive: true);
+    final resolvedRoot = await root.resolveSymbolicLinks();
+    var existing = target;
+    while (await FileSystemEntity.type(existing, followLinks: false) ==
+        FileSystemEntityType.notFound) {
+      existing = p.dirname(existing);
+    }
+    final resolved = await File(existing).resolveSymbolicLinks();
+    if (resolved != resolvedRoot && !p.isWithin(resolvedRoot, resolved)) {
+      throw ArgumentError('Storage symlink escapes its directory');
+    }
+    return target;
+  }
+
   String _safeComponent(String value) {
-    return value.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').trim();
+    final component = value.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').trim();
+    // Keep existing valid download names, while neutralizing parent segments.
+    return switch (component) {
+      '' => '_empty_',
+      '.' => '_dot_',
+      '..' => '_parent_',
+      _ => component,
+    };
   }
 
   String _chapterPathComponent(String chapterId) {
@@ -407,7 +450,7 @@ class FileService {
       chapterId: chapterId,
     );
     final baseDir = await _getBaseDirectory(chapterSubPath);
-    final chapterDir = Directory(p.join(baseDir.path, chapterSubPath));
+    final chapterDir = Directory(await _storagePath(baseDir, chapterSubPath));
     if (await chapterDir.exists()) {
       await chapterDir.delete(recursive: true);
     }
@@ -427,8 +470,8 @@ class FileService {
     final baseDir = await _getBaseDirectory(chapterSubPath);
 
     final baseDirForArchive = await _getBaseDirectory('downloads/');
-    final cbzPath = p.join(
-      baseDirForArchive.path,
+    final cbzPath = await _storagePath(
+      baseDirForArchive,
       getChapterCbzSubPath(
         sourceId: sourceId,
         mangaId: mangaId,
@@ -442,7 +485,7 @@ class FileService {
 
     // Check if manga folder is empty and delete if so
     final mangaSubPath = p.dirname(chapterSubPath);
-    final mangaDir = Directory(p.join(baseDir.path, mangaSubPath));
+    final mangaDir = Directory(await _storagePath(baseDir, mangaSubPath));
     if (await mangaDir.exists()) {
       final entities = await mangaDir.list().toList();
       if (entities.isEmpty) {

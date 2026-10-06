@@ -1,10 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_constants.dart';
+import 'secure_api_client.dart';
 
 class LibraryApi {
   final String baseUrl;
-  LibraryApi({this.baseUrl = ApiConstants.baseUrl});
+  final http.Client _client;
+  LibraryApi({String? baseUrl, http.Client? client})
+    : baseUrl = ApiConstants.validateBaseUrl(baseUrl ?? ApiConstants.baseUrl),
+      _client = SecureApiClient(client: client);
 
   Map<String, String> _headers(String token) => {
     'Content-Type': 'application/json',
@@ -41,7 +45,7 @@ class LibraryApi {
     final uri = Uri.parse(
       '$baseUrl/user/library',
     ).replace(queryParameters: queryParams);
-    return await http.get(uri, headers: _headers(token));
+    return await _client.get(uri, headers: _headers(token));
   }
 
   Future<http.Response> addMangaToLibrary(
@@ -51,7 +55,7 @@ class LibraryApi {
   }) async {
     // Note: Spec doesn't include categories in POST body, but we keep the parameter for compatibility.
     // If categories are needed, they should be set via assignMangaToCategory after this call.
-    return await http.post(
+    return await _client.post(
       Uri.parse('$baseUrl/user/library'),
       headers: _headers(token),
       body: json.encode(mangaData),
@@ -63,7 +67,7 @@ class LibraryApi {
     String id,
     Map<String, dynamic> updateData,
   ) async {
-    return await http.put(
+    return await _client.put(
       Uri.parse('$baseUrl/user/library/$id'),
       headers: _headers(token),
       body: json.encode(updateData),
@@ -75,7 +79,7 @@ class LibraryApi {
       deleteLibraryEntry(token, id);
 
   Future<http.Response> deleteLibraryEntry(String token, String id) async {
-    return await http.delete(
+    return await _client.delete(
       Uri.parse('$baseUrl/user/library/$id'),
       headers: _headers(token),
     );
@@ -91,11 +95,11 @@ class LibraryApi {
     final uri = Uri.parse(
       '$baseUrl/user/categories',
     ).replace(queryParameters: queryParams);
-    return await http.get(uri, headers: _headers(token));
+    return await _client.get(uri, headers: _headers(token));
   }
 
   Future<http.Response> createCategory(String token, String name) async {
-    return await http.post(
+    return await _client.post(
       Uri.parse('$baseUrl/user/categories'),
       headers: _headers(token),
       body: json.encode({'name': name}),
@@ -107,7 +111,7 @@ class LibraryApi {
     String id,
     String name,
   ) async {
-    return await http.put(
+    return await _client.put(
       Uri.parse('$baseUrl/user/categories/$id'),
       headers: _headers(token),
       body: json.encode({'name': name}),
@@ -115,7 +119,7 @@ class LibraryApi {
   }
 
   Future<http.Response> deleteCategory(String token, String id) async {
-    return await http.delete(
+    return await _client.delete(
       Uri.parse('$baseUrl/user/categories/$id'),
       headers: _headers(token),
     );
@@ -126,7 +130,7 @@ class LibraryApi {
     String mangaId,
     String categoryId,
   ) async {
-    return await http.post(
+    return await _client.post(
       Uri.parse('$baseUrl/manga/$mangaId/category/$categoryId'),
       headers: _headers(token),
     );
@@ -135,7 +139,7 @@ class LibraryApi {
   // --- User Preferences Endpoints ---
 
   Future<http.Response> getPreferences(String token) async {
-    return await http.get(
+    return await _client.get(
       Uri.parse('$baseUrl/user/preferences'),
       headers: _headers(token),
     );
@@ -145,7 +149,7 @@ class LibraryApi {
     String token,
     Map<String, dynamic> preferences,
   ) async {
-    return await http.put(
+    return await _client.put(
       Uri.parse('$baseUrl/user/preferences'),
       headers: _headers(token),
       body: json.encode(preferences),
@@ -159,7 +163,7 @@ class LibraryApi {
     required String mangaId,
     required String chapterId,
   }) async {
-    return await http.post(
+    return await _client.post(
       Uri.parse('$baseUrl/downloads/process'),
       headers: _headers(token),
       body: json.encode({
@@ -188,7 +192,7 @@ class LibraryApi {
     bool? isRead,
     int? readingTimeMs,
   }) async {
-    return await http.post(
+    return await _client.post(
       Uri.parse('$baseUrl/history/sync'),
       headers: _headers(token),
       body: json.encode({
@@ -218,11 +222,11 @@ class LibraryApi {
     final uri = Uri.parse('$baseUrl/history').replace(
       queryParameters: {'page': page.toString(), 'limit': limit.toString()},
     );
-    return await http.get(uri, headers: _headers(token));
+    return await _client.get(uri, headers: _headers(token));
   }
 
   Future<http.Response> deleteHistoryEntry(String token, String mangaId) async {
-    return await http.delete(
+    return await _client.delete(
       Uri.parse('$baseUrl/history/$mangaId'),
       headers: _headers(token),
     );

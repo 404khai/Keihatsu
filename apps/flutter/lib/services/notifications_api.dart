@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_constants.dart';
+import 'secure_api_client.dart';
 
 class InboxNotification {
   final String id, type, title, body, deepLink;
@@ -39,7 +40,9 @@ class InboxPage {
 class NotificationsApi {
   final String baseUrl;
   final http.Client client;
-  NotificationsApi({this.baseUrl = ApiConstants.baseUrl, http.Client? client}) : client = client ?? http.Client();
+  NotificationsApi({String? baseUrl, http.Client? client})
+    : baseUrl = ApiConstants.validateBaseUrl(baseUrl ?? ApiConstants.baseUrl),
+      client = SecureApiClient(client: client);
 
   Future<dynamic> _request(String method, String path, String token, [Object? body]) async {
     final response = await client.send(http.Request(method, Uri.parse('$baseUrl$path'))

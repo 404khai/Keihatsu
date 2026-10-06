@@ -86,5 +86,36 @@ final class DownloadTests: XCTestCase {
         XCTAssertEqual(restored.first?.request.ownerID, "reader")
     }
 
+    func testParentIdentifiersCannotDeleteOutsideDownloads() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "keihatsu-security-\(UUID())")
+        let documents = root.appending(path: "Documents")
+        try FileManager.default.createDirectory(at: documents.appending(path: "downloads"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let outside = root.appending(path: "victim.cbz")
+        try Data("sentinel".utf8).write(to: outside)
+        let store = ChapterArchiveStore(documentsRoot: documents)
+        try await store.delete(.init(sourceID: "..", mangaID: "..", chapterID: "victim"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: outside.path))
+    }
+
+    func testArchiveSymlinkCannotDeleteOutsideDownloads() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "keihatsu-security-\(UUID())")
+        let documents = root.appending(path: "Documents")
+        let downloads = documents.appending(path: "downloads")
+        let outside = root.appending(path: "Outside")
+        try FileManager.default.createDirectory(at: downloads, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: outside.appending(path: "manga"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sentinel = outside.appending(path: "manga/chapter.cbz")
+        try Data("sentinel".utf8).write(to: sentinel)
+        try FileManager.default.createSymbolicLink(at: downloads.appending(path: "source"), withDestinationURL: outside)
+        let store = ChapterArchiveStore(documentsRoot: documents)
+        do {
+            try await store.delete(.init(sourceID: "source", mangaID: "manga", chapterID: "chapter"))
+            XCTFail("An external symlink must be rejected")
+        } catch ChapterArchiveStore.ArchiveError.unsafePath {}
+        XCTAssertTrue(FileManager.default.fileExists(atPath: sentinel.path))
+    }
+
     private static let onePixelPNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII="
 }
