@@ -1,30 +1,38 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../models/user.dart';
 import '../models/user_preferences.dart';
 import 'api_constants.dart';
+import 'secure_api_client.dart';
+
+class AuthApiException implements Exception {
+  const AuthApiException(this.statusCode);
+  final int statusCode;
+  @override
+  String toString() => 'Unable to load the account ($statusCode).';
+}
 
 class AuthApi {
   final String baseUrl;
+  final http.Client _client;
 
-  AuthApi({this.baseUrl = ApiConstants.baseUrl});
+  AuthApi({String? baseUrl, http.Client? client})
+    : baseUrl = ApiConstants.validateBaseUrl(baseUrl ?? ApiConstants.baseUrl),
+      _client = SecureApiClient(client: client);
 
   Future<AuthResponse> loginWithGoogle(
     String idToken, {
     bool? isOnboarded,
   }) async {
     try {
-      print('Attempting login at: $baseUrl/auth/google');
-
       final body = {
         'token': idToken,
         if (isOnboarded != null) 'isOnboarded': isOnboarded,
       };
 
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$baseUrl/auth/google'),
             headers: {'Content-Type': 'application/json'},
@@ -32,30 +40,24 @@ class AuthApi {
           )
           .timeout(const Duration(seconds: 10));
 
-      debugPrint('Google auth response: ${response.statusCode}');
-
       if (response.statusCode == 201 || response.statusCode == 200) {
         return AuthResponse.fromJson(json.decode(response.body));
       } else {
-        print('Backend Error: Status ${response.statusCode}');
-        print('Response Body: ${response.body}');
         throw Exception(
-          'Server Error (${response.statusCode}): ${response.body}',
+          'Unable to sign in (${response.statusCode}). Please try again.',
         );
       }
-    } on SocketException catch (e) {
-      print('Connection Refused: Is your backend running? $e');
+    } on SocketException {
       throw Exception(
         'Cannot reach server. Ensure backend is running at $baseUrl',
       );
     } catch (e) {
-      debugPrint('Unexpected Google auth error: $e');
       rethrow;
     }
   }
 
   Future<User> getMe(String token) async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/auth/me'),
       headers: {'Authorization': 'Bearer $token'},
     );
@@ -63,12 +65,12 @@ class AuthApi {
     if (response.statusCode == 200) {
       return User.fromJson(json.decode(response.body));
     } else {
-      throw Exception('Failed to fetch user profile');
+      throw AuthApiException(response.statusCode);
     }
   }
 
   Future<UserStats> getUserStats(String token) async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/user/profile/stats'),
       headers: {'Authorization': 'Bearer $token'},
     );
@@ -81,7 +83,7 @@ class AuthApi {
   }
 
   Future<PublicProfile> getPublicProfile(String userId) async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/user/profile/public/$userId'),
     );
 
@@ -126,21 +128,17 @@ class AuthApi {
         );
       }
 
-      var streamedResponse = await request.send();
+      var streamedResponse = await _client.send(request);
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         return User.fromJson(json.decode(response.body));
       } else {
-        print(
-          'Update Profile Error: ${response.statusCode} - ${response.body}',
-        );
         throw Exception(
           json.decode(response.body)['message'] ?? 'Failed to update profile',
         );
       }
     } catch (e) {
-      print('Update Profile Exception: $e');
       rethrow;
     }
   }
@@ -149,7 +147,7 @@ class AuthApi {
     required String token,
     required bool isProfilePublic,
   }) async {
-    final response = await http.patch(
+    final response = await _client.patch(
       Uri.parse('$baseUrl/user/profile/visibility'),
       headers: {
         'Authorization': 'Bearer $token',
@@ -166,7 +164,7 @@ class AuthApi {
   }
 
   Future<void> deleteAccount(String token) async {
-    final response = await http.delete(
+    final response = await _client.delete(
       Uri.parse('$baseUrl/user/profile'),
       headers: {'Authorization': 'Bearer $token'},
     );
@@ -182,7 +180,7 @@ class AuthApi {
   // --- User Preferences Endpoints ---
 
   Future<UserPreferences> getPreferences(String token) async {
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/user/preferences'),
       headers: {'Authorization': 'Bearer $token'},
     );
@@ -198,7 +196,7 @@ class AuthApi {
     String token,
     Map<String, dynamic> preferences,
   ) async {
-    final response = await http.put(
+    final response = await _client.put(
       Uri.parse('$baseUrl/user/preferences'),
       headers: {
         'Authorization': 'Bearer $token',

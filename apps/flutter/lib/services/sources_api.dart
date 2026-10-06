@@ -4,13 +4,17 @@ import '../models/source.dart';
 import '../models/manga.dart';
 import '../models/chapter.dart';
 import 'api_constants.dart';
+import 'secure_api_client.dart';
 
 class SourcesApi {
   final String baseUrl;
+  final http.Client _client;
   static const Duration _defaultTimeout = Duration(seconds: 10);
   static const Duration _heavySourceTimeout = Duration(seconds: 30);
 
-  SourcesApi({this.baseUrl = ApiConstants.baseUrl});
+  SourcesApi({String? baseUrl, http.Client? client})
+    : baseUrl = ApiConstants.validateBaseUrl(baseUrl ?? ApiConstants.baseUrl),
+      _client = SecureApiClient(client: client);
 
   String getDownloadImageUrl({
     required String sourceId,
@@ -34,7 +38,7 @@ class SourcesApi {
 
   Future<List<Source>> getSources() async {
     try {
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/sources'))
           .timeout(_defaultTimeout);
       if (response.statusCode == 200) {
@@ -61,7 +65,7 @@ class SourcesApi {
       final uri = Uri.parse(
         '$baseUrl/sources/$sourceId/manga',
       ).replace(queryParameters: queryParams);
-      final response = await http.get(uri).timeout(_timeoutForSource(sourceId));
+      final response = await _client.get(uri).timeout(_timeoutForSource(sourceId));
 
       if (response.statusCode == 200) {
         return MangasPage.fromJson(json.decode(response.body));
@@ -76,7 +80,7 @@ class SourcesApi {
   Future<Manga> getMangaDetails(String sourceId, String mangaId) async {
     try {
       final encodedMangaId = Uri.encodeComponent(mangaId);
-      final response = await http
+      final response = await _client
           .get(Uri.parse('$baseUrl/sources/$sourceId/manga/$encodedMangaId'))
           .timeout(_timeoutForSource(sourceId));
       if (response.statusCode == 200) {
@@ -92,7 +96,7 @@ class SourcesApi {
   Future<List<Chapter>> getChapters(String sourceId, String mangaId) async {
     try {
       final encodedMangaId = Uri.encodeComponent(mangaId);
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse(
               '$baseUrl/sources/$sourceId/manga/$encodedMangaId/chapters',
@@ -117,7 +121,7 @@ class SourcesApi {
   Future<List<ReaderPage>> getPages(String sourceId, String chapterId) async {
     try {
       final encodedChapterId = Uri.encodeComponent(chapterId);
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse(
               '$baseUrl/sources/$sourceId/chapters/$encodedChapterId/pages',

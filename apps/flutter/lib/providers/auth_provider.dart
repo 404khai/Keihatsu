@@ -8,6 +8,7 @@ import '../services/auth_api.dart';
 import '../services/api_constants.dart';
 import '../services/user_repository.dart';
 import '../services/local_scope.dart';
+import '../services/credential_store.dart';
 
 class AuthProvider with ChangeNotifier {
   // Android resolves the server client ID from google-services.json. This may
@@ -19,6 +20,8 @@ class AuthProvider with ChangeNotifier {
   final AuthApi _authApi = AuthApi(baseUrl: ApiConstants.baseUrl);
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   final UserRepository userRepository;
+  final CredentialStore _credentials;
+  int _sessionGeneration = 0;
   final Future<void> Function(String userId)? onLogout;
 
   User? _user;
@@ -34,7 +37,11 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _token != null;
   String get localScopeUserId => _user?.id ?? guestLocalScopeUserId;
 
-  AuthProvider({this.onLogout, required this.userRepository}) {
+  AuthProvider({
+    this.onLogout,
+    required this.userRepository,
+    CredentialStore? credentials,
+  }) : _credentials = credentials ?? CredentialStore() {
     _googleSignInInitialization = _initializeGoogleSignIn();
     _init();
   }
@@ -46,39 +53,58 @@ class AuthProvider with ChangeNotifier {
           ? null
           : configuredServerClientId,
     );
-    debugPrint('GoogleSignIn initialized');
   }
 
   Future<void> _init() async {
+    final generation = _sessionGeneration;
     try {
       await _googleSignInInitialization;
-    } catch (e, stackTrace) {
-      debugPrint('GoogleSignIn initialization failed: $e');
-      debugPrintStack(stackTrace: stackTrace);
+    } catch (e) {
+      debugPrint('Google sign-in initialization failed.');
     }
-    await _loadToken();
+    if (generation == _sessionGeneration) await _loadToken();
   }
 
   Future<void> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('accessToken');
-    if (_token != null) {
+    final generation = _sessionGeneration;
+    String? savedToken;
+    try {
+      savedToken = await _credentials.read();
+    } catch (_) {
+      // Preserve the existing session in storage for a later retry.
+      debugPrint('Secure login storage is temporarily unavailable.');
+      return;
+    }
+    if (savedToken == null || generation != _sessionGeneration) return;
+    try {
+      var user = await _authApi.getMe(savedToken);
       try {
-        _user = await _authApi.getMe(_token!);
-        try {
-          final stats = await _authApi.getUserStats(_token!);
-          _user = _user!.copyWith(stats: stats);
-        } catch (e) {
-          debugPrint('Failed to load user stats: $e');
-        }
-
-        await fetchPreferences();
-        notifyListeners();
-      } catch (e) {
-        _token = null;
-        await prefs.remove('accessToken');
-        notifyListeners();
+        final stats = await _authApi.getUserStats(savedToken);
+        user = user.copyWith(stats: stats);
+      } catch (_) {
+        debugPrint('Unable to load user statistics.');
       }
+      if (generation != _sessionGeneration) return;
+      _token = savedToken;
+      _user = user;
+      await fetchPreferences();
+      if (generation == _sessionGeneration) notifyListeners();
+    } catch (error) {
+      if (generation != _sessionGeneration) return;
+      _token = null;
+      // A connection failure must not destroy a migrated, otherwise valid login.
+      if (error is! AuthApiException ||
+          (error.statusCode != 401 && error.statusCode != 403)) {
+        debugPrint('Unable to restore login; the saved session is retained.');
+        notifyListeners();
+        return;
+      }
+      try {
+        await _credentials.remove();
+      } catch (_) {
+        debugPrint('Secure login cleanup will be retried.');
+      }
+      notifyListeners();
     }
   }
 
@@ -93,7 +119,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       if (_token != token || _user?.id != userId) return;
-      debugPrint('Failed to refresh user stats: $e');
+      debugPrint('Failed to refresh user stats.');
       rethrow;
     }
   }
@@ -120,7 +146,7 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Error loading local preferences: $e');
+      debugPrint('Error loading local preferences.');
     }
 
     if (_token != null) {
@@ -132,7 +158,7 @@ class AuthProvider with ChangeNotifier {
           notifyListeners();
         }
       } catch (e) {
-        debugPrint('Error fetching preferences: $e');
+        debugPrint('Error fetching preferences.');
       }
     }
   }
@@ -173,7 +199,7 @@ class AuthProvider with ChangeNotifier {
       try {
         await userRepository.updatePreferences(_token!, updates);
       } catch (e) {
-        debugPrint('Error updating preferences: $e');
+        debugPrint('Error updating preferences.');
         _preferences = oldPreferences;
         if (oldPreferences != null) {
           await userRepository.savePreferencesLocally(oldPreferences);
@@ -208,13 +234,13 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> loginWithGoogle() async {
+    final generation = ++_sessionGeneration;
     _isLoading = true;
     notifyListeners();
 
     try {
       await _googleSignInInitialization;
       final googleUser = await _googleSignIn.authenticate();
-      debugPrint('GoogleSignIn account selected: ${googleUser.email}');
 
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final String? idToken = googleAuth.idToken;
@@ -233,10 +259,11 @@ class AuthProvider with ChangeNotifier {
         idToken,
         isOnboarded: hasSeenOnboarding,
       );
+      if (generation != _sessionGeneration) return;
+      await _credentials.save(authResponse.accessToken);
+      if (generation != _sessionGeneration) return;
       _user = authResponse.user;
       _token = authResponse.accessToken;
-
-      await prefs.setString('accessToken', _token!);
 
       await fetchPreferences();
 
@@ -245,7 +272,7 @@ class AuthProvider with ChangeNotifier {
     } on GoogleSignInException catch (e) {
       _isLoading = false;
       notifyListeners();
-      debugPrint('GoogleSignIn failed (${e.code}): ${e.description}');
+      debugPrint('Google sign-in failed (${e.code.name}).');
       if (e.code == GoogleSignInExceptionCode.canceled) {
         throw Exception('Google sign-in was canceled.');
       }
@@ -253,35 +280,40 @@ class AuthProvider with ChangeNotifier {
           e.code == GoogleSignInExceptionCode.providerConfigurationError) {
         throw Exception(
           'Google sign-in is not configured for this Android build: '
-          '${e.description ?? e.code}.',
+          'Check the Google sign-in client configuration.',
         );
       }
       rethrow;
-    } catch (e, stackTrace) {
+    } catch (e) {
       _isLoading = false;
       notifyListeners();
-      debugPrint('Google authentication failed: $e');
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrint('Google authentication failed.');
       rethrow;
     }
   }
 
   Future<void> logout() async {
-    try {
-      await _googleSignIn.signOut();
-    } catch (_) {}
-
+    ++_sessionGeneration;
     final logoutUserId = _user?.id;
-    if (onLogout != null && logoutUserId != null) {
-      await onLogout!(logoutUserId);
+    try {
+      await _credentials.remove();
+    } finally {
+      try {
+        try {
+          await _googleSignIn.signOut();
+        } catch (_) {}
+        // The push-registration callback still needs the old token to revoke it.
+        if (onLogout != null && logoutUserId != null) {
+          await onLogout!(logoutUserId);
+        }
+      } finally {
+        _user = null;
+        _token = null;
+        _preferences = null;
+        _isLoading = false;
+        notifyListeners();
+      }
     }
-
-    _user = null;
-    _token = null;
-    _preferences = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('accessToken');
-    notifyListeners();
   }
 
   Future<void> deleteAccount() async {

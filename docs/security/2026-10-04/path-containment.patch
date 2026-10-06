@@ -1,0 +1,46 @@
+--- a/apps/flutter/lib/services/file_service.dart
++++ b/apps/flutter/lib/services/file_service.dart
+@@ -213,7 +213,16 @@
+       // If _getBaseDirectory returns internal AppDocs, result is AppDocs/downloads/...
+       // This is also consistent.
+ 
+-      final fullPath = p.join(baseDir.path, subPath);
++      // API-provided identifiers must never become parent/absolute paths.
++      final components = subPath.replaceAll('\\', '/').split('/');
++      if (p.isAbsolute(subPath) ||
++          components.any((part) => part == '.' || part == '..')) {
++        throw ArgumentError.value(subPath, 'subPath', 'Unsafe download path');
++      }
++      final fullPath = p.normalize(p.join(baseDir.path, subPath));
++      if (!p.isWithin(p.normalize(baseDir.path), fullPath)) {
++        throw ArgumentError.value(subPath, 'subPath', 'Path escapes storage');
++      }
+       final file = File(fullPath);
+ 
+       if (!await file.parent.exists()) {
+@@ -380,7 +389,11 @@
+   }
+ 
+   String _safeComponent(String value) {
+-    return value.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').trim();
++    final component = value.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').trim();
++    if (component.isEmpty || component == '.' || component == '..') {
++      return '_';
++    }
++    return component;
+   }
+ 
+   String _chapterPathComponent(String chapterId) {
+--- a/apps/ios/Keihatsu/Core/Storage/ChapterArchiveStore.swift
++++ b/apps/ios/Keihatsu/Core/Storage/ChapterArchiveStore.swift
+@@ -297,7 +297,9 @@
+ 
+     nonisolated private func safe(_ value: String) -> String {
+         let forbidden = CharacterSet(charactersIn: "<>:\"/\\|?*")
+-        return value.components(separatedBy: forbidden).joined(separator: "_").trimmingCharacters(in: .whitespacesAndNewlines)
++        let component = value.components(separatedBy: forbidden).joined(separator: "_").trimmingCharacters(in: .whitespacesAndNewlines)
++        guard !component.isEmpty, component != ".", component != ".." else { return "_" }
++        return component
+     }
+ 
+     nonisolated private func chapterComponent(_ value: String) -> String {
