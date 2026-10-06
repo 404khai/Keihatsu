@@ -30,6 +30,12 @@ export class AuthService {
     this.googleClient = new OAuth2Client(clientId);
   }
 
+  getGoogleWebClientId() {
+    return {
+      clientId: this.configService.get<string>('GOOGLE_CLIENT_ID_WEB') || null,
+    };
+  }
+
   async login(loginDto: LoginDto) {
     const user = await this.usersService.findByEmail(loginDto.email);
 
@@ -82,6 +88,10 @@ export class AuthService {
       }
       if (iosClientId) {
         audiences.push(iosClientId);
+      }
+
+      if (!audiences.length) {
+        throw new UnauthorizedException('Google sign-in is not configured');
       }
 
       let audience: string | string[] | undefined;
