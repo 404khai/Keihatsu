@@ -1,0 +1,83 @@
+name: keihatsu
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keihatsu
+      POSTGRES_USER: keihatsu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U keihatsu -d keihatsu']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [database]
+    logging: &logging
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  migrate:
+    image: keihatsu-api:beta
+    build: ../../apps/api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://keihatsu:${POSTGRES_PASSWORD}@db:5432/keihatsu?schema=public
+    command: [./node_modules/.bin/prisma, migrate, deploy]
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [database]
+    logging: *logging
+    restart: 'no'
+  api:
+    image: keihatsu-api:beta
+    build: ../../apps/api
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://keihatsu:${POSTGRES_PASSWORD}@db:5432/keihatsu?schema=public
+      NODE_ENV: production
+      PORT: '3000'
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    volumes:
+      - uploads:/app/uploads
+      - downloads:/app/downloads
+      - ./secrets:/run/keihatsu-secrets:ro
+    # Only the reverse proxy is public; loopback supports SSH tunnel verification.
+    ports: ['127.0.0.1:3000:3000']
+    networks: [database, web]
+    shm_size: 256mb
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging: *logging
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-api.keihatsu.app}
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: {condition: service_healthy}
+    networks: [web]
+    logging: *logging
+networks:
+  database:
+    internal: true
+  web:
+volumes:
+  postgres_data:
+  uploads:
+  downloads:
+  caddy_data:
+  caddy_config:

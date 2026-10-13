@@ -1,0 +1,9 @@
+[Unit]
+Description=Wait for the beta administrator's first Google sign-in
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=1m
+
+[Install]
+WantedBy=timers.target

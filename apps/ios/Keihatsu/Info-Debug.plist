@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleIconFile</key>
+	<string>KeihatsuIcon</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -14,19 +16,10 @@
 			</array>
 		</dict>
 	</array>
-	<key>CFBundleIconFile</key>
-	<string>KeihatsuIcon</string>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
 	<key>GIDClientID</key>
 	<string>$(KEIHATSU_GOOGLE_CLIENT_ID)</string>
 	<key>GIDServerClientID</key>
 	<string>$(KEIHATSU_GOOGLE_SERVER_CLIENT_ID)</string>
-	<key>UIAppFonts</key>
-	<array>
-		<string>BricolageGrotesque_24pt-SemiBold.ttf</string>
-		<string>BricolageGrotesque_24pt-Regular.ttf</string>
-	</array>
 	<key>KEIHATSU_API_BASE_URL</key>
 	<string>$(KEIHATSU_API_BASE_URL)</string>
 	<key>NSAppTransportSecurity</key>
@@ -34,11 +27,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Connect to your local Keihatsu development server.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>BricolageGrotesque_24pt-SemiBold.ttf</string>
+		<string>BricolageGrotesque_24pt-Regular.ttf</string>
+	</array>
 	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 </dict>
 </plist>

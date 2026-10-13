@@ -181,13 +181,17 @@ export class AuthService {
 
   async generateTokens(user: any) {
     const payload = { sub: user.id, email: user.email };
+    const { password: _password, ...publicUser } = user;
     return {
       accessToken: this.jwtService.sign(payload),
-      user,
+      user: publicUser,
     };
   }
 
   async validateUser(payload: any) {
-    return this.usersService.findOne({ id: payload.sub });
+    const user = await this.usersService.findOne({ id: payload.sub });
+    if (!user) return null;
+    const { password: _password, ...publicUser } = user;
+    return publicUser;
   }
 }

@@ -1,0 +1,14 @@
+Keihatsu 0.1.0 beta — build 5
+
+First beta connected to the new HTTPS backend.
+
+Please test:
+- Google sign-in and restoring your session after reopening the app
+- Browsing/searching content sources and opening the reader
+- Adding titles to your library and syncing reading progress
+- Downloading chapters and reading offline
+- Comments and notifications
+
+Report the steps to reproduce any issue, your Android version/device, and screenshots when useful.
+
+This beta uses a fresh backend database. Previous backend account/library data has not been migrated; local device data remains on the device when updating with the same signing key.
