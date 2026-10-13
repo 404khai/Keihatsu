@@ -118,8 +118,22 @@ ignored; it is not committed.
 A new-account zero-stat contract was tested automatically; no new production
 account was created for this audit. Live developer/tester badges were checked
 through the deployed API; visual badge/account-switch/relaunch acceptance remains
-user testing. No build-6 Firebase upload, distribution or tester notification was
-performed.
+user testing. Following the user's subsequent explicit authorization, build 6 was uploaded and
+distributed to all **15 current existing Firebase testers** on 2026-10-13. Firebase
+CLI exited 0 with status success after its awaited distribution request; the
+CLI's parser independently confirmed 15 addresses from the fetched tester list.
+The Firebase API independently confirmed release `17t30m0q7om6g`, version 0.1.0,
+build 6, and exact release-note contents. Firebase accepted the distribution;
+individual email delivery/opening is not tracked by this audit.
+
+- [Firebase console release](https://console.firebase.google.com/project/keihatsu-4539d/appdistribution/app/android:com.example.keihatsu/releases/17t30m0q7om6g)
+- [Tester install/update link](https://appdistribution.firebase.google.com/testerapps/1:887783028868:android:6a680c4ac1e7f6b97aaad1/releases/17t30m0q7om6g)
+- `output/beta/firebase-build6-distribution.json` and
+  `firebase-build6-release-readback.json`: sanitized confirmation/metadata.
+
+Temporary tester-target files, raw CLI output and private tester-list files were
+removed after recording the sanitized evidence. Android runtime acceptance
+remains user testing.
 
 ## User acceptance and redistribution
 
@@ -139,7 +153,7 @@ performed.
 
 Upload the build-6 APK as a **new Firebase App Distribution release** using the
 same Android app. Uploading without testers/groups prepares it without sending
-notifications. After acceptance, choose the existing testers and Distribute to
-notify them of the update. Use `0.1.0-build6-beta-notes.txt`. Do not replace the
+notifications. This build has already been distributed to the existing testers under the
+user's explicit instruction. Testers can update now using the link above. Use `0.1.0-build6-beta-notes.txt`. Do not replace the
 build-5 binary or downgrade build numbers. No keystore change, uninstall or public
 GitHub release is needed.

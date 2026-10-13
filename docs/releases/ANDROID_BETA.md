@@ -14,9 +14,10 @@ storage is larger than the download. Seasonal artwork uses lossless WebP with
 exact alpha/RGBA and ICC preservation; mock covers use quality-90 WebP without
 changing dimensions. See [the beta-fixes audit](BETA_FIXES_AUDIT.md) for evidence.
 
-Build 6 has not been uploaded or distributed to Firebase in this task. The
-prepared release linked below remains build 5. Do not send tester notifications
-without explicit authorization.
+Build 6 was uploaded and distributed to all **15 existing Firebase testers** on
+2026-10-13 following explicit user authorization. Android runtime acceptance
+remains user testing. [Build-6 console release](https://console.firebase.google.com/project/keihatsu-4539d/appdistribution/app/android:com.example.keihatsu/releases/17t30m0q7om6g) · [Tester install/update](https://appdistribution.firebase.google.com/testerapps/1:887783028868:android:6a680c4ac1e7f6b97aaad1/releases/17t30m0q7om6g).
+The original prepared build-5 release linked below remains available as history.
 
 ## Firebase console: notify the existing testers
 
