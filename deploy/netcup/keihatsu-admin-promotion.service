@@ -1,0 +1,11 @@
+[Unit]
+Description=Promote the verified beta administrator after first sign-in
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/keihatsu-admin.env
+ExecStart=/opt/keihatsu/deploy/netcup/promote-admin.sh
+User=root
+UMask=0077

@@ -5,7 +5,7 @@ class ApiConstants {
     'API_BASE_URL',
     defaultValue: kDebugMode
         ? 'http://192.168.1.232:3000'
-        : 'https://keihatsu-api-production.up.railway.app',
+        : 'https://keihatsu.159.195.86.119.sslip.io',
   );
 
   static String get baseUrl => validateBaseUrl(_configuredBaseUrl);

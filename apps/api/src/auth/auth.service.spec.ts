@@ -9,6 +9,7 @@ describe('AuthService', () => {
   const usersService = {
     findByGoogleId: jest.fn(),
     findByEmail: jest.fn(),
+    findOne: jest.fn(),
     createGoogleUser: jest.fn(),
     updateUser: jest.fn(),
   };
@@ -30,6 +31,16 @@ describe('AuthService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('never returns the password hash in login or authenticated profiles', async () => {
+    const user = { id: 'reader', email: 'reader@example.com', password: 'private-hash' };
+    jwtService.sign.mockReturnValue('token');
+    usersService.findOne.mockResolvedValue(user);
+    expect((await service.generateTokens(user)).user).toEqual({
+      id: 'reader', email: 'reader@example.com',
+    });
+    expect(await service.validateUser({ sub: user.id })).not.toHaveProperty('password');
   });
 
   it('reuses the existing backend account across Google platform clients', async () => {

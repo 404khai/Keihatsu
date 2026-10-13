@@ -187,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         hue: user?.avatarHue,
                                         shape: user?.avatarShape,
                                         expression:
-                                            user?.avatarExpression ?? 'happy',
+                                            user?.avatarExpression ?? 'idle',
                                         animated: user?.avatarAnimated ?? false,
                                       )
                                     : OfflineImage(
@@ -235,7 +235,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           avatarUrl: avatarUrl,
                           avatarHue: user?.avatarHue,
                           avatarShape: user?.avatarShape,
-                          avatarExpression: user?.avatarExpression ?? 'happy',
+                          avatarExpression: user?.avatarExpression ?? 'idle',
                           avatarAnimated: user?.avatarAnimated ?? false,
                           stats: [
                             MenuHeaderStat(

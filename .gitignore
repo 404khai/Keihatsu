@@ -70,3 +70,20 @@ google-services.json
 **/xcuserdata/
 **/*.xcuserstate
 **/Pods/
+
+/deploy/netcup/secrets/
+
+# Deployment credentials and generated release artifacts
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/secrets/
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+**/*service-account*.json
+**/.vercel/
+/output/
+firebase-debug.log

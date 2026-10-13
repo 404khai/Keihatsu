@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up Keihatsu PostgreSQL, uploads, and configuration
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/keihatsu/deploy/netcup/backup.sh
+User=root
+UMask=0077

@@ -2,7 +2,7 @@ name: keihatsu
 description: "The cross-platform manga reader built for offline freedom, and a seamless reading experience"
 publish_to: 'none'
 
-version: 1.0.0
+version: 0.1.0+5
 
 environment:
   sdk: ^3.8.1

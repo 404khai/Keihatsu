@@ -511,8 +511,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = KeihatsuIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = "Keihatsu/Keihatsu-Debug.entitlements";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -525,7 +525,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				KEIHATSU_API_BASE_URL = "";
+				KEIHATSU_API_BASE_URL = "https://keihatsu.159.195.86.119.sslip.io";
 				"KEIHATSU_API_BASE_URL[sdk=iphonesimulator*]" = "http://127.0.0.1:3000";
 				KEIHATSU_GOOGLE_CLIENT_ID = "887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9.apps.googleusercontent.com";
 				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9";
@@ -554,8 +554,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = KeihatsuIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = "Keihatsu/Keihatsu-Release.entitlements";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -568,7 +568,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				KEIHATSU_API_BASE_URL = "";
+				KEIHATSU_API_BASE_URL = "https://keihatsu.159.195.86.119.sslip.io";
 				KEIHATSU_GOOGLE_CLIENT_ID = "887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9.apps.googleusercontent.com";
 				KEIHATSU_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.887783028868-ofgpqd65cbgjbljnv5s54mmur566a6l9";
 				KEIHATSU_GOOGLE_SERVER_CLIENT_ID = "887783028868-auatnr60j0neo58vhk6h72ngtok8hjn7.apps.googleusercontent.com";
