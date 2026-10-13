@@ -31,7 +31,7 @@ export default async function AdminPage({
   const data: Analytics = await response.json();
   const title = labels[slug] || "Overview";
   const cards = [
-    ["Total users", data.totalUsers, "All registered accounts"],
+    ["Total users", data.totalUsers, "Registered app accounts; Firebase invitations are separate"],
     ["Active readers", data.activeReaders, "Read in the last 30 days"],
     ["New users", data.newUsers, "Registered in the last 30 days"],
     ["Chapters in history", data.history, "Current, non-deleted entries"],

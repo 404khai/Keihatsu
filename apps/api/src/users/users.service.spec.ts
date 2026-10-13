@@ -65,6 +65,21 @@ describe('UsersService', () => {
     });
   });
 
+  it('returns zeros for a new account and scopes every statistic to its ID', async () => {
+    prismaService.libraryEntry.count.mockResolvedValueOnce(0);
+    prismaService.comment.count.mockResolvedValueOnce(0);
+    prismaService.historyEntry.groupBy.mockResolvedValueOnce([]);
+    prismaService.user.findUnique.mockResolvedValueOnce({ readingStats: null, points: 0 });
+    expect(await service.getUserStats('new-account')).toEqual({
+      libraryCount: 0, commentsCount: 0, mangasReadToday: 0,
+      totalReadingTimeMinutes: 0, dailyReadingTimeMinutes: {}, points: 0,
+    });
+    expect(prismaService.libraryEntry.count).toHaveBeenCalledWith({where: {userId: 'new-account'}});
+    expect(prismaService.comment.count).toHaveBeenCalledWith({where: {userId: 'new-account'}});
+    expect(prismaService.historyEntry.groupBy).toHaveBeenCalledWith(expect.objectContaining({where: expect.objectContaining({userId: 'new-account'})}));
+    expect(prismaService.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({where: {id: 'new-account'}}));
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });

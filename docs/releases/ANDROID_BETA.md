@@ -1,10 +1,22 @@
 # Android beta distribution
 
-The first beta is **0.1.0 (Android build 5)**, package `com.example.keihatsu`.
+The current replacement beta is **0.1.0 (Android build 6)**, package `com.example.keihatsu`.
 It uses the existing release signing certificate and the live Netcup HTTPS API.
 The old GitHub `v1.0.0` APK actually identifies itself as `1.2.0`, build 4.
 Android uses the numeric build number for upgrades, so build 5 can replace it
-without removing tester data. Future beta builds must use 6, 7, and so on.
+without removing tester data. Build 6 preserves the same signing identity. Future beta builds must use 7, 8, and so on.
+
+The build-6 replacement is `output/beta/keihatsu-0.1.0-build6.apk`,
+**56,666,346 bytes** (56.67 MB / 54.04 MiB), with arm64-v8a, armeabi-v7a
+and x86_64 retained. Its signed versionCode is 6 and versionName is 0.1.0.
+Native libraries are compressed and extracted on installation, so installed
+storage is larger than the download. Seasonal artwork uses lossless WebP with
+exact alpha/RGBA and ICC preservation; mock covers use quality-90 WebP without
+changing dimensions. See [the beta-fixes audit](BETA_FIXES_AUDIT.md) for evidence.
+
+Build 6 has not been uploaded or distributed to Firebase in this task. The
+prepared release linked below remains build 5. Do not send tester notifications
+without explicit authorization.
 
 ## Firebase console: notify the existing testers
 
@@ -14,7 +26,7 @@ without removing tester data. Future beta builds must use 6, 7, and so on.
 3. Upload `output/beta/keihatsu-0.1.0-build5.apk` from the repository root if the
    prepared release is not already listed.
 4. Paste `docs/releases/0.1.0-beta-notes.txt` into the release notes.
-5. Select the testers you want to notify. The project currently retains 13 testers
+5. Select the testers you want to notify. The initial preparation retained 13 testers; the 2026-10-13 audit found 15 testers
    and has no tester groups. A group such as `beta-testers` is optional and makes
    later distributions easier.
 6. Click **Distribute**. Firebase handles invitations/update emails. Testers open
@@ -30,7 +42,7 @@ From `apps/flutter`:
 
 ```sh
 flutter build apk --release \
-  --build-name=0.1.0 --build-number=6 \
+  --build-name=0.1.0 --build-number=7 \
   --dart-define=APP_VERSION=0.1.0 \
   --dart-define=API_BASE_URL=https://keihatsu.159.195.86.119.sslip.io
 ```

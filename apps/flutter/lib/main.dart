@@ -230,7 +230,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -266,7 +265,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       navigatorKey: context.read<PushCoordinator>().navigatorKey,
-      initialRoute: authProvider.isAuthenticated ? '/library' : '/onboarding',
+      initialRoute: '/onboarding',
       routes: {
         '/onboarding': (context) => const Onboarding(),
         '/onboardingFlow': (context) => const OnboardingFlow(),

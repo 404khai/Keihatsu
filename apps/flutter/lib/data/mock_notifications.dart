@@ -62,7 +62,7 @@ final List<AppNotification> mockNotifications = [
     timestamp: '2m ago',
     occurredAt: _daysAgo(0, minutes: 2),
     category: NotificationCategory.updates,
-    thumbnailUrl: 'images/manwha/ordeal.png',
+    thumbnailUrl: 'images/manwha/ordeal.webp',
     unread: true,
   ),
   AppNotification(
@@ -72,7 +72,7 @@ final List<AppNotification> mockNotifications = [
     timestamp: '1h ago',
     occurredAt: _daysAgo(0, hours: 1),
     category: NotificationCategory.updates,
-    thumbnailUrl: 'images/manwha/northernblade.png',
+    thumbnailUrl: 'images/manwha/northernblade.webp',
     unread: true,
   ),
   AppNotification(

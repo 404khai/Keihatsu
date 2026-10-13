@@ -46,6 +46,12 @@ android {
         }
     }
 
+    // Compress JNI libraries in the download; Android extracts them on install.
+    // All three ABIs remain supported, with additional installed storage.
+    packaging {
+        jniLibs.useLegacyPackaging = true
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")

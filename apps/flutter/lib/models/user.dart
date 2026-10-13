@@ -1,6 +1,7 @@
 class User {
   final String id;
   final String? googleId;
+  final String? profileBadge;
   final String? email;
   final String? avatarUrl;
   final double? avatarHue;
@@ -23,6 +24,7 @@ class User {
   User({
     required this.id,
     this.googleId,
+    this.profileBadge,
     this.email,
     this.avatarUrl,
     this.avatarHue,
@@ -47,6 +49,7 @@ class User {
     return User(
       id: json['id'] ?? '',
       googleId: json['googleId'],
+      profileBadge: json['profileBadge'],
       email: json['email'],
       avatarUrl: json['avatarUrl'],
       avatarHue: (json['avatarHue'] as num?)?.toDouble(),
@@ -78,6 +81,7 @@ class User {
     return {
       'id': id,
       'googleId': googleId,
+      'profileBadge': profileBadge,
       'email': email,
       'avatarUrl': avatarUrl,
       'avatarHue': avatarHue,
@@ -102,6 +106,7 @@ class User {
   User copyWith({
     String? id,
     String? googleId,
+    String? profileBadge,
     String? email,
     String? avatarUrl,
     double? avatarHue,
@@ -124,6 +129,7 @@ class User {
     return User(
       id: id ?? this.id,
       googleId: googleId ?? this.googleId,
+      profileBadge: profileBadge ?? this.profileBadge,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       avatarHue: avatarHue ?? this.avatarHue,

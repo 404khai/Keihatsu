@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,7 +18,7 @@ class AuthProvider with ChangeNotifier {
     'GOOGLE_SERVER_CLIENT_ID',
   );
 
-  final AuthApi _authApi = AuthApi(baseUrl: ApiConstants.baseUrl);
+  final AuthApi _authApi;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   final UserRepository userRepository;
   final CredentialStore _credentials;
@@ -29,6 +30,9 @@ class AuthProvider with ChangeNotifier {
   UserPreferences? _preferences;
   bool _isLoading = false;
   late final Future<void> _googleSignInInitialization;
+  late final Future<void> initialized;
+  bool _restoreFailed = false;
+  bool get restoreFailed => _restoreFailed;
 
   User? get user => _user;
   String? get token => _token;
@@ -41,9 +45,17 @@ class AuthProvider with ChangeNotifier {
     this.onLogout,
     required this.userRepository,
     CredentialStore? credentials,
-  }) : _credentials = credentials ?? CredentialStore() {
-    _googleSignInInitialization = _initializeGoogleSignIn();
-    _init();
+    AuthApi? authApi,
+    Future<void> Function()? initializeGoogleSignIn,
+  }) : _credentials = credentials ?? CredentialStore(),
+       _authApi = authApi ?? AuthApi(baseUrl: ApiConstants.baseUrl) {
+    _googleSignInInitialization =
+        (initializeGoogleSignIn ?? _initializeGoogleSignIn)();
+    // Google SDK availability must not block restoration of an API session.
+    _googleSignInInitialization.catchError((Object _) {
+      debugPrint('Google sign-in initialization failed.');
+    });
+    initialized = _loadToken();
   }
 
   Future<void> _initializeGoogleSignIn() async {
@@ -55,46 +67,40 @@ class AuthProvider with ChangeNotifier {
     );
   }
 
-  Future<void> _init() async {
-    final generation = _sessionGeneration;
-    try {
-      await _googleSignInInitialization;
-    } catch (e) {
-      debugPrint('Google sign-in initialization failed.');
-    }
-    if (generation == _sessionGeneration) await _loadToken();
+  Future<void> retrySessionRestore() async {
+    await _loadToken();
   }
 
   Future<void> _loadToken() async {
     final generation = _sessionGeneration;
+    _restoreFailed = false;
     String? savedToken;
     try {
       savedToken = await _credentials.read();
     } catch (_) {
       // Preserve the existing session in storage for a later retry.
+      if (generation == _sessionGeneration) {
+        _restoreFailed = true;
+        notifyListeners();
+      }
       debugPrint('Secure login storage is temporarily unavailable.');
       return;
     }
     if (savedToken == null || generation != _sessionGeneration) return;
     try {
-      var user = await _authApi.getMe(savedToken);
-      try {
-        final stats = await _authApi.getUserStats(savedToken);
-        user = user.copyWith(stats: stats);
-      } catch (_) {
-        debugPrint('Unable to load user statistics.');
-      }
+      final user = await _authApi.getMe(savedToken);
       if (generation != _sessionGeneration) return;
       _token = savedToken;
       _user = user;
-      await fetchPreferences();
-      if (generation == _sessionGeneration) notifyListeners();
+      notifyListeners();
+      unawaited(Future.wait([fetchPreferences(), _loadStats()]));
     } catch (error) {
       if (generation != _sessionGeneration) return;
       _token = null;
       // A connection failure must not destroy a migrated, otherwise valid login.
       if (error is! AuthApiException ||
           (error.statusCode != 401 && error.statusCode != 403)) {
+        _restoreFailed = true;
         debugPrint('Unable to restore login; the saved session is retained.');
         notifyListeners();
         return;
@@ -105,6 +111,14 @@ class AuthProvider with ChangeNotifier {
         debugPrint('Secure login cleanup will be retried.');
       }
       notifyListeners();
+    }
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      await refreshUserStats();
+    } catch (_) {
+      debugPrint('Unable to load user statistics.');
     }
   }
 
@@ -132,15 +146,21 @@ class AuthProvider with ChangeNotifier {
   Future<void> refreshCurrentUser() async {
     if (_token == null) return;
 
+    final token = _token!;
+    final generation = _sessionGeneration;
     final currentStats = _user?.stats;
-    final refreshedUser = await _authApi.getMe(_token!);
+    final refreshedUser = await _authApi.getMe(token);
+    if (generation != _sessionGeneration || token != _token) return;
     _user = refreshedUser.copyWith(stats: currentStats);
     notifyListeners();
   }
 
   Future<void> fetchPreferences() async {
+    final generation = _sessionGeneration;
+    final token = _token;
     try {
       final localPrefs = await userRepository.getPreferences();
+      if (generation != _sessionGeneration) return;
       if (localPrefs != null) {
         _preferences = localPrefs;
         notifyListeners();
@@ -149,10 +169,12 @@ class AuthProvider with ChangeNotifier {
       debugPrint('Error loading local preferences.');
     }
 
-    if (_token != null) {
+    if (token != null && generation == _sessionGeneration) {
       try {
-        await userRepository.refreshPreferences(_token!);
+        await userRepository.refreshPreferences(token);
+        if (generation != _sessionGeneration) return;
         final updatedPrefs = await userRepository.getPreferences();
+        if (generation != _sessionGeneration) return;
         if (updatedPrefs != null) {
           _preferences = updatedPrefs;
           notifyListeners();
@@ -265,7 +287,9 @@ class AuthProvider with ChangeNotifier {
       _user = authResponse.user;
       _token = authResponse.accessToken;
 
-      await fetchPreferences();
+      notifyListeners();
+      await Future.wait([fetchPreferences(), _loadStats()]);
+      if (generation != _sessionGeneration) return;
 
       _isLoading = false;
       notifyListeners();
@@ -358,7 +382,10 @@ class AuthProvider with ChangeNotifier {
         avatarExpression: avatarExpression,
         avatarAnimated: avatarAnimated,
       );
-      _user = updatedUser.copyWith(stats: _user?.stats);
+      _user = updatedUser.copyWith(
+        stats: _user?.stats,
+        profileBadge: _user?.profileBadge,
+      );
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -380,7 +407,10 @@ class AuthProvider with ChangeNotifier {
         token: _token!,
         isProfilePublic: isProfilePublic,
       );
-      _user = updatedUser.copyWith(stats: previousUser?.stats);
+      _user = updatedUser.copyWith(
+        stats: previousUser?.stats,
+        profileBadge: previousUser?.profileBadge,
+      );
       notifyListeners();
     } catch (e) {
       _user = previousUser;
