@@ -32,6 +32,8 @@ import 'services/user_repository.dart';
 import 'services/seasonal_branding_service.dart';
 import 'services/push_coordinator.dart';
 import 'services/ota_diagnostics.dart';
+import 'services/app_update_controller.dart';
+import 'components/app_update_prompt.dart';
 import 'screens/InboxScreen.dart';
 
 // Screens
@@ -189,6 +191,7 @@ void main() async {
         Provider.value(value: historyRepo),
         Provider.value(value: pushCoordinator),
         ChangeNotifierProvider.value(value: notificationUnread),
+        ChangeNotifierProvider(create: (_) => AppUpdateController()),
         Provider.value(value: userRepo),
         // Providers using Repositories
         ChangeNotifierProxyProvider<AuthProvider, OfflineLibraryProvider>(
@@ -232,12 +235,26 @@ void main() async {
   });
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _updateObserver = AppUpdateNavigatorObserver();
+
+  @override
+  void dispose() {
+    _updateObserver.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final navigatorKey = context.read<PushCoordinator>().navigatorKey;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -272,7 +289,14 @@ class MyApp extends StatelessWidget {
         ).apply(bodyColor: Colors.white, displayColor: Colors.white),
         useMaterial3: true,
       ),
-      navigatorKey: context.read<PushCoordinator>().navigatorKey,
+      navigatorKey: navigatorKey,
+      navigatorObservers: [_updateObserver],
+      builder: (context, child) => AppUpdatePrompt(
+        controller: context.read<AppUpdateController>(),
+        observer: _updateObserver,
+        navigatorKey: navigatorKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
       initialRoute: '/onboarding',
       routes: {
         '/onboarding': (context) => const Onboarding(),

@@ -13,6 +13,11 @@ class StyledSheet extends StatelessWidget {
     required this.message,
     required this.confirmLabel,
     this.destructive = false,
+    this.onConfirm,
+    this.onCancel,
+    this.cancelLabel = 'Cancel',
+    this.confirmEnabled = true,
+    this.busy = false,
   });
 
   final IconData icon;
@@ -20,6 +25,11 @@ class StyledSheet extends StatelessWidget {
   final String message;
   final String confirmLabel;
   final bool destructive;
+  final VoidCallback? onConfirm;
+  final VoidCallback? onCancel;
+  final String? cancelLabel;
+  final bool confirmEnabled;
+  final bool busy;
 
   static Future<bool> show(
     BuildContext context, {
@@ -52,10 +62,12 @@ class StyledSheet extends StatelessWidget {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final TextTheme tt = Theme.of(context).textTheme;
 
-    final Color heroBackground =
-        destructive ? cs.errorContainer : cs.secondaryContainer;
-    final Color heroForeground =
-        destructive ? cs.onErrorContainer : cs.onSecondaryContainer;
+    final Color heroBackground = destructive
+        ? cs.errorContainer
+        : cs.secondaryContainer;
+    final Color heroForeground = destructive
+        ? cs.onErrorContainer
+        : cs.onSecondaryContainer;
 
     return SafeArea(
       child: Padding(
@@ -68,75 +80,91 @@ class StyledSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(52),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: ShapeDecoration(
-                        color: heroBackground,
-                        shape: MaterialShapeBorder(
-                          shape: destructive
-                              ? MaterialShapes.sunny
-                              : MaterialShapes.cookie7Sided,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: ShapeDecoration(
+                          color: heroBackground,
+                          shape: MaterialShapeBorder(
+                            shape: destructive
+                                ? MaterialShapes.sunny
+                                : MaterialShapes.cookie7Sided,
+                          ),
+                        ),
+                        child: busy
+                            ? Center(
+                                child: SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    color: heroForeground,
+                                    strokeWidth: 3,
+                                  ),
+                                ),
+                              )
+                            : Icon(icon, size: 32, color: heroForeground),
+                      ),
+                    ),
+                    16.gap,
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.unbounded(
+                        textStyle: tt.titleLarge,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    16.gap,
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: tt.bodyMedium?.copyWith(
+                        height: 1.4,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    24.gap,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 56),
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          textStyle: tt.titleMedium,
+                          backgroundColor: destructive ? cs.error : null,
+                          foregroundColor: destructive ? cs.onError : null,
+                        ),
+                        onPressed: !confirmEnabled
+                            ? null
+                            : onConfirm ??
+                                  () => Navigator.of(context).pop(true),
+                        child: Text(confirmLabel),
+                      ),
+                    ),
+                    if (cancelLabel != null) ...[
+                      8.gap,
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 56),
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            textStyle: tt.titleMedium,
+                          ),
+                          onPressed:
+                              onCancel ??
+                              () => Navigator.of(context).pop(false),
+                          child: Text(cancelLabel!),
                         ),
                       ),
-                      child: Icon(
-                        icon,
-                        size: 32,
-                        color: heroForeground,
-                      ),
-                    ),
-                  ),
-                  16.gap,
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.unbounded(
-                      textStyle: tt.titleLarge,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  16.gap,
-                  Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: tt.bodyMedium?.copyWith(
-                      height: 1.4,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  24.gap,
-                  SizedBox(
-                    height: 56,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        textStyle: tt.titleMedium,
-                        backgroundColor: destructive ? cs.error : null,
-                        foregroundColor: destructive ? cs.onError : null,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: Text(confirmLabel),
-                    ),
-                  ),
-                  8.gap,
-                  SizedBox(
-                    height: 56,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        textStyle: tt.titleMedium,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                ],
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
