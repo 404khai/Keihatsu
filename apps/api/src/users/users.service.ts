@@ -23,6 +23,17 @@ export class UsersService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
+  async searchMentionUsers(query: string) {
+    const prefix = query.trim();
+    if (!/^[A-Za-z0-9_]{1,32}$/.test(prefix)) return [];
+    return this.prisma.user.findMany({
+      where: { isProfilePublic: true, username: { startsWith: prefix, mode: 'insensitive' } },
+      take: 8, orderBy: { username: 'asc' },
+      select: { id: true, username: true, avatarHue: true, avatarShape: true,
+        avatarExpression: true, avatarAnimated: true },
+    });
+  }
+
   async getUserStats(userId: string): Promise<UserStatsDto> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

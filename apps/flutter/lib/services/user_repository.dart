@@ -5,14 +5,17 @@ import '../models/local_models.dart';
 import '../models/user_preferences.dart';
 import 'auth_api.dart';
 import 'file_service.dart';
+import 'sync_manager.dart';
 
 class UserRepository {
+  final SyncManager? syncManager;
   final Isar isar;
   final AuthApi api;
   final FileService fileService;
   final String Function() getCurrentUserId;
 
   UserRepository({
+    this.syncManager,
     required this.isar,
     required this.api,
     required this.fileService,
@@ -57,12 +60,25 @@ class UserRepository {
     if (connectivity.contains(ConnectivityResult.none)) return;
 
     try {
+      // A server snapshot must never overwrite locally queued customization.
+      if (await _hasPendingPreferences(ownerUserId)) return;
       final prefsData = await api.getPreferences(token);
+      if (await _hasPendingPreferences(ownerUserId)) return;
       await savePreferencesLocally(prefsData, ownerUserId: ownerUserId);
     } catch (e) {
       print('Error refreshing preferences: $e');
     }
   }
+
+  Future<bool> _hasPendingPreferences(String ownerUserId) async =>
+      await isar
+          .collection<SyncOperation>()
+          .filter()
+          .ownerUserIdEqualTo(ownerUserId)
+          .completedEqualTo(false)
+          .typeEqualTo('UPDATE_PREFERENCES')
+          .count() >
+      0;
 
   Future<void> savePreferencesLocally(
     UserPreferences prefsData, {
@@ -102,8 +118,15 @@ class UserRepository {
   ) async {
     final ownerUserId = _currentUserId;
     try {
-      final updatedPrefs = await api.updatePreferences(token, updates);
-      await savePreferencesLocally(updatedPrefs, ownerUserId: ownerUserId);
+      if (syncManager != null) {
+        await syncManager!.addToQueue(
+          'UPDATE_PREFERENCES',
+          updates,
+          ownerUserId: ownerUserId,
+        );
+      } else {
+        await api.updatePreferences(token, updates);
+      }
     } catch (e) {
       print('Error updating preferences: $e');
       rethrow;

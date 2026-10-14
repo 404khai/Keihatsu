@@ -52,8 +52,8 @@ packages:
   blobatar:
     dependency: "direct main"
     description:
-      path: "/Users/admin/Developer/blobatar/packages/flutter"
-      relative: false
+      path: "../../../blobatar/packages/flutter"
+      relative: true
     source: path
     version: "0.1.0"
   boolean_selector:

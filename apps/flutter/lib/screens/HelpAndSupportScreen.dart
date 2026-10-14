@@ -315,7 +315,7 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text("Failed to send report: $e"),
+                              content: const Text('Could not send your report. Please try again.'),
                             ),
                           );
                         }

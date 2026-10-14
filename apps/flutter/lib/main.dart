@@ -128,6 +128,7 @@ void main() async {
     getCurrentUserId: () => _getCurrentUserId(),
   );
   final userRepo = UserRepository(
+    syncManager: syncManager,
     isar: isar,
     api: authApi,
     fileService: fileService,

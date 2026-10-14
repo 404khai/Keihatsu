@@ -436,7 +436,7 @@ class _NotificationPreferencesScreenState
         ? Center(
             child: error == null
                 ? const CircularProgressIndicator()
-                : TextButton(onPressed: load, child: Text('$error — Retry')),
+                : TextButton(onPressed: load, child: const Text('Could not load messages — Retry')),
           )
         : ListView(
             children: [

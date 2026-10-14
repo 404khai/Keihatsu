@@ -412,9 +412,7 @@ class _LibraryScreenState extends State<LibraryScreen>
       body: GradientFadeScrollListener(
         onFadeChanged: updateAppBarFade,
         child: FloatingNavScrollScope(
-          child: offlineLibrary.isLoading
-              ? Center(child: CircularProgressIndicator(color: brandColor))
-              : offlineLibrary.library.isEmpty
+          child: offlineLibrary.library.isEmpty
               ? _buildEmptyState(textColor)
               : _buildLibraryContent(
                   offlineLibrary.getLibraryForCategory(_selectedCategory),
@@ -640,8 +638,6 @@ class _LibraryScreenState extends State<LibraryScreen>
     dynamic prefs,
     String displayMode,
   ) {
-    final bool showTitle = displayMode != 'cover grid';
-
     return GestureDetector(
       onLongPress: () => _showCategoryContextMenu(entry),
       onTap: () {
