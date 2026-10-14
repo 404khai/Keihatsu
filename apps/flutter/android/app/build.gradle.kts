@@ -15,6 +15,18 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// Fail before a release build can produce an unsigned replacement. Existing
+// beta installs must keep their original signing key (checked by OTA tooling).
+if (gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }) {
+    val requiredKeys = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    if (requiredKeys.any { keystoreProperties.getProperty(it).isNullOrBlank() }) {
+        throw GradleException("Release signing is missing. Restore android/key.properties and the existing keystore locally.")
+    }
+    if (!file(keystoreProperties.getProperty("storeFile")).isFile) {
+        throw GradleException("The existing release signing keystore cannot be found.")
+    }
+}
+
 android {
     namespace = "com.example.keihatsu"
     compileSdk = 35

@@ -1,279 +1,131 @@
-# =============================================================================
-# Keihatsu — Automated Release Workflow
-# =============================================================================
-# Triggers on semantic version tags (e.g., v1.2.0).
-# Builds a signed release APK and publishes it as a GitHub Release asset.
-#
-# Required GitHub Secrets:
-#   KEYSTORE_BASE64       — Base64-encoded upload-keystore.jks
-#   KEY_ALIAS             — Keystore alias  (e.g. "upload")
-#   KEY_PASSWORD          — Key password
-#   STORE_PASSWORD        — Keystore password
-#   GOOGLE_SERVICES_JSON  — Contents of apps/flutter/android/app/google-services.json
-#
-# Optional secrets (for future use):
-#   FIREBASE_APP_ID       — Firebase App Distribution app ID
-# =============================================================================
-
-name: "🚀 Release APK"
+# Validation only. Baseline publication/distribution is an explicit local action.
+name: Shorebird baseline validation
 
 on:
-  push:
-    tags:
-      - "v*"           # Trigger on any tag starting with 'v' (e.g., v1.0.0, v1.2.3)
-
-# Prevent concurrent releases for the same ref
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Flutter platform to validate (no upload)
+        required: true
+        type: choice
+        options: [android, ios]
+      architecture:
+        description: Android APK architectures
+        required: true
+        type: choice
+        default: universal
+        options: [universal, arm64]
 
 permissions:
-  contents: write       # Needed to create GitHub Releases
+  contents: read
 
-env:
-  FLUTTER_VERSION: "3.29.3"   # Stable version compatible with Dart SDK ^3.8.1
-  JAVA_VERSION: "17"
+concurrency:
+  group: shorebird-validation-${{ github.ref }}-${{ inputs.platform }}
+  cancel-in-progress: false
 
 jobs:
-  # ===========================================================================
-  # Job: Build & Release
-  # ===========================================================================
-  build-and-release:
-    name: "Build Release APK"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  validate:
+    runs-on: ${{ inputs.platform == 'ios' && 'macos-15' || 'ubuntu-latest' }}
+    timeout-minutes: 60
     defaults:
       run:
+        shell: bash
         working-directory: apps/flutter
-
+    env:
+      SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
     steps:
-      # -----------------------------------------------------------------------
-      # 1. Checkout
-      # -----------------------------------------------------------------------
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0    # Full history for release notes generation
-
-      # -----------------------------------------------------------------------
-      # 2. Extract version info & validate
-      # -----------------------------------------------------------------------
-      - name: 🏷️ Extract tag version
-        id: tag
+      - uses: actions/checkout@v4
+      - name: Read reviewed build pins
+        id: settings
         run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          TAG_VERSION="${TAG_NAME#v}"
-          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
-          echo "tag_version=${TAG_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "📌 Tag: ${TAG_NAME} → Version: ${TAG_VERSION}"
-
-      - name: ✅ Validate tag matches pubspec.yaml version
+          python3 - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          settings = json.loads(Path('shorebird-release.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('flutter_version=' + settings['flutter_version'] + '\n')
+              for name in ['navii', 'blobatar']:
+                  output.write(name + '_revision=' + settings['path_dependencies'][name]['revision'] + '\n')
+          PYTHON
+      # Keep path dependencies at reviewed commits; never build floating main.
+      - uses: actions/checkout@v4
+        with:
+          repository: 404khai/navii
+          ref: ${{ steps.settings.outputs.navii_revision }}
+          path: .ota-deps/navii
+          token: ${{ secrets.DEPENDENCY_READ_TOKEN || github.token }}
+      - uses: actions/checkout@v4
+        with:
+          repository: 404khai/blobatar
+          ref: ${{ steps.settings.outputs.blobatar_revision }}
+          path: .ota-deps/blobatar
+          token: ${{ secrets.DEPENDENCY_READ_TOKEN || github.token }}
+      - name: Link sibling path packages
         run: |
-          # Extract version from pubspec.yaml (e.g., "1.2.0+4" → "1.2.0")
-          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | sed 's/+.*//' | tr -d '[:space:]')
-          TAG_VERSION="${{ steps.tag.outputs.tag_version }}"
-
-          # Strip build metadata from tag too if present (v1.2.0+4 → 1.2.0)
-          TAG_VERSION_CLEAN=$(echo "$TAG_VERSION" | sed 's/+.*//')
-
-          echo "📦 pubspec.yaml version: ${PUBSPEC_VERSION}"
-          echo "🏷️  Git tag version:      ${TAG_VERSION_CLEAN}"
-
-          if [ "$PUBSPEC_VERSION" != "$TAG_VERSION_CLEAN" ]; then
-            echo "❌ ERROR: Version mismatch!"
-            echo "   pubspec.yaml has '${PUBSPEC_VERSION}' but tag is 'v${TAG_VERSION_CLEAN}'"
-            echo "   Please ensure the tag matches the version in pubspec.yaml."
-            exit 1
-          fi
-
-          echo "✅ Versions match!"
-
-      # -----------------------------------------------------------------------
-      # 3. Set up Java (required for Android builds)
-      # -----------------------------------------------------------------------
-      - name: ☕ Set up Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
+          ln -s "$GITHUB_WORKSPACE/.ota-deps/navii" "$GITHUB_WORKSPACE/../navii"
+          ln -s "$GITHUB_WORKSPACE/.ota-deps/blobatar" "$GITHUB_WORKSPACE/../blobatar"
+      - name: Check project and account prerequisites
+        run: |
+          test -f shorebird.yaml || { echo 'Initialize Shorebird locally and commit the real app ID first.'; exit 1; }
+          test -n "$SHOREBIRD_TOKEN" || { echo 'Configure SHOREBIRD_TOKEN as a repository Actions secret (Shorebird API key).'; exit 1; }
+      - uses: actions/setup-java@v4
+        if: inputs.platform == 'android'
         with:
-          distribution: "temurin"
-          java-version: ${{ env.JAVA_VERSION }}
-
-      # -----------------------------------------------------------------------
-      # 4. Set up Flutter with caching
-      # -----------------------------------------------------------------------
-      - name: 🐦 Set up Flutter ${{ env.FLUTTER_VERSION }}
-        uses: subosito/flutter-action@v2
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
+          flutter-version: ${{ steps.settings.outputs.flutter_version }}
           cache: true
-          cache-key: "flutter-:os:-:channel:-:version:-:arch:-:hash:"
-          cache-path: "${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:"
-
-      # Cache pub dependencies
-      - name: 📦 Cache Pub dependencies
-        uses: actions/cache@v4
+      - uses: shorebirdtech/setup-shorebird@v1
         with:
-          path: |
-            ${{ env.PUB_CACHE }}
-            apps/flutter/.dart_tool/
-          key: pub-${{ runner.os }}-${{ hashFiles('apps/flutter/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      # -----------------------------------------------------------------------
-      # 5. Install dependencies
-      # -----------------------------------------------------------------------
-      - name: 📥 Install dependencies
-        run: flutter pub get
-
-      - name: 🔍 Flutter doctor
-        run: flutter doctor -v
-
-      # -----------------------------------------------------------------------
-      # 6. Inject Firebase config (google-services.json)
-      # -----------------------------------------------------------------------
-      - name: 🔥 Inject google-services.json
-        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-
-      # -----------------------------------------------------------------------
-      # 7. Set up Android Signing (OPTIONAL / FUTURE)
-      # -----------------------------------------------------------------------
-      # UNCOMMENT THIS BLOCK LATER ONCE SECRETS ARE SET UP
-      # - name: 🔐 Set up Android signing
-      #   if: secrets.KEYSTORE_BASE64 != '' && secrets.KEY_ALIAS != ''
-      #   run: |
-      #     # Decode keystore
-      #     echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
-      #
-      #     # Create key.properties
-      #     cat > android/key.properties << EOF
-      #     storePassword=${{ secrets.STORE_PASSWORD }}
-      #     keyPassword=${{ secrets.KEY_PASSWORD }}
-      #     keyAlias=${{ secrets.KEY_ALIAS }}
-      #     storeFile=upload-keystore.jks
-      #     EOF
-      #
-      #     echo "✅ Signing configured"
-
-      # -----------------------------------------------------------------------
-      # 8. Build release APK
-      # -----------------------------------------------------------------------
-      - name: 🔨 Build release APK
+          cache: true
+      - name: Restore Android signing and Firebase configuration
+        if: inputs.platform == 'android'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          flutter build apk --release \
-            --build-name=${{ steps.tag.outputs.tag_version }} \
-            --dart-define=APP_VERSION=${{ steps.tag.outputs.tag_version }}
-
-      # -----------------------------------------------------------------------
-      # 9. Rename APK with version
-      # -----------------------------------------------------------------------
-      - name: 📎 Rename APK artifact
-        id: apk
+          python3 - <<'PYTHON'
+          import os, base64
+          from pathlib import Path
+          required = ['KEYSTORE_BASE64', 'KEY_ALIAS', 'KEY_PASSWORD', 'STORE_PASSWORD', 'GOOGLE_SERVICES_JSON']
+          if any(not os.environ.get(key) for key in required):
+              raise SystemExit('Configure the existing Android signing and Firebase Actions secrets before validation.')
+          def write(path, data):
+              path.write_bytes(data)
+              path.chmod(0o600)
+          def escape(value):
+              return value.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace(' ', '\\ ')
+          write(Path('android/app/upload-keystore.jks'), base64.b64decode(''.join(os.environ['KEYSTORE_BASE64'].split()), validate=True))
+          properties = [('storeFile', 'upload-keystore.jks'), ('keyAlias', os.environ['KEY_ALIAS']),
+                        ('keyPassword', os.environ['KEY_PASSWORD']), ('storePassword', os.environ['STORE_PASSWORD'])]
+          write(Path('android/key.properties'), ''.join(f'{key}={escape(value)}\n' for key, value in properties).encode())
+          write(Path('android/app/google-services.json'), os.environ['GOOGLE_SERVICES_JSON'].encode())
+          PYTHON
+      - name: Resolve locked packages
+        run: flutter pub get --enforce-lockfile
+      - name: Validate OTA diagnostics and release guards
         run: |
-          APK_NAME="keihatsu-release-${{ steps.tag.outputs.tag_name }}.apk"
-          APK_SOURCE="build/app/outputs/flutter-apk/app-release.apk"
-
-          if [ ! -f "$APK_SOURCE" ]; then
-            echo "❌ APK not found at $APK_SOURCE"
-            ls -la build/app/outputs/flutter-apk/ || true
-            exit 1
-          fi
-
-          cp "$APK_SOURCE" "$APK_NAME"
-          APK_SIZE=$(du -h "$APK_NAME" | cut -f1)
-
-          echo "apk_name=${APK_NAME}" >> "$GITHUB_OUTPUT"
-          echo "apk_path=apps/flutter/${APK_NAME}" >> "$GITHUB_OUTPUT"
-          echo "📦 APK: ${APK_NAME} (${APK_SIZE})"
-
-      # -----------------------------------------------------------------------
-      # 10. Generate release notes from Git history
-      # -----------------------------------------------------------------------
-      - name: 📝 Generate release notes
-        id: release_notes
-        run: |
-          # Find the previous tag
-          PREVIOUS_TAG=$(git tag --sort=-v:refname | head -n 2 | tail -n 1)
-          CURRENT_TAG="${{ steps.tag.outputs.tag_name }}"
-
-          echo "📌 Generating notes: ${PREVIOUS_TAG:-'(initial)'}..${CURRENT_TAG}"
-
-          # Build the release notes
-          {
-            echo "## 🎌 Keihatsu $CURRENT_TAG"
-            echo ""
-            echo "### What's Changed"
-            echo ""
-
-            if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$CURRENT_TAG" ]; then
-              # Categorize commits
-              FEATURES=$(git log "${PREVIOUS_TAG}..${CURRENT_TAG}" --pretty=format:"- %s (%h)" --grep="feat" --regexp-ignore-case 2>/dev/null || true)
-              FIXES=$(git log "${PREVIOUS_TAG}..${CURRENT_TAG}" --pretty=format:"- %s (%h)" --grep="fix" --regexp-ignore-case 2>/dev/null || true)
-              OTHER=$(git log "${PREVIOUS_TAG}..${CURRENT_TAG}" --pretty=format:"- %s (%h)" --invert-grep --grep="feat" --grep="fix" --all-match 2>/dev/null || true)
-
-              # All commits as fallback
-              ALL_COMMITS=$(git log "${PREVIOUS_TAG}..${CURRENT_TAG}" --pretty=format:"- %s (%h)" 2>/dev/null || true)
-
-              if [ -n "$FEATURES" ]; then
-                echo "#### ✨ Features"
-                echo "$FEATURES"
-                echo ""
-              fi
-
-              if [ -n "$FIXES" ]; then
-                echo "#### 🐛 Bug Fixes"
-                echo "$FIXES"
-                echo ""
-              fi
-
-              # If no categorized commits, show all
-              if [ -z "$FEATURES" ] && [ -z "$FIXES" ]; then
-                echo "$ALL_COMMITS"
-                echo ""
-              fi
-
-              COMPARE_URL="${{ github.server_url }}/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}"
-              echo "---"
-              echo "**Full Changelog:** [${PREVIOUS_TAG}...${CURRENT_TAG}](${COMPARE_URL})"
-            else
-              echo "🎉 Initial release!"
-            fi
-            echo ""
-            echo "---"
-            echo "📱 **Download:** Grab the APK from the assets below."
-          } > release_notes.md
-
-          cat release_notes.md
-          echo "notes_file=apps/flutter/release_notes.md" >> "$GITHUB_OUTPUT"
-
-      # -----------------------------------------------------------------------
-      # 11. Create GitHub Release
-      # -----------------------------------------------------------------------
-      - name: 🚀 Create GitHub Release
-        uses: ncipollo/release-action@v1
+          flutter test --no-pub test/services/ota_diagnostics_test.dart
+          python3 -m unittest discover -s tool -p 'test_*.py'
+      - name: Validate Android Shorebird baseline (no upload)
+        if: inputs.platform == 'android'
+        env:
+          OTA_ARCH: ${{ inputs.architecture }}
+        run: python3 tool/shorebird.py release android --arch "$OTA_ARCH"
+      - name: Validate Flutter iOS Shorebird archive (unsigned, no upload)
+        if: inputs.platform == 'ios'
+        run: python3 tool/shorebird.py release ios --no-codesign
+      - name: Retain local validation receipt
+        uses: actions/upload-artifact@v4
         with:
-          tag: ${{ steps.tag.outputs.tag_name }}
-          name: "Keihatsu ${{ steps.tag.outputs.tag_name }}"
-          bodyFile: ${{ steps.release_notes.outputs.notes_file }}
-          artifacts: ${{ steps.apk.outputs.apk_path }}
-          artifactContentType: application/vnd.android.package-archive
-          draft: false
-          prerelease: ${{ contains(steps.tag.outputs.tag_name, '-') }}
-          makeLatest: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # -----------------------------------------------------------------------
-      # 12. Summary
-      # -----------------------------------------------------------------------
-      - name: 📊 Job Summary
+          name: shorebird-${{ inputs.platform }}-validation-receipt
+          path: apps/flutter/build/shorebird/keihatsu-*-validated.json
+          if-no-files-found: error
+      - name: Remove signing secrets from runner
         if: always()
-        run: |
-          echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Tag** | \`${{ steps.tag.outputs.tag_name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **APK** | \`${{ steps.apk.outputs.apk_name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Status** | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Runner** | \`${{ runner.os }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Flutter** | \`${{ env.FLUTTER_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
+        run: rm -f android/key.properties android/app/upload-keystore.jks android/app/google-services.json

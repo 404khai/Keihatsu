@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'dart:ui';
+import 'dart:async';
 
 import 'theme_provider.dart';
 import 'providers/auth_provider.dart';
@@ -30,6 +31,7 @@ import 'services/session_bootstrap_service.dart';
 import 'services/user_repository.dart';
 import 'services/seasonal_branding_service.dart';
 import 'services/push_coordinator.dart';
+import 'services/ota_diagnostics.dart';
 import 'screens/InboxScreen.dart';
 
 // Screens
@@ -222,6 +224,12 @@ void main() async {
       child: const SeasonalBrandingLifecycle(child: MyApp()),
     ),
   );
+
+  // Read local boot metadata after rendering. OTA network checks/downloads are
+  // handled by the Shorebird engine, never by an app startup gate.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(recordOtaDiagnostics());
+  });
 }
 
 class MyApp extends StatelessWidget {
