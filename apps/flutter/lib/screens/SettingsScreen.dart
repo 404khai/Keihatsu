@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../theme_provider.dart';
 import '../components/CustomBackButton.dart';
+import '../components/menu/app_update_sheet.dart';
+import '../services/app_update_controller.dart';
 import 'LibrarySettingsScreen.dart';
 import 'PrivacySettingsScreen.dart';
 
@@ -24,6 +28,11 @@ class SettingsScreen extends StatelessWidget {
       icon: Icons.shield_outlined,
       title: 'Privacy',
       subtitle: 'Profile visibility and privacy',
+    ),
+    (
+      icon: Icons.system_update_outlined,
+      title: 'App updates',
+      subtitle: 'Check for improvements to Keihatsu',
     ),
   ];
 
@@ -126,6 +135,13 @@ class SettingsScreen extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => const PrivacySettingsScreen(),
+          ),
+        );
+      case 3:
+        unawaited(
+          AppUpdateSheet.show(
+            context,
+            controller: context.read<AppUpdateController>(),
           ),
         );
       default:

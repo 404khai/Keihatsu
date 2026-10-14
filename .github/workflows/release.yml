@@ -110,7 +110,7 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Validate OTA diagnostics and release guards
         run: |
-          flutter test --no-pub test/services/ota_diagnostics_test.dart
+          flutter test --no-pub test/services/ota_diagnostics_test.dart test/services/app_update_controller_test.dart test/app_update_sheet_test.dart
           python3 -m unittest discover -s tool -p 'test_*.py'
       - name: Validate Android Shorebird baseline (no upload)
         if: inputs.platform == 'android'

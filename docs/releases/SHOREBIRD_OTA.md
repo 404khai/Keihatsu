@@ -44,8 +44,9 @@ October 1, 2026. Configure secrets in the service's secret UI, never in chat.
 The Shorebird engine checks/downloads on launch in the background. A downloaded
 patch becomes active on the next **full process restart**, not while a chapter
 is open. Offline launches continue using the installed baseline/current patch.
-An unavailable update server does not gate the reader. We do not add network
-checks, mandatory update screens, hot restarts or forced process exits.
+An unavailable update server does not gate the reader. Network checks are only
+triggered by the user through Settings; there are no startup network gates,
+mandatory update screens, hot restarts or forced process exits.
 
 After the first rendered frame, Dart reads local boot metadata only and records
 `shorebird_available`, `shorebird_patch` and `shorebird_release` in Crashlytics.
@@ -53,6 +54,29 @@ Patch zero means baseline; `unavailable` means no successful local read. Reads
 time out and failures are swallowed. Ordinary Flutter/debug builds report the
 updater unavailable. This package alone does **not** enable OTA: the baseline
 must be built with Shorebird's engine.
+
+## Update sheet
+
+Settings → **App updates** opens the same floating card used by logout/delete
+account. It shows checking, available, downloading, ready, up-to-date, unavailable,
+and offline/retry states. **Download update** requests a download; **Later** or
+**Continue reading** dismisses the sheet without cancelling background updates.
+The native automatic updater remains enabled. A successful SDK update call is
+not assumed to mean ready: the controller waits for different current/next local
+patch metadata, including when the automatic updater was already downloading.
+
+A foreground local-only probe runs on startup/resume and every ten seconds while
+active. When a downloaded patch is ready, a sheet appears once per pending patch
+in that process. It waits until a named top-level page is visible and another
+modal is closed; reader/detail and sign-in/onboarding routes are excluded. No
+network requests are added to app startup or these periodic probes. A paused app
+stops polling. Rollback to the baseline also produces a restart-ready message.
+
+The ready sheet says to close Keihatsu completely and reopen it. **Got it**
+dismisses the message; it does not pretend to restart the app or force-exit iOS.
+A manually requested check/download has bounded waits and generic retry copy;
+local read failures remain quiet. The sheet has no patch-note/version claims
+because Shorebird does not supply user-facing release notes through this SDK.
 
 ## Reproducible build inputs and signing
 
