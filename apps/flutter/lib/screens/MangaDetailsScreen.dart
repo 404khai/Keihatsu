@@ -14,6 +14,7 @@ import '../providers/offline_library_provider.dart';
 import '../components/OfflineImage.dart';
 import '../components/ExtensionImage.dart';
 import '../components/loading_indicator.dart';
+import '../components/keihatsu_refresh_indicator.dart';
 import 'MangaReaderScreen.dart';
 
 class MangaDetailsScreen extends StatefulWidget {
@@ -65,6 +66,39 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
     _recommendedMangaFuture = repo.api
         .getMangaList(widget.manga.sourceId, 'popular')
         .then((p) => p.mangas);
+  }
+
+  Future<void> _refreshDetails() async {
+    final repo = context.read<MangaRepository>();
+    try {
+      final results = await Future.wait([
+        repo.getMangaDetails(
+          widget.manga.sourceId,
+          widget.manga.id,
+          forceRefresh: true,
+        ),
+        repo.getChapters(
+          widget.manga.sourceId,
+          widget.manga.id,
+          forceRefresh: true,
+        ),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _mangaDetailsFuture = Future.value(results[0] as LocalManga?);
+        _cachedChapters = results[1] as List<LocalChapter>;
+        _chaptersFuture = Future.value(_cachedChapters!);
+      });
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not refresh. Your saved details are still available.',
+            ),
+          ),
+        );
+    }
   }
 
   @override
@@ -652,11 +686,6 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
       body: FutureBuilder<LocalManga?>(
         future: _mangaDetailsFuture,
         builder: (context, mangaSnapshot) {
-          if (mangaSnapshot.connectionState == ConnectionState.waiting &&
-              !mangaSnapshot.hasData) {
-            return _buildDetailLoader(context);
-          }
-
           final manga = mangaSnapshot.data;
           final displayTitle = manga?.title ?? widget.manga.title;
           final displayThumbUrl = manga?.thumbnailUrl?.trim().isNotEmpty == true
@@ -701,473 +730,493 @@ class _MangaDetailsScreenState extends State<MangaDetailsScreen> {
                 ),
               ),
 
-              CustomScrollView(
-                controller: _scrollController,
-                slivers: [
-                  SliverAppBar(
-                    backgroundColor: _showTitle ? bgColor : Colors.transparent,
-                    elevation: 0,
-                    pinned: true,
-                    leading: const CustomBackButton(),
-                    title: _showTitle
-                        ? Text(
-                            displayTitle,
-                            style: GoogleFonts.unbounded(
-                              textStyle: TextStyle(
-                                color: appBarForeground,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+              KeihatsuRefreshIndicator(
+                onRefresh: _refreshDetails,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  controller: _scrollController,
+                  slivers: [
+                    SliverAppBar(
+                      backgroundColor: _showTitle
+                          ? bgColor
+                          : Colors.transparent,
+                      elevation: 0,
+                      pinned: true,
+                      leading: const CustomBackButton(),
+                      title: _showTitle
+                          ? Text(
+                              displayTitle,
+                              style: GoogleFonts.unbounded(
+                                textStyle: TextStyle(
+                                  color: appBarForeground,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          : null,
+                      actions: [
+                        IconButton(
+                          onPressed: () => _showDownloadBottomSheet(context),
+                          icon: Icon(Icons.download, color: appBarForeground),
+                        ),
+                        IconButton(
+                          onPressed: () => _showFilterBottomSheet(context),
+                          icon: Icon(
+                            Icons.filter_list,
+                            color: appBarForeground,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _showMoreBottomSheet(context),
+                          icon: Icon(Icons.more_vert, color: appBarForeground),
+                        ),
+                      ],
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 150),
+                            Text(
+                              displayTitle.toUpperCase(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.unbounded(
+                                textStyle: const TextStyle(
+                                  fontSize: 24,
+                                  height: 1.08,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 12,
+                                      color: Colors.black,
+                                      offset: Offset(1, 2),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          )
-                        : null,
-                    actions: [
-                      IconButton(
-                        onPressed: () => _showDownloadBottomSheet(context),
-                        icon: Icon(Icons.download, color: appBarForeground),
-                      ),
-                      IconButton(
-                        onPressed: () => _showFilterBottomSheet(context),
-                        icon: Icon(Icons.filter_list, color: appBarForeground),
-                      ),
-                      IconButton(
-                        onPressed: () => _showMoreBottomSheet(context),
-                        icon: Icon(Icons.more_vert, color: appBarForeground),
-                      ),
-                    ],
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 150),
-                          Text(
-                            displayTitle.toUpperCase(),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.unbounded(
-                              textStyle: const TextStyle(
-                                fontSize: 24,
-                                height: 1.08,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 12,
-                                    color: Colors.black,
-                                    offset: Offset(1, 2),
+                            const SizedBox(height: 10),
+                            _buildInfoRow(
+                              PhosphorIcons.user(),
+                              displayAuthor ?? "Unknown",
+                            ),
+                            const SizedBox(height: 10),
+                            _buildExtensionRow(widget.manga.sourceId),
+                            const SizedBox(height: 25),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildActionButton(
+                                  isInLibrary
+                                      ? PhosphorIcons.bookBookmark(
+                                          PhosphorIconsStyle.fill,
+                                        )
+                                      : PhosphorIcons.bookBookmark(),
+                                  isInLibrary ? "In library" : "Add to library",
+                                  brandColor,
+                                  onTap: () {
+                                    if (isInLibrary) {
+                                      offlineLibrary.toggleLibrary(
+                                        widget.manga,
+                                      );
+                                    } else {
+                                      _showCategoryBottomSheet(
+                                        context,
+                                        offlineLibrary,
+                                      );
+                                    }
+                                  },
+                                ),
+                                _buildActionButton(
+                                  PhosphorIcons.hourglassHigh(),
+                                  "Syncing",
+                                  colorScheme.onSurfaceVariant,
+                                ),
+                                _buildActionButton(
+                                  PhosphorIcons.arrowsClockwise(),
+                                  "Tracking",
+                                  colorScheme.onSurfaceVariant,
+                                ),
+                                _buildActionButton(
+                                  PhosphorIcons.globe(),
+                                  "WebView",
+                                  colorScheme.onSurfaceVariant,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 25),
+
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Overview',
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  if (displayGenres != null)
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: displayGenres
+                                            .map(
+                                              (genre) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 10,
+                                                ),
+                                                child: _buildTag(
+                                                  genre.toUpperCase(),
+                                                  brandColor,
+                                                  textColor,
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 15),
+                                  Text(
+                                    displayDescription ??
+                                        "No description available.",
+                                    style: TextStyle(
+                                      color: textColor.withOpacity(0.9),
+                                      height: 1.4,
+                                    ),
+                                    maxLines: _showFullDescription ? null : 5,
+                                    overflow: _showFullDescription
+                                        ? TextOverflow.visible
+                                        : TextOverflow.ellipsis,
+                                  ),
+                                  if ((displayDescription?.length ?? 0) > 220)
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: TextButton(
+                                        onPressed: () => setState(
+                                          () => _showFullDescription =
+                                              !_showFullDescription,
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          alignment: Alignment.centerLeft,
+                                        ),
+                                        child: Text(
+                                          _showFullDescription
+                                              ? 'Show less'
+                                              : 'Read more',
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            FutureBuilder<List<LocalChapter>>(
+                              future: _chaptersFuture,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                        ConnectionState.waiting &&
+                                    !snapshot.hasData) {
+                                  return _buildDetailLoader(context);
+                                }
+                                if (snapshot.hasError) {
+                                  return Text(
+                                    'Unable to load chapters',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  );
+                                }
+                                final chapters = snapshot.data!;
+                                var filteredChapters =
+                                    chapters.where((c) {
+                                      if (_filterDownloaded && !c.downloaded)
+                                        return false;
+                                      if (_filterUnread && c.isRead)
+                                        return false;
+                                      if (_filterBookmarked && !c.isBookmarked)
+                                        return false;
+                                      return true;
+                                    }).toList()..sort(
+                                      (a, b) => _chaptersAscending
+                                          ? a.chapterNumber.compareTo(
+                                              b.chapterNumber,
+                                            )
+                                          : b.chapterNumber.compareTo(
+                                              a.chapterNumber,
+                                            ),
+                                    );
+
+                                final displayedChapters = _showAllChapters
+                                    ? filteredChapters
+                                    : filteredChapters.take(3).toList();
+
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              "${filteredChapters.length} Chapters",
+                                              style: TextStyle(
+                                                color: textColor,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Descending order',
+                                            onPressed: () => setState(
+                                              () => _chaptersAscending = false,
+                                            ),
+                                            icon: Icon(
+                                              PhosphorIcons.sortDescending(),
+                                              color: !_chaptersAscending
+                                                  ? brandColor
+                                                  : colorScheme
+                                                        .onSurfaceVariant,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Ascending order',
+                                            onPressed: () => setState(
+                                              () => _chaptersAscending = true,
+                                            ),
+                                            icon: Icon(
+                                              PhosphorIcons.sortAscending(),
+                                              color: _chaptersAscending
+                                                  ? brandColor
+                                                  : colorScheme
+                                                        .onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      ...displayedChapters.map(
+                                        (ch) => _buildChapterTile(
+                                          context,
+                                          chapters,
+                                          chapters.indexOf(ch),
+                                          brandColor,
+                                          textColor,
+                                        ),
+                                      ),
+                                      if (filteredChapters.length > 3)
+                                        TextButton(
+                                          onPressed: () => setState(
+                                            () => _showAllChapters =
+                                                !_showAllChapters,
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            backgroundColor:
+                                                colorScheme.primaryContainer,
+                                            foregroundColor:
+                                                colorScheme.onPrimaryContainer,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                              vertical: 12,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _showAllChapters
+                                                ? 'Hide chapters'
+                                                : 'Show all chapters',
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // "You may also like" Section
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "You may also like",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            "More",
+                                            style: TextStyle(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Icon(
+                                            PhosphorIcons.caretRight(),
+                                            color: colorScheme.onSurfaceVariant,
+                                            size: 16,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 15),
+                                  SizedBox(
+                                    height: 200,
+                                    child: FutureBuilder<List<Manga>>(
+                                      future: _recommendedMangaFuture,
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                                ConnectionState.waiting &&
+                                            !snapshot.hasData) {
+                                          return _buildDetailLoader(context);
+                                        }
+                                        if (snapshot.hasError) {
+                                          return Text(
+                                            'Unable to load recommendations',
+                                            style: TextStyle(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                          );
+                                        }
+                                        final recommendations = snapshot.data!
+                                            .where(
+                                              (m) => m.id != widget.manga.id,
+                                            )
+                                            .take(6)
+                                            .toList();
+                                        return ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: recommendations.length,
+                                          itemBuilder: (context, index) {
+                                            final recommendation =
+                                                recommendations[index];
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                right: 15,
+                                              ),
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          MangaDetailsScreen(
+                                                            manga:
+                                                                recommendation,
+                                                          ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: SizedBox(
+                                                  width: 100,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        child: OfflineImage(
+                                                          imageUrl:
+                                                              recommendation
+                                                                  .thumbnailUrl,
+                                                          width: 100,
+                                                          height: 140,
+                                                          fit: BoxFit.cover,
+                                                          fallback: Container(
+                                                            width: 100,
+                                                            height: 140,
+                                                            color: cardColor,
+                                                            child: Icon(
+                                                              Icons
+                                                                  .broken_image_outlined,
+                                                              color: textColor
+                                                                  .withOpacity(
+                                                                    0.5,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        recommendation.title,
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 12,
+                                                          color: textColor,
+                                                        ),
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          _buildInfoRow(
-                            PhosphorIcons.user(),
-                            displayAuthor ?? "Unknown",
-                          ),
-                          const SizedBox(height: 10),
-                          _buildExtensionRow(widget.manga.sourceId),
-                          const SizedBox(height: 25),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildActionButton(
-                                isInLibrary
-                                    ? PhosphorIcons.bookBookmark(
-                                        PhosphorIconsStyle.fill,
-                                      )
-                                    : PhosphorIcons.bookBookmark(),
-                                isInLibrary ? "In library" : "Add to library",
-                                brandColor,
-                                onTap: () {
-                                  if (isInLibrary) {
-                                    offlineLibrary.toggleLibrary(widget.manga);
-                                  } else {
-                                    _showCategoryBottomSheet(
-                                      context,
-                                      offlineLibrary,
-                                    );
-                                  }
-                                },
-                              ),
-                              _buildActionButton(
-                                PhosphorIcons.hourglassHigh(),
-                                "Syncing",
-                                colorScheme.onSurfaceVariant,
-                              ),
-                              _buildActionButton(
-                                PhosphorIcons.arrowsClockwise(),
-                                "Tracking",
-                                colorScheme.onSurfaceVariant,
-                              ),
-                              _buildActionButton(
-                                PhosphorIcons.globe(),
-                                "WebView",
-                                colorScheme.onSurfaceVariant,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 25),
 
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Overview',
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                if (displayGenres != null)
-                                  SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Row(
-                                      children: displayGenres
-                                          .map(
-                                            (genre) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                right: 10,
-                                              ),
-                                              child: _buildTag(
-                                                genre.toUpperCase(),
-                                                brandColor,
-                                                textColor,
-                                              ),
-                                            ),
-                                          )
-                                          .toList(),
-                                    ),
-                                  ),
-                                const SizedBox(height: 15),
-                                Text(
-                                  displayDescription ??
-                                      "No description available.",
-                                  style: TextStyle(
-                                    color: textColor.withOpacity(0.9),
-                                    height: 1.4,
-                                  ),
-                                  maxLines: _showFullDescription ? null : 5,
-                                  overflow: _showFullDescription
-                                      ? TextOverflow.visible
-                                      : TextOverflow.ellipsis,
-                                ),
-                                if ((displayDescription?.length ?? 0) > 220)
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: TextButton(
-                                      onPressed: () => setState(
-                                        () => _showFullDescription =
-                                            !_showFullDescription,
-                                      ),
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        alignment: Alignment.centerLeft,
-                                      ),
-                                      child: Text(
-                                        _showFullDescription
-                                            ? 'Show less'
-                                            : 'Read more',
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          FutureBuilder<List<LocalChapter>>(
-                            future: _chaptersFuture,
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                      ConnectionState.waiting &&
-                                  !snapshot.hasData) {
-                                return _buildDetailLoader(context);
-                              }
-                              if (snapshot.hasError) {
-                                return Text(
-                                  'Unable to load chapters',
-                                  style: TextStyle(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                );
-                              }
-                              final chapters = snapshot.data!;
-                              var filteredChapters =
-                                  chapters.where((c) {
-                                    if (_filterDownloaded && !c.downloaded)
-                                      return false;
-                                    if (_filterUnread && c.isRead) return false;
-                                    if (_filterBookmarked && !c.isBookmarked)
-                                      return false;
-                                    return true;
-                                  }).toList()..sort(
-                                    (a, b) => _chaptersAscending
-                                        ? a.chapterNumber.compareTo(
-                                            b.chapterNumber,
-                                          )
-                                        : b.chapterNumber.compareTo(
-                                            a.chapterNumber,
-                                          ),
-                                  );
-
-                              final displayedChapters = _showAllChapters
-                                  ? filteredChapters
-                                  : filteredChapters.take(3).toList();
-
-                              return Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: cardColor,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            "${filteredChapters.length} Chapters",
-                                            style: TextStyle(
-                                              color: textColor,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'Descending order',
-                                          onPressed: () => setState(
-                                            () => _chaptersAscending = false,
-                                          ),
-                                          icon: Icon(
-                                            PhosphorIcons.sortDescending(),
-                                            color: !_chaptersAscending
-                                                ? brandColor
-                                                : colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'Ascending order',
-                                          onPressed: () => setState(
-                                            () => _chaptersAscending = true,
-                                          ),
-                                          icon: Icon(
-                                            PhosphorIcons.sortAscending(),
-                                            color: _chaptersAscending
-                                                ? brandColor
-                                                : colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    ...displayedChapters.map(
-                                      (ch) => _buildChapterTile(
-                                        context,
-                                        chapters,
-                                        chapters.indexOf(ch),
-                                        brandColor,
-                                        textColor,
-                                      ),
-                                    ),
-                                    if (filteredChapters.length > 3)
-                                      TextButton(
-                                        onPressed: () => setState(
-                                          () => _showAllChapters =
-                                              !_showAllChapters,
-                                        ),
-                                        style: TextButton.styleFrom(
-                                          backgroundColor:
-                                              colorScheme.primaryContainer,
-                                          foregroundColor:
-                                              colorScheme.onPrimaryContainer,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 12,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          _showAllChapters
-                                              ? 'Hide chapters'
-                                              : 'Show all chapters',
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // "You may also like" Section
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      "You may also like",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                        color: textColor,
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          "More",
-                                          style: TextStyle(
-                                            color: colorScheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Icon(
-                                          PhosphorIcons.caretRight(),
-                                          color: colorScheme.onSurfaceVariant,
-                                          size: 16,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                SizedBox(
-                                  height: 200,
-                                  child: FutureBuilder<List<Manga>>(
-                                    future: _recommendedMangaFuture,
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                              ConnectionState.waiting &&
-                                          !snapshot.hasData) {
-                                        return _buildDetailLoader(context);
-                                      }
-                                      if (snapshot.hasError) {
-                                        return Text(
-                                          'Unable to load recommendations',
-                                          style: TextStyle(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                        );
-                                      }
-                                      final recommendations = snapshot.data!
-                                          .where((m) => m.id != widget.manga.id)
-                                          .take(6)
-                                          .toList();
-                                      return ListView.builder(
-                                        scrollDirection: Axis.horizontal,
-                                        itemCount: recommendations.length,
-                                        itemBuilder: (context, index) {
-                                          final recommendation =
-                                              recommendations[index];
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 15,
-                                            ),
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        MangaDetailsScreen(
-                                                          manga: recommendation,
-                                                        ),
-                                                  ),
-                                                );
-                                              },
-                                              child: SizedBox(
-                                                width: 100,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8,
-                                                          ),
-                                                      child: OfflineImage(
-                                                        imageUrl: recommendation
-                                                            .thumbnailUrl,
-                                                        width: 100,
-                                                        height: 140,
-                                                        fit: BoxFit.cover,
-                                                        fallback: Container(
-                                                          width: 100,
-                                                          height: 140,
-                                                          color: cardColor,
-                                                          child: Icon(
-                                                            Icons
-                                                                .broken_image_outlined,
-                                                            color: textColor
-                                                                .withOpacity(
-                                                                  0.5,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      recommendation.title,
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 12,
-                                                        color: textColor,
-                                                      ),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 100),
-                        ],
+                            const SizedBox(height: 100),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
               // Floating Bottom Bar

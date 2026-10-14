@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
@@ -182,41 +183,44 @@ class MangaRepository {
     }
   }
 
-  Future<LocalManga?> getMangaDetails(String sourceId, String mangaId) async {
-    final connectivity = await Connectivity().checkConnectivity();
-    final bool isOnline = !connectivity.contains(ConnectivityResult.none);
-
-    if (isOnline) {
-      try {
-        final remote = await api.getMangaDetails(sourceId, mangaId);
-        return await _cacheManga(remote);
-      } catch (e) {
-        debugPrint('Error fetching remote manga details: $e');
-      }
-    }
-
-    return await isar
+  Future<LocalManga?> getMangaDetails(
+    String sourceId,
+    String mangaId, {
+    bool forceRefresh = false,
+  }) async {
+    final owner = _currentUserId;
+    final cached = await isar
         .collection<LocalManga>()
         .filter()
         .sourceIdEqualTo(sourceId)
         .mangaIdEqualTo(mangaId)
-        .ownerUserIdEqualTo(_currentUserId)
+        .ownerUserIdEqualTo(owner)
         .findFirst();
+    if (cached != null && !forceRefresh) return cached;
+    try {
+      final remote = await api.getMangaDetails(sourceId, mangaId);
+      if (owner != _currentUserId) return null;
+      return await _cacheManga(remote);
+    } catch (_) {
+      if (forceRefresh) rethrow;
+      return cached;
+    }
   }
 
   Future<LocalManga> _cacheManga(Manga manga) async {
+    final owner = _currentUserId;
     final existing = await isar
         .collection<LocalManga>()
         .filter()
         .sourceIdEqualTo(manga.sourceId)
         .mangaIdEqualTo(manga.id)
-        .ownerUserIdEqualTo(_currentUserId)
+        .ownerUserIdEqualTo(owner)
         .findFirst();
 
     final local = (existing ?? LocalManga())
       ..mangaId = manga.id
       ..sourceId = manga.sourceId
-      ..ownerUserId = _currentUserId
+      ..ownerUserId = owner
       ..title = manga.title
       ..description = manga.description
       ..thumbnailUrl = manga.thumbnailUrl
@@ -231,27 +235,43 @@ class MangaRepository {
 
     if (existing?.thumbnailUrl != manga.thumbnailUrl ||
         existing?.thumbnailLocalPath == null) {
-      final localPath = await fileService.downloadFile(
-        manga.thumbnailUrl,
-        'thumbnails/${manga.sourceId}/${manga.id}.jpg',
-        referer: manga.url,
+      unawaited(
+        () async {
+          final localPath = await fileService.downloadFile(
+            manga.thumbnailUrl,
+            'thumbnails/${manga.sourceId}/${manga.id}.jpg',
+            referer: manga.url,
+          );
+          if (localPath != null && local.ownerUserId == _currentUserId) {
+            local.thumbnailLocalPath = localPath;
+            await isar.writeTxn(() => isar.collection<LocalManga>().put(local));
+          }
+        }().catchError((Object _) {}),
       );
-      if (localPath != null) {
-        local.thumbnailLocalPath = localPath;
-        await isar.writeTxn(() => isar.collection<LocalManga>().put(local));
-      }
     }
     return local;
   }
 
   Future<List<LocalChapter>> getChapters(
     String sourceId,
-    String mangaId,
-  ) async {
+    String mangaId, {
+    bool forceRefresh = false,
+  }) async {
+    final owner = _currentUserId;
+    final cached = await isar
+        .collection<LocalChapter>()
+        .filter()
+        .sourceIdEqualTo(sourceId)
+        .mangaIdEqualTo(mangaId)
+        .ownerUserIdEqualTo(owner)
+        .sortByChapterNumberDesc()
+        .findAll();
+    if (cached.isNotEmpty && !forceRefresh) return cached;
     final connectivity = await Connectivity().checkConnectivity();
     if (!connectivity.contains(ConnectivityResult.none)) {
       try {
         final remoteChapters = await api.getChapters(sourceId, mangaId);
+        if (owner != _currentUserId) return [];
         await isar.writeTxn(() async {
           for (var remote in remoteChapters) {
             final existing = await isar
@@ -260,19 +280,19 @@ class MangaRepository {
                 .sourceIdEqualTo(sourceId)
                 .mangaIdEqualTo(mangaId)
                 .chapterIdEqualTo(remote.id)
-                .ownerUserIdEqualTo(_currentUserId)
+                .ownerUserIdEqualTo(owner)
                 .findFirst();
 
             final local = (existing ?? LocalChapter())
               ..chapterId = remote.id
               ..mangaId = mangaId
               ..sourceId = sourceId
-              ..ownerUserId = _currentUserId
+              ..ownerUserId = owner
               ..scopedChapterKey = _chapterScopedKey(
                 remote.id,
                 mangaId,
                 sourceId,
-                _currentUserId,
+                owner,
               )
               ..name = remote.name
               ..chapterNumber = remote.chapterNumber
@@ -283,7 +303,8 @@ class MangaRepository {
           }
         });
       } catch (e) {
-        debugPrint('Error fetching chapters: $e');
+        if (forceRefresh) rethrow;
+        debugPrint('Unable to refresh chapters.');
       }
     }
 
@@ -292,7 +313,7 @@ class MangaRepository {
         .filter()
         .sourceIdEqualTo(sourceId)
         .mangaIdEqualTo(mangaId)
-        .ownerUserIdEqualTo(_currentUserId)
+        .ownerUserIdEqualTo(owner)
         .sortByChapterNumberDesc()
         .findAll();
   }

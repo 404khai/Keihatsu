@@ -425,7 +425,7 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error loading pages: $e')));
+        ).showSnackBar(SnackBar(content: const Text('Could not load pages. Check your connection and try again.')));
       }
     }
   }
@@ -532,7 +532,7 @@ class _MangaReaderScreenState extends State<MangaReaderScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading next chapter: $e')),
+          SnackBar(content: const Text('Could not load the next chapter. Please try again.')),
         );
       }
     } finally {

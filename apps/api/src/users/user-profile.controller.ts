@@ -18,6 +18,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   Param,
+  Query,
   Delete,
   HttpCode,
   HttpStatus,
@@ -40,6 +41,14 @@ type AuthenticatedRequest = Request & {
 @Controller('user/profile')
 export class UserProfileController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('mentions')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Find public accounts for a comment mention' })
+  searchMentions(@Query('query') query: string = '') {
+    return this.usersService.searchMentionUsers(query);
+  }
 
   @Get('stats')
   @ApiBearerAuth()

@@ -49,7 +49,7 @@ class AuthApi {
       }
     } on SocketException {
       throw Exception(
-        'Cannot reach server. Ensure backend is running at $baseUrl',
+        'Could not connect. Please check your connection and try again.',
       );
     } catch (e) {
       rethrow;

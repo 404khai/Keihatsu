@@ -7,10 +7,11 @@ const downloadUrl =
   "https://github.com/grvt8/Keihatsu/releases/download/v1.0.0/keihatsu-v1.0.0.apk";
 
 const navLinks = [
-  { label: "Reader", href: "#reader" },
-  { label: "Features", href: "#features" },
-  { label: "Open source", href: "#opensource" },
-  { label: "Community", href: "#community" },
+  { label: "Docs", href: "/docs" },
+  { label: "Reader", href: "/#reader" },
+  { label: "Features", href: "/#features" },
+  { label: "Open source", href: "/#opensource" },
+  { label: "Community", href: "/#community" },
 ];
 
 export function Navbar() {
@@ -21,7 +22,7 @@ export function Navbar() {
       <nav className="paper-navbar__inner" aria-label="Main navigation">
         <a
           className="brand-lockup font-comic tracking-tight"
-          href="#reader"
+          href="/#reader"
           aria-label="Keihatsu home"
         >
           <Image src="/logo.png" alt="" width={44} height={44} priority />

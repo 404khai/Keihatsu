@@ -34,7 +34,7 @@ export class CommentsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('source/:sourceId/:mangaId/:chapterId')
-  @UseInterceptors(FilesInterceptor('images', 5))
+  @UseInterceptors(FilesInterceptor('images', 5, { limits: { fileSize: 5 * 1024 * 1024, files: 5 } }))
   @ApiOperation({ summary: 'Create a comment or reply for a source chapter' })
   @ApiConsumes('multipart/form-data', 'application/json')
   @ApiExtraModels(CreateCommentDto)
@@ -106,7 +106,7 @@ export class CommentsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post(':mangaId/:chapterId')
-  @UseInterceptors(FilesInterceptor('images', 5)) // Allow up to 5 images per comment
+  @UseInterceptors(FilesInterceptor('images', 5, { limits: { fileSize: 5 * 1024 * 1024, files: 5 } })) // Allow up to 5 images per comment
   @ApiOperation({
     summary: 'Create a ManhuaTop comment or reply (legacy route)',
   })

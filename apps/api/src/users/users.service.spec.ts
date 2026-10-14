@@ -23,6 +23,7 @@ describe('UsersService', () => {
     comment: { count: jest.fn().mockResolvedValue(3) },
     historyEntry: { groupBy: jest.fn().mockResolvedValue([]) },
     user: {
+      findMany: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
     },
@@ -78,6 +79,17 @@ describe('UsersService', () => {
     expect(prismaService.comment.count).toHaveBeenCalledWith({where: {userId: 'new-account'}});
     expect(prismaService.historyEntry.groupBy).toHaveBeenCalledWith(expect.objectContaining({where: expect.objectContaining({userId: 'new-account'})}));
     expect(prismaService.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({where: {id: 'new-account'}}));
+  });
+
+  it('mention search returns only public profile fields, never email or role', async () => {
+    prismaService.user.findMany.mockResolvedValue([]);
+    await service.searchMentionUsers('dex');
+    expect(prismaService.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { isProfilePublic: true, username: {startsWith: 'dex', mode: 'insensitive'} },
+      take: 8, select: {id: true, username: true, avatarHue: true, avatarShape: true, avatarExpression: true, avatarAnimated: true},
+    }));
+    expect(await service.searchMentionUsers('https://backend')).toEqual([]);
+    expect(prismaService.user.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('should be defined', () => {

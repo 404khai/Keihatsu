@@ -35,6 +35,24 @@ describe('CommentsService source scoping', () => {
     );
   });
 
+  it('returns trusted badges at every reply level without private identity fields', async () => {
+    const reader = { id: 'reader', username: '404khai', email: 'reader@example.com', role: 'USER' };
+    const tester = { id: 'tester', username: 'beta', email: 'dexgamingacct@gmail.com', role: 'USER' };
+    const developer = { id: 'dev', username: 'khai', email: '404khai@gmail.com', role: 'ADMIN' };
+    prisma.comment.findMany.mockResolvedValue([
+      { id: 'root', user: developer, replies: [
+        { id: 'reply', user: tester, replies: [{ id: 'leaf', user: reader }] },
+      ] },
+    ]);
+    const result = await service.findAll('source', 'manga', 'chapter');
+    expect(result[0].user.profileBadge).toBe('developer');
+    expect(result[0].replies[0].user.profileBadge).toBe('android_beta_tester');
+    expect(result[0].replies[0].replies[0].user.profileBadge).toBeNull();
+    expect(JSON.stringify(result)).not.toContain('email');
+    expect(JSON.stringify(result)).not.toContain('role');
+    expect(prisma.comment.findMany.mock.calls[0][0].include.replies.include.replies.include.replies.include.replies.include.user.select.email).toBe(true);
+  });
+
   it('writes the source identity into new comments', async () => {
     prisma.comment.create.mockResolvedValue({ id: 'comment-1' });
 

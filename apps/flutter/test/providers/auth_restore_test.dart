@@ -32,6 +32,31 @@ class Repository implements UserRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class PreferenceRepository extends Repository {
+  UserPreferences? saved;
+  final refresh = Completer<void>();
+  @override
+  Future<UserPreferences?> getPreferences() async => saved;
+  @override
+  Future<void> savePreferencesLocally(
+    UserPreferences prefs, {
+    String? ownerUserId,
+  }) async {
+    saved = prefs;
+  }
+
+  @override
+  Future<void> updatePreferences(
+    String token,
+    Map<String, dynamic> updates,
+  ) async {
+    throw StateError('Offline');
+  }
+
+  @override
+  Future<void> refreshPreferences(String token) => refresh.future;
+}
+
 class Api extends AuthApi {
   final me = Completer<User>();
   final stats = Completer<UserStats>();
@@ -135,6 +160,38 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(auth.user!.id, 'next-account');
       expect(auth.user!.stats!.libraryCount, 0);
+      auth.dispose();
+    },
+  );
+  test(
+    'a failed preference sync and late refresh cannot reset a chosen grid',
+    () async {
+      final api = Api(), vault = Vault(), repository = PreferenceRepository();
+      final auth = AuthProvider(
+        userRepository: repository,
+        credentials: CredentialStore(vault: vault),
+        authApi: api,
+        initializeGoogleSignIn: () async {},
+      );
+      api.me.complete(User(id: 'reader'));
+      await auth.initialized;
+      await auth.updatePreferences({
+        'categories_display_mode': 'compact grid',
+        'library_items_per_row': 2,
+      });
+      expect(auth.preferences!.categoriesDisplayMode, 'compact grid');
+      expect(repository.saved!.libraryItemsPerRow, 2);
+      repository.refresh.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(auth.preferences!.categoriesDisplayMode, 'compact grid');
+      await auth.updatePreferences({
+        'categories_display_mode': 'comfortable grid',
+        'library_items_per_row': 4,
+      });
+      expect(repository.saved!.categoriesDisplayMode, 'comfortable grid');
+      expect(repository.saved!.libraryItemsPerRow, 4);
+      api.stats.complete(UserStats.fromJson({}));
+      await Future<void>.delayed(Duration.zero);
       auth.dispose();
     },
   );

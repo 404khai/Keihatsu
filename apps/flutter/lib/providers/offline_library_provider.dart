@@ -110,7 +110,7 @@ class OfflineLibraryProvider with ChangeNotifier {
     _filterState.sortBy = sortBy;
     _filterState.order = order;
     notifyListeners();
-    refresh(true);
+    // Sorting and filtering local records never require a round trip.
   }
 
   List<LocalLibraryEntry> get library => _library;
@@ -123,7 +123,7 @@ class OfflineLibraryProvider with ChangeNotifier {
     _filterState = newState;
     _saveSortPreferences(newState.sortBy, newState.order);
     notifyListeners();
-    refresh(true);
+    // Sorting and filtering local records never require a round trip.
   }
 
   Future<void> _saveSortPreferences(String sortBy, String order) async {
@@ -148,18 +148,7 @@ class OfflineLibraryProvider with ChangeNotifier {
           reconcileSnapshot: true,
         );
       }
-      await libraryRepo.refreshLibrary(
-        token: token,
-        ownerUserId: ownerUserId,
-        filterDownloaded: _filterState.filterDownloaded,
-        filterUnread: _filterState.filterUnread,
-        filterStarted: _filterState.filterStarted,
-        filterBookmarked: _filterState.filterBookmarked,
-        filterCompleted: _filterState.filterCompleted,
-        sortBy: _filterState.sortBy,
-        order: _filterState.order,
-        search: _filterState.search,
-      );
+      await libraryRepo.refreshLibrary(token: token, ownerUserId: ownerUserId);
     } finally {
       _isLoading = false;
       notifyListeners();

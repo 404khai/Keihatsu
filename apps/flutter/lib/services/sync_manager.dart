@@ -40,7 +40,11 @@ class SyncManager {
     _syncTimer?.cancel();
   }
 
-  Future<void> addToQueue(String type, Map<String, dynamic> payload) async {
+  Future<void> addToQueue(
+    String type,
+    Map<String, dynamic> payload, {
+    String? ownerUserId,
+  }) async {
     final queuedPayload = Map<String, dynamic>.from(payload);
     if (type == 'UPDATE_HISTORY') {
       queuedPayload.putIfAbsent('operationId', createOperationId);
@@ -50,7 +54,7 @@ class SyncManager {
       ..type = type
       ..payload = json.encode(queuedPayload)
       ..timestamp = DateTime.now()
-      ..ownerUserId = getCurrentUserId()
+      ..ownerUserId = ownerUserId ?? getCurrentUserId()
       ..completed = false;
 
     await isar.writeTxn(() async {

@@ -5,6 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { accountBadge } from '../auth/account-badge';
+import { compressCommentImage } from './comment-image';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -42,8 +44,8 @@ export class CommentsService {
       }
     }
 
-    const uploadPromises = files.map((file) =>
-      this.cloudinary.uploadImage(file, 'keihatsu-comments'),
+    const uploadPromises = files.map(async (file) =>
+      this.cloudinary.uploadImage(await compressCommentImage(file), 'keihatsu-comments'),
     );
 
     const uploadResults = await Promise.all(uploadPromises);
@@ -64,6 +66,8 @@ export class CommentsService {
           select: {
             id: true,
             username: true,
+            email: true,
+            role: true,
             avatarHue: true,
             avatarShape: true,
             avatarExpression: true,
@@ -85,8 +89,8 @@ export class CommentsService {
           dedupeKey: `reply:${comment.id}` });
       }
     }
-    const mentioned = [...new Set(((comment.content || '').match(/@([A-Za-z0-9_]{2,32})/g) || [])
-      .map((mention) => mention.slice(1)))];
+    const mentioned = [...new Set([...(comment.content || '').matchAll(/@(?:\{([A-Za-z0-9_]{1,32})\}|([A-Za-z0-9_]{1,32}))/g)]
+      .map((match) => match[1] || match[2]))];
     if (mentioned.length) {
       const users = await this.prisma.user.findMany({ where: { username: { in: mentioned } },
         select: { id: true } });
@@ -100,7 +104,7 @@ export class CommentsService {
           dedupeKey: `mention:${comment.id}:${mentionedUser.id}` });
       }
     }
-    return comment;
+    return this.publicComment(comment);
   }
 
   async findAll(
@@ -118,12 +122,17 @@ export class CommentsService {
 
     // Helper to build include object for recursion
     const buildInclude = (depth: number): any => {
-      if (depth === 0) return {};
+      if (depth === 0) return {
+        user: { select: { id: true, username: true, email: true, role: true,
+          avatarHue: true, avatarShape: true, avatarExpression: true, avatarAnimated: true } },
+      };
       return {
         user: {
           select: {
             id: true,
             username: true,
+            email: true,
+            role: true,
             avatarHue: true,
             avatarShape: true,
             avatarExpression: true,
@@ -157,6 +166,8 @@ export class CommentsService {
           select: {
             id: true,
             username: true,
+            email: true,
+            role: true,
             avatarHue: true,
             avatarShape: true,
             avatarExpression: true,
@@ -178,7 +189,18 @@ export class CommentsService {
     // If we need to flatten or transform to add 'userLike' field, we can do it here.
     // But returning the 'userLikes' array is fine for frontend to parse.
     // Frontend logic: isLiked = comment.userLikes.length > 0
-    return comments;
+    return comments.map((comment) => this.publicComment(comment));
+  }
+
+  private publicComment(comment: any): any {
+    if (!comment) return comment;
+    const { user, replies, ...fields } = comment;
+    const { email, role, ...publicUser } = user || {};
+    return {
+      ...fields,
+      ...(user ? { user: { ...publicUser, profileBadge: accountBadge({ email, role }) } } : {}),
+      ...(replies ? { replies: replies.map((reply: any) => this.publicComment(reply)) } : {}),
+    };
   }
 
   async like(userId: string, commentId: string) {

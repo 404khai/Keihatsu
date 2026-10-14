@@ -23,6 +23,8 @@ class AuthProvider with ChangeNotifier {
   final UserRepository userRepository;
   final CredentialStore _credentials;
   int _sessionGeneration = 0;
+  int _preferenceRevision = 0;
+  Future<void> _preferenceWrites = Future.value();
   final Future<void> Function(String userId)? onLogout;
 
   User? _user;
@@ -86,12 +88,18 @@ class AuthProvider with ChangeNotifier {
       debugPrint('Secure login storage is temporarily unavailable.');
       return;
     }
-    if (savedToken == null || generation != _sessionGeneration) return;
+    if (generation != _sessionGeneration) return;
+    if (savedToken == null) {
+      await fetchPreferences();
+      return;
+    }
     try {
       final user = await _authApi.getMe(savedToken);
       if (generation != _sessionGeneration) return;
       _token = savedToken;
       _user = user;
+      _preferences = await userRepository.getPreferences() ?? UserPreferences();
+      if (generation != _sessionGeneration) return;
       notifyListeners();
       unawaited(Future.wait([fetchPreferences(), _loadStats()]));
     } catch (error) {
@@ -156,13 +164,15 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> fetchPreferences() async {
+    final revision = _preferenceRevision;
     final generation = _sessionGeneration;
     final token = _token;
     try {
       final localPrefs = await userRepository.getPreferences();
-      if (generation != _sessionGeneration) return;
-      if (localPrefs != null) {
-        _preferences = localPrefs;
+      if (generation != _sessionGeneration || revision != _preferenceRevision)
+        return;
+      {
+        _preferences = localPrefs ?? _preferences ?? UserPreferences();
         notifyListeners();
       }
     } catch (e) {
@@ -172,9 +182,11 @@ class AuthProvider with ChangeNotifier {
     if (token != null && generation == _sessionGeneration) {
       try {
         await userRepository.refreshPreferences(token);
-        if (generation != _sessionGeneration) return;
+        if (generation != _sessionGeneration || revision != _preferenceRevision)
+          return;
         final updatedPrefs = await userRepository.getPreferences();
-        if (generation != _sessionGeneration) return;
+        if (generation != _sessionGeneration || revision != _preferenceRevision)
+          return;
         if (updatedPrefs != null) {
           _preferences = updatedPrefs;
           notifyListeners();
@@ -186,9 +198,11 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> updatePreferences(Map<String, dynamic> updates) async {
-    if (_preferences == null) return;
-
-    final oldPreferences = _preferences;
+    _preferences ??= UserPreferences();
+    ++_preferenceRevision;
+    final generation = _sessionGeneration;
+    final token = _token;
+    final ownerUserId = localScopeUserId;
 
     Map<String, SourcePreference>? newSourcePreferences;
     if (updates.containsKey('source_preferences')) {
@@ -215,20 +229,24 @@ class AuthProvider with ChangeNotifier {
     );
     notifyListeners();
 
-    await userRepository.savePreferencesLocally(_preferences!);
-
-    if (_token != null) {
-      try {
-        await userRepository.updatePreferences(_token!, updates);
-      } catch (e) {
-        debugPrint('Error updating preferences.');
-        _preferences = oldPreferences;
-        if (oldPreferences != null) {
-          await userRepository.savePreferencesLocally(oldPreferences);
-        }
-        notifyListeners();
-        rethrow;
+    final snapshot = _preferences!;
+    // Serialize durable writes so rapid grid/row changes cannot finish backwards.
+    final write = _preferenceWrites.then((_) async {
+      if (generation != _sessionGeneration) return;
+      await userRepository.savePreferencesLocally(
+        snapshot,
+        ownerUserId: ownerUserId,
+      );
+      if (token != null && generation == _sessionGeneration) {
+        await userRepository.updatePreferences(token, updates);
       }
+    });
+    _preferenceWrites = write.catchError((Object _) {});
+    try {
+      await write;
+    } catch (_) {
+      // Keep the user's local choice when the server is unavailable.
+      debugPrint('Preference sync will be retried.');
     }
   }
 
@@ -286,6 +304,8 @@ class AuthProvider with ChangeNotifier {
       if (generation != _sessionGeneration) return;
       _user = authResponse.user;
       _token = authResponse.accessToken;
+      _preferences = await userRepository.getPreferences() ?? UserPreferences();
+      if (generation != _sessionGeneration) return;
 
       notifyListeners();
       await Future.wait([fetchPreferences(), _loadStats()]);

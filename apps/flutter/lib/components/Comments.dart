@@ -13,6 +13,9 @@ import 'user_blobatar.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:async';
+import '../models/user.dart';
+import 'comment_mentions.dart';
 
 class CommentsBottomSheet extends StatefulWidget {
   final ScrollController scrollController;
@@ -38,7 +41,14 @@ class CommentsBottomSheet extends StatefulWidget {
 
 class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   final FocusNode _focusNode = FocusNode();
-  final TextEditingController _commentController = TextEditingController();
+  final MentionEditingController _commentController =
+      MentionEditingController();
+  Timer? _mentionDebounce;
+  int _mentionRequest = 0;
+  List<User> _mentionUsers = [];
+  String? _mentionQuery;
+  bool _sending = false;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   final ImagePicker _picker = ImagePicker();
   List<XFile> _selectedImages = [];
   bool _isFocused = false;
@@ -82,8 +92,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         _isFocused = _focusNode.hasFocus;
       });
     });
+    _commentController.addListener(_updateMentionSuggestions);
     _checkConnectivity();
-    Connectivity().onConnectivityChanged.listen((result) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      result,
+    ) {
       _updateConnectionStatus(result);
     });
 
@@ -154,11 +167,125 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     );
   }
 
+  void _updateMentionSuggestions() {
+    _mentionDebounce?.cancel();
+    final request = ++_mentionRequest;
+    final caret = _commentController.selection.baseOffset;
+    final prefix = caret < 0 ? '' : _commentController.text.substring(0, caret);
+    final match = RegExp(
+      r'(?:^|\s)@\{?([A-Za-z0-9_]{1,32})$',
+    ).firstMatch(prefix);
+    if (match == null) {
+      if (mounted)
+        setState(() {
+          _mentionQuery = null;
+          _mentionUsers = [];
+        });
+      return;
+    }
+    _mentionQuery = match.group(1);
+    _mentionDebounce = Timer(const Duration(milliseconds: 250), () async {
+      final token = context.read<AuthProvider>().token;
+      if (token == null) return;
+      try {
+        final users = await context.read<CommentsProvider>().searchMentionUsers(
+          token,
+          _mentionQuery!,
+        );
+        if (mounted && request == _mentionRequest)
+          setState(() => _mentionUsers = users);
+      } catch (_) {
+        if (mounted && request == _mentionRequest)
+          setState(() => _mentionUsers = []);
+      }
+    });
+  }
+
+  void _selectMention(User user) {
+    final text = _commentController.text;
+    final caret = _commentController.selection.baseOffset;
+    final start = text.substring(0, caret).lastIndexOf('@');
+    final end = caret < text.length && text[caret] == '}' ? caret + 1 : caret;
+    final mention = '@{${user.username}} ';
+    _commentController.value = TextEditingValue(
+      text: text.replaceRange(start, end, mention),
+      selection: TextSelection.collapsed(offset: start + mention.length),
+    );
+    _focusNode.requestFocus();
+  }
+
+  Future<void> _previewImages(List<String> images, int initial) async {
+    final controller = PageController(initialPage: initial);
+    try {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        useSafeArea: true,
+        builder: (sheetContext) => SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * .82,
+          child: Material(
+            color: Theme.of(sheetContext).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.all(18),
+                        child: Text('Comment images'),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close preview',
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: PageView.builder(
+                    controller: controller,
+                    itemCount: images.length,
+                    itemBuilder: (_, index) => InteractiveViewer(
+                      minScale: .5,
+                      maxScale: 4,
+                      child: Image.network(
+                        images[index],
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Text('Could not load this image.'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Swipe for more · Pinch to zoom'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
   Future<void> _pickImage() async {
-    final List<XFile> images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) {
+    if (_sending || _selectedImages.length >= 5) return;
+    final List<XFile> images = await _picker.pickMultiImage(
+      maxWidth: 2048,
+      maxHeight: 2048,
+      imageQuality: 82,
+    );
+    if (images.isNotEmpty && mounted) {
       setState(() {
-        _selectedImages.addAll(images);
+        _selectedImages.addAll(images.take(5 - _selectedImages.length));
       });
       // Ensure focus to show expanded state
       if (!_isFocused) {
@@ -175,13 +302,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final images = List<String>.from(_selectedImages.map((e) => e.path));
     final String? parentId = _replyingToCommentId; // Capture before clearing
 
-    _commentController.clear();
-    setState(() {
-      _selectedImages = [];
-      _replyingToCommentId = null;
-      _replyingToUsername = null;
-    });
-    _focusNode.unfocus();
+    if (_sending) return;
+    setState(() => _sending = true);
+    final chapterId = _currentChapterId;
 
     try {
       final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -192,23 +315,41 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       await commentsProvider.postComment(
         widget.sourceId,
         widget.mangaId,
-        _currentChapterId,
+        chapterId,
         content,
         auth.token ?? '',
         parentId: parentId,
         imagePaths: images,
       );
+      if (!mounted) return;
+      _commentController.clear();
+      setState(() {
+        _selectedImages = [];
+        _replyingToCommentId = null;
+        _replyingToUsername = null;
+      });
+      _focusNode.unfocus();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Failed to post comment: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is CommentActionException
+                  ? e.message
+                  : 'Your comment could not be sent. Please try again.',
+            ),
+          ),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
   @override
   void dispose() {
+    _mentionDebounce?.cancel();
+    _connectivitySubscription?.cancel();
     _focusNode.dispose();
     _commentController.dispose();
     super.dispose();
@@ -514,39 +655,73 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           )
                         : null,
                     constraints: _isFocused
-                        ? const BoxConstraints(maxHeight: 120)
+                        ? const BoxConstraints(maxHeight: 240)
                         : const BoxConstraints(minHeight: 45),
-                    child: TextField(
-                      focusNode: _focusNode,
-                      controller: _commentController,
-                      maxLines: null,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        hintText: _replyingToUsername != null
-                            ? "Replying to $_replyingToUsername..."
-                            : "Add comments...",
-                        hintStyle: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_mentionQuery != null && _mentionUsers.isNotEmpty)
+                          SizedBox(
+                            height: 116,
+                            child: ListView.builder(
+                              itemCount: _mentionUsers.length,
+                              itemBuilder: (_, index) {
+                                final user = _mentionUsers[index];
+                                return ListTile(
+                                  dense: true,
+                                  leading: UserBlobatar(
+                                    seed: user.id,
+                                    label: user.username ?? 'Reader',
+                                    size: 32,
+                                    hue: user.avatarHue,
+                                    shape: user.avatarShape,
+                                    expression: user.avatarExpression,
+                                  ),
+                                  title: Text(
+                                    '@${user.username}',
+                                    style: TextStyle(
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                  onTap: () => _selectMention(user),
+                                );
+                              },
+                            ),
+                          ),
+                        TextField(
+                          focusNode: _focusNode,
+                          controller: _commentController,
+                          readOnly: _sending,
+                          maxLines: null,
+                          style: TextStyle(color: textColor),
+                          decoration: InputDecoration(
+                            hintText: _replyingToUsername != null
+                                ? "Replying to $_replyingToUsername..."
+                                : "Add comments...",
+                            hintStyle: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: !_isFocused
+                                ? const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  )
+                                : EdgeInsets.zero,
+                            isDense: true,
+                            suffixIcon: !_isFocused
+                                ? GestureDetector(
+                                    onTap: _pickImage,
+                                    child: Icon(
+                                      PhosphorIcons.image(),
+                                      color: colorScheme.onSurfaceVariant,
+                                      size: 24,
+                                    ),
+                                  )
+                                : null,
+                          ),
                         ),
-                        border: InputBorder.none,
-                        contentPadding: !_isFocused
-                            ? const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              )
-                            : EdgeInsets.zero,
-                        isDense: true,
-                        suffixIcon: !_isFocused
-                            ? GestureDetector(
-                                onTap: _pickImage,
-                                child: Icon(
-                                  PhosphorIcons.image(),
-                                  color: colorScheme.onSurfaceVariant,
-                                  size: 24,
-                                ),
-                              )
-                            : null,
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -573,6 +748,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                 height: 100,
                                 width: 100,
                                 fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.broken_image_outlined),
                               ),
                             ),
                             Positioned(
@@ -613,7 +790,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   const SizedBox(width: 20),
                   const Spacer(),
                   GestureDetector(
-                    onTap: _handlePostComment,
+                    onTap: _sending ? null : _handlePostComment,
                     child: Container(
                       width: 35,
                       height: 35,
@@ -778,19 +955,45 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                 GestureDetector(
                   onTap: () =>
                       _showUserProfile(context, profileUserId, user, null),
-                  child: Text(
-                    user,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: textColor.withOpacity(0.7),
-                    ),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          user,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: textColor.withOpacity(0.7),
+                          ),
+                        ),
+                      ),
+                      if (commentUser?.profileBadge == 'developer' ||
+                          commentUser?.profileBadge ==
+                              'android_beta_tester') ...[
+                        const SizedBox(width: 6),
+                        Tooltip(
+                          message: commentUser?.profileBadge == 'developer'
+                              ? 'Developer'
+                              : 'Android beta tester',
+                          child: Icon(
+                            commentUser?.profileBadge == 'developer'
+                                ? Icons.hardware_rounded
+                                : Icons.android_rounded,
+                            size: 16,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(height: 4),
                 // Comment text
-                Text(
-                  text,
+                Text.rich(
+                  TextSpan(
+                    children: commentMentionSpans(text, colorScheme.primary),
+                  ),
                   style: TextStyle(
                     color: colorScheme.onSurface,
                     fontSize: 15,
@@ -809,13 +1012,19 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                         itemBuilder: (context, index) {
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(15),
-                              child: Image.network(
-                                comment.images[index],
-                                height: 180,
-                                width: 120,
-                                fit: BoxFit.cover,
+                            child: GestureDetector(
+                              onTap: () =>
+                                  _previewImages(comment.images, index),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: Image.network(
+                                  comment.images[index],
+                                  height: 180,
+                                  width: 120,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.broken_image_outlined),
+                                ),
                               ),
                             ),
                           );
@@ -859,13 +1068,24 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                     GestureDetector(
                       onTap: () {
                         if (auth.token != null) {
-                          commentsProvider.likeComment(
-                            comment.id,
-                            auth.token!,
-                            widget.sourceId,
-                            widget.mangaId,
-                            _currentChapterId,
-                          );
+                          commentsProvider
+                              .likeComment(
+                                comment.id,
+                                auth.token!,
+                                widget.sourceId,
+                                widget.mangaId,
+                                _currentChapterId,
+                              )
+                              .catchError((Object _) {
+                                if (context.mounted)
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Could not update your like. Please try again.',
+                                      ),
+                                    ),
+                                  );
+                              });
                         }
                       },
                       child: Row(
