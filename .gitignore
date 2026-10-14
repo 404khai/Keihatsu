@@ -86,4 +86,5 @@ google-services.json
 **/*service-account*.json
 **/.vercel/
 /output/
+.ota-deps/
 firebase-debug.log

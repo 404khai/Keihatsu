@@ -1,0 +1,15 @@
+{
+  "flutter_version": "3.44.0",
+  "api_base_url": "https://keihatsu.159.195.86.119.sslip.io",
+  "path_dependencies": {
+    "navii": {
+      "repository": "404khai/navii",
+      "revision": "b1cbdabb5865719e686b9debdd2a7248860a9940"
+    },
+    "blobatar": {
+      "repository": "404khai/blobatar",
+      "revision": "bf52859375e955dec4ebbc2b53316bcef0ce7ad3"
+    }
+  },
+  "android_signing_sha256": "207b7297ffc99a0feb20dabfd036f9d7aa2f8efcaa27d183d169dbed2ca2080e"
+}
