@@ -404,3 +404,56 @@
 .google-sign-in[hidden] {
   display: none;
 }
+
+.admin-message-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.admin-message-form label {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  color: #ddd;
+}
+.admin-message-form input:not([type="checkbox"]),
+.admin-message-form textarea,
+.admin-message-form select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #444;
+  border-radius: 7px;
+  background: #191919;
+  color: #fff;
+  font: inherit;
+}
+.admin-message-form textarea {
+  resize: vertical;
+}
+.admin-message-form .admin-message-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-message-form input:focus-visible,
+.admin-message-form textarea:focus-visible,
+.admin-message-form select:focus-visible {
+  outline: 2px solid #f4cb00;
+  outline-offset: 2px;
+}
+.admin-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.admin-message-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.admin-root .admin-message-error {
+  color: #ffb4ab;
+}
+.admin-message-history {
+  margin-top: 24px;
+}

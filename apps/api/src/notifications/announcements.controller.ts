@@ -5,7 +5,7 @@ import {
   ApiForbiddenResponse,
   ApiBody,
 } from '@nestjs/swagger';
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -22,6 +22,12 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 @Roles(Role.ADMIN)
 export class AnnouncementsController {
   constructor(private announcements: AnnouncementService) {}
+  @Get()
+  @ApiOperation({ summary: 'List recent system announcements (ADMIN only)' })
+  list() {
+    return this.announcements.list();
+  }
+
   @Post()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60000, limit: 3 } })
