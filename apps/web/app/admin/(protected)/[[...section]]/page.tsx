@@ -175,18 +175,17 @@ export default async function AdminPage({
             <small>Synced reading time · Last 7 date buckets (UTC)</small>
           </article>
           <article>
-            <p>Onboarding completion</p>
+            <p>Registered push devices</p>
             <strong>
-              {data.totalUsers
-                ? Math.round(
-                    (data.engagement.onboardedUsers / data.totalUsers) * 100,
-                  )
-                : 0}
-              %
+              {number(
+                data.platforms.reduce(
+                  (total, platform) => total + platform.devices,
+                  0,
+                ),
+              )}
             </strong>
             <small>
-              {number(data.engagement.onboardedUsers)} of{" "}
-              {number(data.totalUsers)} registered accounts
+              Enabled, valid registrations · Readers may use multiple devices
             </small>
           </article>
           <article>

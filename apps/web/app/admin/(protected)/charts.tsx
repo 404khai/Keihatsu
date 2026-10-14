@@ -94,7 +94,13 @@ export function ExportReport({ data }: { data: Analytics }) {
           ).map((k) => [k, data[k]]),
           ["weeklyActiveReaders", data.engagement.weeklyActiveReaders],
           ["readingMinutes7Days", data.engagement.readingMinutes7Days],
-          ["onboardedUsers", data.engagement.onboardedUsers],
+          [
+            "registeredPushDevices",
+            data.platforms.reduce(
+              (total, platform) => total + platform.devices,
+              0,
+            ),
+          ],
         ];
         const url = URL.createObjectURL(
           new Blob([rows.map((r) => r.join(",")).join("\n")], {
