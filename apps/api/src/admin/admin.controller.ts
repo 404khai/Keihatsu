@@ -21,6 +21,12 @@ import { AdminStatsDto } from './dto/admin-stats.dto';
 export class AdminController {
   constructor(private adminService: AdminService) {}
 
+  @Get('administrators')
+  @ApiOperation({ summary: 'List all administrators with safe account fields' })
+  administrators() {
+    return this.adminService.getAdministrators();
+  }
+
   @Get('analytics')
   @ApiOperation({ summary: 'Get live admin analytics and source health' })
   getAnalytics() {

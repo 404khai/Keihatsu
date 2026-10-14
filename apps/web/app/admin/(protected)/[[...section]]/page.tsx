@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch, requireAdmin } from "@/lib/admin/server";
-import type { Analytics } from "@/lib/admin/types";
+import type { Analytics, Administrator, Announcement } from "@/lib/admin/types";
 import { GrowthChart, PlatformChart, ExportReport } from "../charts";
+import { SystemMessages } from "../system-messages";
 const labels: Record<string, string> = {
   readers: "Readers",
-  catalogue: "Catalogue",
+  catalogue: "Engagement",
+  messages: "System messages",
   extensions: "Extensions",
   community: "Community",
   reports: "Reports",
@@ -29,12 +31,34 @@ export default async function AdminPage({
   }
   if (!response.ok) throw new Error("Analytics are temporarily unavailable");
   const data: Analytics = await response.json();
+  const rosterResponse =
+    slug === "team" ? await apiFetch("admin/administrators", token) : null;
+  if (rosterResponse && !rosterResponse.ok)
+    throw new Error("Administrator roster is temporarily unavailable");
+  const administrators: Administrator[] = rosterResponse
+    ? await rosterResponse.json()
+    : [];
+  const messagesResponse =
+    slug === "messages" ? await apiFetch("admin/announcements", token) : null;
+  if (messagesResponse && !messagesResponse.ok)
+    throw new Error("Message history is temporarily unavailable");
+  const messages: Announcement[] = messagesResponse
+    ? await messagesResponse.json()
+    : [];
   const title = labels[slug] || "Overview";
   const cards = [
-    ["Total users", data.totalUsers, "All registered accounts"],
+    [
+      "Total users",
+      data.totalUsers,
+      "Registered app accounts; Firebase invitations are separate",
+    ],
     ["Active readers", data.activeReaders, "Read in the last 30 days"],
     ["New users", data.newUsers, "Registered in the last 30 days"],
-    ["Chapters in history", data.history, "Current, non-deleted entries"],
+    [
+      "Weekly active readers",
+      data.engagement.weeklyActiveReaders,
+      "Distinct readers · Last 7 calendar days (UTC)",
+    ],
   ] as const;
   return (
     <>
@@ -96,28 +120,35 @@ export default async function AdminPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {data.recentSignups.map((u) => (
-                    <tr key={u.id}>
-                      <td>
-                        <strong>{u.username}</strong>
-                        <small>{u.email}</small>
-                      </td>
-                      <td>
-                        {new Date(u.createdAt).toISOString().slice(0, 10)}
-                      </td>
-                      <td>
-                        {slug === "team"
-                          ? u.role
-                          : u.isOnboarded
-                            ? "Completed"
-                            : "Pending"}
-                      </td>
-                    </tr>
-                  ))}
+                  {(slug === "team" ? administrators : data.recentSignups).map(
+                    (u) => (
+                      <tr key={u.id}>
+                        <td>
+                          <strong>{u.username}</strong>
+                          <small>{u.email}</small>
+                        </td>
+                        <td>
+                          {new Date(u.createdAt).toISOString().slice(0, 10)}
+                        </td>
+                        <td>
+                          {slug === "team"
+                            ? u.role
+                            : "isOnboarded" in u && u.isOnboarded
+                              ? "Completed"
+                              : "Pending"}
+                        </td>
+                      </tr>
+                    ),
+                  )}
                 </tbody>
               </table>
-              {!data.recentSignups.length && (
-                <p>No readers have signed up yet.</p>
+              {!(slug === "team" ? administrators : data.recentSignups)
+                .length && (
+                <p>
+                  {slug === "team"
+                    ? "No administrators found."
+                    : "No readers have signed up yet."}
+                </p>
               )}
             </div>
           </section>
@@ -132,15 +163,39 @@ export default async function AdminPage({
         </div>
       )}
       {slug === "catalogue" && (
-        <section className="admin-panel">
-          <h2>Reader libraries</h2>
-          <div className="admin-big-number">{number(data.library)}</div>
-          <p>
-            Saved library entries across all accounts. Titles are supplied by
-            external extensions; there is no central catalogue database.
-          </p>
-        </section>
+        <div className="admin-metrics">
+          <article>
+            <p>Weekly active readers</p>
+            <strong>{number(data.engagement.weeklyActiveReaders)}</strong>
+            <small>Distinct readers · Last 7 calendar days (UTC)</small>
+          </article>
+          <article>
+            <p>Reading time</p>
+            <strong>{number(data.engagement.readingMinutes7Days)} min</strong>
+            <small>Synced reading time · Last 7 date buckets (UTC)</small>
+          </article>
+          <article>
+            <p>Registered push devices</p>
+            <strong>
+              {number(
+                data.platforms.reduce(
+                  (total, platform) => total + platform.devices,
+                  0,
+                ),
+              )}
+            </strong>
+            <small>
+              Enabled, valid registrations · Readers may use multiple devices
+            </small>
+          </article>
+          <article>
+            <p>Monthly active readers</p>
+            <strong>{number(data.activeReaders)}</strong>
+            <small>Distinct readers · Last 30 days</small>
+          </article>
+        </div>
       )}
+      {slug === "messages" && <SystemMessages messages={messages} />}
       {slug === "community" && (
         <section className="admin-panel">
           <h2>Community activity</h2>

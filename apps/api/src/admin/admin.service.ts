@@ -6,10 +6,30 @@ import { AdminStatsDto } from './dto/admin-stats.dto';
 export class AdminService {
   constructor(private prisma: PrismaService) {}
 
+  async getAdministrators() {
+    return this.prisma.user.findMany({
+      where: { role: 'ADMIN' },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        createdAt: true,
+        role: true,
+      },
+    });
+  }
+
   async getAnalytics() {
     const now = new Date();
     const since = new Date(now.getTime() - 30 * 86400000);
+    const weekStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6),
+    );
     const [
+      onboardedUsers,
+      weeklyReaders,
+      readingUsers,
       totalUsers,
       activeReaders,
       newUsers,
@@ -21,6 +41,12 @@ export class AdminService {
       sources,
       growth,
     ] = await Promise.all([
+      this.prisma.user.count({ where: { isOnboarded: true } }),
+      this.prisma.historyEntry.groupBy({
+        by: ['userId'],
+        where: { deletedAt: null, lastReadAt: { gte: weekStart, lte: now } },
+      }),
+      this.prisma.user.findMany({ select: { readingStats: true } }),
       this.prisma.user.count(),
       this.prisma.historyEntry.groupBy({
         by: ['userId'],
@@ -60,7 +86,37 @@ export class AdminService {
         }),
       ),
     ]);
+    let readingMilliseconds = 0;
+    const firstDay = weekStart.toISOString().slice(0, 10);
+    const lastDay = now.toISOString().slice(0, 10);
+    for (const user of readingUsers) {
+      if (
+        !user.readingStats ||
+        typeof user.readingStats !== 'object' ||
+        Array.isArray(user.readingStats)
+      )
+        continue;
+      for (const [day, value] of Object.entries(user.readingStats)) {
+        if (
+          /^\d{4}-\d{2}-\d{2}$/.test(day) &&
+          day >= firstDay &&
+          day <= lastDay &&
+          Number.isFinite(Date.parse(day)) &&
+          new Date(day).toISOString().slice(0, 10) === day &&
+          typeof value === 'number' &&
+          Number.isFinite(value) &&
+          value > 0 &&
+          value <= 86400000
+        )
+          readingMilliseconds += value;
+      }
+    }
     return {
+      engagement: {
+        onboardedUsers,
+        weeklyActiveReaders: weeklyReaders.length,
+        readingMinutes7Days: Math.floor(readingMilliseconds / 60000),
+      },
       generatedAt: now.toISOString(),
       totalUsers,
       activeReaders: activeReaders.length,

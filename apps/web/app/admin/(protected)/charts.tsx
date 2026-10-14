@@ -90,15 +90,17 @@ export function ExportReport({ data }: { data: Analytics }) {
           ["Metric", "Value"],
           ["Generated at", data.generatedAt],
           ...(
-            [
-              "totalUsers",
-              "activeReaders",
-              "newUsers",
-              "comments",
-              "library",
-              "history",
-            ] as const
+            ["totalUsers", "activeReaders", "newUsers", "comments"] as const
           ).map((k) => [k, data[k]]),
+          ["weeklyActiveReaders", data.engagement.weeklyActiveReaders],
+          ["readingMinutes7Days", data.engagement.readingMinutes7Days],
+          [
+            "registeredPushDevices",
+            data.platforms.reduce(
+              (total, platform) => total + platform.devices,
+              0,
+            ),
+          ],
         ];
         const url = URL.createObjectURL(
           new Blob([rows.map((r) => r.join(",")).join("\n")], {

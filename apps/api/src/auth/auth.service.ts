@@ -10,6 +10,7 @@ import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
+import { accountBadge } from './account-badge';
 
 @Injectable()
 export class AuthService {
@@ -184,7 +185,7 @@ export class AuthService {
     const { password: _password, ...publicUser } = user;
     return {
       accessToken: this.jwtService.sign(payload),
-      user: publicUser,
+      user: { ...publicUser, profileBadge: accountBadge(user) },
     };
   }
 
@@ -192,6 +193,6 @@ export class AuthService {
     const user = await this.usersService.findOne({ id: payload.sub });
     if (!user) return null;
     const { password: _password, ...publicUser } = user;
-    return publicUser;
+    return { ...publicUser, profileBadge: accountBadge(user) };
   }
 }

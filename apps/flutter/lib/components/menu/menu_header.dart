@@ -43,6 +43,7 @@ class MenuHeader extends StatefulWidget {
     this.memberSince,
     this.location,
     this.badgeIcon,
+    this.badgeLabel,
     this.onCopyTap,
     this.onShareTap,
     this.showProfileActions = false,
@@ -64,6 +65,7 @@ class MenuHeader extends StatefulWidget {
   final String? memberSince;
   final String? location;
   final IconData? badgeIcon;
+  final String? badgeLabel;
   final VoidCallback? onCopyTap;
   final VoidCallback? onShareTap;
   final bool showProfileActions;
@@ -230,7 +232,12 @@ class _MenuHeaderState extends State<MenuHeader> {
                     color: cs.tertiary,
                     shape: MaterialShapeBorder(shape: MaterialShapes.circle),
                   ),
-                  child: Icon(widget.badgeIcon, size: 16, color: cs.onTertiary),
+                  child: Icon(
+                    widget.badgeIcon,
+                    size: 16,
+                    color: cs.onTertiary,
+                    semanticLabel: widget.badgeLabel,
+                  ),
                 ),
               ] else if (widget.onEditTap != null &&
                   !widget.showProfileActions) ...[

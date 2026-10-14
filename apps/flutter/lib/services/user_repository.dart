@@ -29,12 +29,13 @@ class UserRepository {
         .findFirst();
     if (local == null) return null;
 
-    final Map<String, dynamic> sourcePrefsJson = local.sourcePreferencesJson.isNotEmpty
+    final Map<String, dynamic> sourcePrefsJson =
+        local.sourcePreferencesJson.isNotEmpty
         ? json.decode(local.sourcePreferencesJson)
         : {};
 
     final Map<String, SourcePreference> sourcePrefs = sourcePrefsJson.map(
-            (k, v) => MapEntry(k, SourcePreference.fromJson(v))
+      (k, v) => MapEntry(k, SourcePreference.fromJson(v)),
     );
 
     return UserPreferences(
@@ -51,28 +52,33 @@ class UserRepository {
   }
 
   Future<void> refreshPreferences(String token) async {
+    final ownerUserId = _currentUserId;
     final connectivity = await Connectivity().checkConnectivity();
     if (connectivity.contains(ConnectivityResult.none)) return;
 
     try {
       final prefsData = await api.getPreferences(token);
-      await savePreferencesLocally(prefsData);
+      await savePreferencesLocally(prefsData, ownerUserId: ownerUserId);
     } catch (e) {
       print('Error refreshing preferences: $e');
     }
   }
 
-  Future<void> savePreferencesLocally(UserPreferences prefsData) async {
+  Future<void> savePreferencesLocally(
+    UserPreferences prefsData, {
+    String? ownerUserId,
+  }) async {
+    final scopeUserId = ownerUserId ?? _currentUserId;
     final localPrefs =
         await isar
-            .collection<LocalUserPreferences>()
-            .filter()
-            .ownerUserIdEqualTo(_currentUserId)
-            .findFirst() ??
-            LocalUserPreferences()
-              ..ownerUserId = _currentUserId;
+                  .collection<LocalUserPreferences>()
+                  .filter()
+                  .ownerUserIdEqualTo(scopeUserId)
+                  .findFirst() ??
+              LocalUserPreferences()
+          ..ownerUserId = scopeUserId;
 
-    localPrefs.ownerUserId = _currentUserId;
+    localPrefs.ownerUserId = scopeUserId;
     localPrefs.libraryDisplayStyle = prefsData.libraryDisplayStyle;
     localPrefs.categoriesDisplayMode = prefsData.categoriesDisplayMode;
     localPrefs.libraryItemsPerRow = prefsData.libraryItemsPerRow;
@@ -82,23 +88,34 @@ class UserRepository {
     localPrefs.tabsShowCategories = prefsData.tabsShowCategories;
     localPrefs.tabsShowItemCount = prefsData.tabsShowItemCount;
     localPrefs.sourcePreferencesJson = json.encode(
-        prefsData.sourcePreferences.map((k, v) => MapEntry(k, v.toJson()))
+      prefsData.sourcePreferences.map((k, v) => MapEntry(k, v.toJson())),
     );
 
-    await isar.writeTxn(() => isar.collection<LocalUserPreferences>().put(localPrefs));
+    await isar.writeTxn(
+      () => isar.collection<LocalUserPreferences>().put(localPrefs),
+    );
   }
 
-  Future<void> updatePreferences(String token, Map<String, dynamic> updates) async {
+  Future<void> updatePreferences(
+    String token,
+    Map<String, dynamic> updates,
+  ) async {
+    final ownerUserId = _currentUserId;
     try {
       final updatedPrefs = await api.updatePreferences(token, updates);
-      await savePreferencesLocally(updatedPrefs);
+      await savePreferencesLocally(updatedPrefs, ownerUserId: ownerUserId);
     } catch (e) {
       print('Error updating preferences: $e');
       rethrow;
     }
   }
 
-  Future<void> updateSourcePreference(String token, String sourceId, {bool? enabled, bool? pinned}) async {
+  Future<void> updateSourcePreference(
+    String token,
+    String sourceId, {
+    bool? enabled,
+    bool? pinned,
+  }) async {
     final prefs = await getPreferences();
     if (prefs == null) return;
 
@@ -112,9 +129,7 @@ class UserRepository {
     };
 
     await updatePreferences(token, {
-      'source_preferences': {
-        sourceId: newSourcePref
-      }
+      'source_preferences': {sourceId: newSourcePref},
     });
   }
 

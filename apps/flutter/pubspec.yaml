@@ -2,7 +2,7 @@ name: keihatsu
 description: "The cross-platform manga reader built for offline freedom, and a seamless reading experience"
 publish_to: 'none'
 
-version: 0.1.0+5
+version: 0.1.0+6
 
 environment:
   sdk: ^3.8.1
@@ -74,7 +74,10 @@ flutter:
 
   assets:
     - images/
-    - images/icons/appIcons/
+    - images/icons/appIcons/KeihatsuSpringIcon.webp
+    - images/icons/appIcons/KeihatsuWinterIcon.webp
+    - images/icons/appIcons/KeihatsuAutumnIcon.webp
+    - images/icons/appIcons/KeihatsuIcon.webp
     - images/extensions/
     - images/icons/libraryIcons/
     - images/manwha/

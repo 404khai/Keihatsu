@@ -1,0 +1,8 @@
+Android beta 0.1.0, build 6
+
+- Smaller universal download (56.67 MB), retaining ARM64, ARM32 and x86_64.
+- Profile statistics now come from your account, with unknown/loading and zero states.
+- Restores secure saved sessions before startup routing, with retry on temporary failures.
+- Distinct developer and Android beta tester profile badges.
+
+The signing identity is unchanged; install as an update to preserve your data.

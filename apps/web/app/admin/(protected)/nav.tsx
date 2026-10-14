@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation";
 import {
   LayoutGrid,
   Users,
-  BookOpen,
+  Activity,
+  Megaphone,
   Puzzle,
   MessageCircle,
   Flag,
@@ -19,15 +20,17 @@ export const sections = [
   "reports",
   "team",
   "settings",
+  "messages",
 ];
 const items = [
   ["", "Overview", LayoutGrid],
   ["readers", "Readers", Users],
-  ["catalogue", "Catalogue", BookOpen],
+  ["catalogue", "Engagement", Activity],
   ["extensions", "Extensions", Puzzle],
   ["community", "Community", MessageCircle],
   ["reports", "Reports", Flag],
   ["team", "Team & access", Shield],
+  ["messages", "System messages", Megaphone],
   ["settings", "Settings", Settings],
 ] as const;
 export function AdminNav() {

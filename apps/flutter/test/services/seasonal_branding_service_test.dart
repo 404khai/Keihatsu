@@ -33,19 +33,19 @@ void main() {
   test('exposes exact seasonal artwork paths', () {
     expect(
       KeihatsuSeason.summer.iconAsset,
-      'images/icons/appIcons/KeihatsuIcon.png',
+      'images/icons/appIcons/KeihatsuIcon.webp',
     );
     expect(
       KeihatsuSeason.spring.iconAsset,
-      'images/icons/appIcons/KeihatsuSpringIcon.png',
+      'images/icons/appIcons/KeihatsuSpringIcon.webp',
     );
     expect(
       KeihatsuSeason.autumn.iconAsset,
-      'images/icons/appIcons/KeihatsuAutumnIcon.png',
+      'images/icons/appIcons/KeihatsuAutumnIcon.webp',
     );
     expect(
       KeihatsuSeason.winter.iconAsset,
-      'images/icons/appIcons/KeihatsuWinterIcon.png',
+      'images/icons/appIcons/KeihatsuWinterIcon.webp',
     );
   });
 }

@@ -19,10 +19,10 @@ enum KeihatsuSeason {
 
   String get iconAsset =>
       'images/icons/appIcons/${switch (this) {
-        KeihatsuSeason.spring => 'KeihatsuSpringIcon.png',
-        KeihatsuSeason.summer => 'KeihatsuIcon.png',
-        KeihatsuSeason.autumn => 'KeihatsuAutumnIcon.png',
-        KeihatsuSeason.winter => 'KeihatsuWinterIcon.png',
+        KeihatsuSeason.spring => 'KeihatsuSpringIcon.webp',
+        KeihatsuSeason.summer => 'KeihatsuIcon.webp',
+        KeihatsuSeason.autumn => 'KeihatsuAutumnIcon.webp',
+        KeihatsuSeason.winter => 'KeihatsuWinterIcon.webp',
       }}';
 
   String? get alternateIconName => switch (this) {

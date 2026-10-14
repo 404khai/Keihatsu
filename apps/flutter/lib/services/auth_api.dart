@@ -57,10 +57,12 @@ class AuthApi {
   }
 
   Future<User> getMe(String token) async {
-    final response = await _client.get(
-      Uri.parse('$baseUrl/auth/me'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
+    final response = await _client
+        .get(
+          Uri.parse('$baseUrl/auth/me'),
+          headers: {'Authorization': 'Bearer $token'},
+        )
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       return User.fromJson(json.decode(response.body));
@@ -70,10 +72,12 @@ class AuthApi {
   }
 
   Future<UserStats> getUserStats(String token) async {
-    final response = await _client.get(
-      Uri.parse('$baseUrl/user/profile/stats'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
+    final response = await _client
+        .get(
+          Uri.parse('$baseUrl/user/profile/stats'),
+          headers: {'Authorization': 'Bearer $token'},
+        )
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       return UserStats.fromJson(json.decode(response.body));
@@ -164,10 +168,12 @@ class AuthApi {
   }
 
   Future<void> deleteAccount(String token) async {
-    final response = await _client.delete(
-      Uri.parse('$baseUrl/user/profile'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
+    final response = await _client
+        .delete(
+          Uri.parse('$baseUrl/user/profile'),
+          headers: {'Authorization': 'Bearer $token'},
+        )
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode != 204) {
       final payload = response.body.isEmpty
@@ -180,10 +186,12 @@ class AuthApi {
   // --- User Preferences Endpoints ---
 
   Future<UserPreferences> getPreferences(String token) async {
-    final response = await _client.get(
-      Uri.parse('$baseUrl/user/preferences'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
+    final response = await _client
+        .get(
+          Uri.parse('$baseUrl/user/preferences'),
+          headers: {'Authorization': 'Bearer $token'},
+        )
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       return UserPreferences.fromJson(json.decode(response.body));

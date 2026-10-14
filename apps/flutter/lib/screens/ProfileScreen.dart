@@ -144,8 +144,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String? avatarSeed = isAuthenticated ? user.id : null;
     final String? avatarUrl = isAuthenticated ? user.avatarUrl : null;
 
-    final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 120;
-    final int libraryCount = user?.stats?.libraryCount ?? 10;
+    final statsPending = isAuthenticated && user.stats == null;
+    String statValue(int value) => statsPending ? '—' : value.toString();
+    final int readingMinutes = user?.stats?.totalReadingTimeMinutes ?? 0;
+    final int libraryCount = user?.stats?.libraryCount ?? 0;
     final String profileUrl =
         'https://keihatsu.app/u/${user?.username ?? user?.id ?? 'reader'}';
 
@@ -239,22 +241,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           avatarAnimated: user?.avatarAnimated ?? false,
                           stats: [
                             MenuHeaderStat(
-                              value: _formatListeningTime(readingMinutes),
+                              value: statsPending
+                                  ? '—'
+                                  : _formatListeningTime(readingMinutes),
                               label: 'reading time',
                               shape: MaterialShapes.clover4Leaf,
                             ),
                             MenuHeaderStat(
-                              value: libraryCount.toString(),
-                              label: 'read',
+                              value: statValue(
+                                user?.stats?.mangasReadToday ?? 0,
+                              ),
+                              label: 'read today',
                               shape: MaterialShapes.cookie9Sided,
                             ),
                             MenuHeaderStat(
-                              value: '18',
+                              value: statValue(user?.stats?.commentsCount ?? 0),
                               label: 'comments',
                               shape: MaterialShapes.sunny,
                             ),
                             MenuHeaderStat(
-                              value: libraryCount.toString(),
+                              value: statValue(libraryCount),
                               label: 'in library',
                               shape: MaterialShapes.gem,
                             ),
@@ -262,8 +268,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           bio: user?.bio,
                           memberSince: user?.createdAt?.year.toString(),
                           badgeIcon: isAuthenticated
-                              ? Icons.hardware_rounded
+                              ? switch (user.profileBadge) {
+                                  'developer' => Icons.hardware_rounded,
+                                  'android_beta_tester' =>
+                                    Icons.android_rounded,
+                                  _ => null,
+                                }
                               : null,
+                          badgeLabel: switch (user?.profileBadge) {
+                            'developer' => 'Developer',
+                            'android_beta_tester' => 'Android beta tester',
+                            _ => null,
+                          },
                           showProfileActions: isAuthenticated,
                           onCopyTap: () {
                             Clipboard.setData(ClipboardData(text: profileUrl));

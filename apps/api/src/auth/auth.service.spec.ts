@@ -34,11 +34,11 @@ describe('AuthService', () => {
   });
 
   it('never returns the password hash in login or authenticated profiles', async () => {
-    const user = { id: 'reader', email: 'reader@example.com', password: 'private-hash' };
+    const user = { id: 'reader', email: 'reader@example.com', profileBadge: null, password: 'private-hash' };
     jwtService.sign.mockReturnValue('token');
     usersService.findOne.mockResolvedValue(user);
     expect((await service.generateTokens(user)).user).toEqual({
-      id: 'reader', email: 'reader@example.com',
+      id: 'reader', email: 'reader@example.com', profileBadge: null,
     });
     expect(await service.validateUser({ sub: user.id })).not.toHaveProperty('password');
   });
@@ -83,7 +83,7 @@ describe('AuthService', () => {
     });
     expect(response).toEqual({
       accessToken: 'backend-access-token',
-      user: linkedUser,
+      user: { ...linkedUser, profileBadge: null },
     });
   });
 });

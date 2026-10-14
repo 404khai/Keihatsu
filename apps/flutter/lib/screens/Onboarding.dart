@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class Onboarding extends StatefulWidget {
   const Onboarding({super.key});
@@ -11,6 +13,8 @@ class Onboarding extends StatefulWidget {
 }
 
 class _OnboardingState extends State<Onboarding> {
+  bool _restoreFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -18,15 +22,19 @@ class _OnboardingState extends State<Onboarding> {
   }
 
   Future<void> _checkRouting() async {
-    // Show splash for 3 seconds
-    await Future.delayed(const Duration(seconds: 3));
+    final auth = context.read<AuthProvider>();
+    await auth.initialized;
     if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
+    if (!mounted) return;
+    if (auth.restoreFailed) {
+      setState(() => _restoreFailed = true);
+      return;
+    }
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
-    if (token != null) {
+    if (auth.isAuthenticated) {
       Navigator.pushReplacementNamed(context, '/library');
     } else {
       if (hasSeenOnboarding) {
@@ -57,6 +65,25 @@ class _OnboardingState extends State<Onboarding> {
                 ),
               ),
             ),
+            if (_restoreFailed) ...[
+              const Text(
+                'Unable to restore your session. Your login is saved.',
+                style: TextStyle(color: Colors.white),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  setState(() => _restoreFailed = false);
+                  await context.read<AuthProvider>().retrySessionRestore();
+                  if (mounted) await _checkRouting();
+                },
+                child: const Text('Retry'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pushReplacementNamed(context, '/library'),
+                child: const Text('Continue offline'),
+              ),
+            ],
           ],
         ),
       ),
