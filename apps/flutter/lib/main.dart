@@ -71,7 +71,7 @@ void main() async {
   final themeProvider = ThemeProvider();
   // Wait for the theme to load from preferences before running the app
   // This prevents the flicker from white to the saved theme
-  await themeProvider.loadFromPrefs();
+  await themeProvider.initialized;
 
   final dir = await getApplicationDocumentsDirectory();
   final isar = await Isar.open([
@@ -159,6 +159,7 @@ void main() async {
   String? lastBootstrappedUserId;
   String? lastPushToken;
   authProvider.addListener(() {
+    unawaited(themeProvider.bindUserScope(authProvider.localScopeUserId));
     notificationUnread.setSession(authProvider.token);
     if (authProvider.token != null && authProvider.user != null) {
       if (lastPushToken != authProvider.token) {

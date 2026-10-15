@@ -4,11 +4,10 @@ Scope: `apps/flutter` Android and Flutter iOS. The separate SwiftUI application
 in `apps/ios` cannot receive Dart patches from Shorebird.
 
 The distributed **0.1.0+6** APK was built with ordinary Flutter and contains no
-Shorebird updater. It cannot receive these patches. The next baseline candidate
-is **0.1.0+7**; check for any newer distributed build before reserving/publishing
-that number. Merge the intended beta changes (including separately developed
-Bachs support, if wanted) before publishing a baseline. Do not distribute two
-different binaries under the same app/version/build number.
+Shorebird updater. It cannot receive these patches. **0.1.0+7** is the published
+Android Shorebird baseline (release ID `899118`), prepared in Firebase on
+2026-10-14 as release `1615r1t3h3f5o`. Testers must install that signed APK once.
+Never distribute two different binaries under the same app/version/build number.
 
 ## One-time account and project setup
 
@@ -31,8 +30,9 @@ these changes. It refuses to overwrite an existing ID. If a Keihatsu Shorebird
 project already exists, retrieve its config from that project instead of
 creating a second app; include the config as an asset and use `auto_update: true`.
 The real app ID is now initialized as `e595434f-ae36-4616-b092-0957112dc68e`.
-No baseline has been uploaded or distributed yet. Do not reinitialize this app
-or create a replacement ID for patches to an existing baseline.
+The Android 0.1.0+7 baseline is uploaded. Do not reinitialize this app or create
+a replacement ID for patches to that baseline. Firebase tester delivery is a
+separate action; a Shorebird patch does not update users still on build 6.
 
 Never put account/API keys in app assets or Dart defines. Local browser login
 is sufficient for development. CI uses a Shorebird **API key** stored as the

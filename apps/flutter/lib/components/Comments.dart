@@ -16,6 +16,7 @@ import 'dart:io';
 import 'dart:async';
 import '../models/user.dart';
 import 'comment_mentions.dart';
+import 'comment_composer.dart';
 
 class CommentsBottomSheet extends StatefulWidget {
   final ScrollController scrollController;
@@ -202,14 +203,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   void _selectMention(User user) {
-    final text = _commentController.text;
-    final caret = _commentController.selection.baseOffset;
-    final start = text.substring(0, caret).lastIndexOf('@');
-    final end = caret < text.length && text[caret] == '}' ? caret + 1 : caret;
-    final mention = '@{${user.username}} ';
-    _commentController.value = TextEditingValue(
-      text: text.replaceRange(start, end, mention),
-      selection: TextSelection.collapsed(offset: start + mention.length),
+    _commentController.value = insertCommentMention(
+      _commentController.value,
+      user.username!,
     );
     _focusNode.requestFocus();
   }
@@ -639,187 +635,103 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              crossAxisAlignment: _isFocused
-                  ? CrossAxisAlignment.start
-                  : CrossAxisAlignment.center,
-              children: [
-                ClipOval(child: userAvatar),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    decoration: !_isFocused
-                        ? BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(24),
-                          )
-                        : null,
-                    constraints: _isFocused
-                        ? const BoxConstraints(maxHeight: 240)
-                        : const BoxConstraints(minHeight: 45),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_mentionQuery != null && _mentionUsers.isNotEmpty)
-                          SizedBox(
-                            height: 116,
-                            child: ListView.builder(
-                              itemCount: _mentionUsers.length,
-                              itemBuilder: (_, index) {
-                                final user = _mentionUsers[index];
-                                return ListTile(
-                                  dense: true,
-                                  leading: UserBlobatar(
-                                    seed: user.id,
-                                    label: user.username ?? 'Reader',
-                                    size: 32,
-                                    hue: user.avatarHue,
-                                    shape: user.avatarShape,
-                                    expression: user.avatarExpression,
-                                  ),
-                                  title: Text(
-                                    '@${user.username}',
-                                    style: TextStyle(
-                                      color: colorScheme.primary,
-                                    ),
-                                  ),
-                                  onTap: () => _selectMention(user),
-                                );
-                              },
-                            ),
-                          ),
-                        TextField(
-                          focusNode: _focusNode,
-                          controller: _commentController,
-                          readOnly: _sending,
-                          maxLines: null,
-                          style: TextStyle(color: textColor),
-                          decoration: InputDecoration(
-                            hintText: _replyingToUsername != null
-                                ? "Replying to $_replyingToUsername..."
-                                : "Add comments...",
-                            hintStyle: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: !_isFocused
-                                ? const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  )
-                                : EdgeInsets.zero,
-                            isDense: true,
-                            suffixIcon: !_isFocused
-                                ? GestureDetector(
-                                    onTap: _pickImage,
-                                    child: Icon(
-                                      PhosphorIcons.image(),
-                                      color: colorScheme.onSurfaceVariant,
-                                      size: 24,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            if (_mentionQuery != null && _mentionUsers.isNotEmpty)
+              SizedBox(
+                height: 116,
+                child: ListView.builder(
+                  itemCount: _mentionUsers.length,
+                  itemBuilder: (_, index) {
+                    final user = _mentionUsers[index];
+                    return ListTile(
+                      dense: true,
+                      leading: UserBlobatar(
+                        seed: user.id,
+                        label: user.username ?? 'Reader',
+                        size: 32,
+                        hue: user.avatarHue,
+                        shape: user.avatarShape,
+                        expression: user.avatarExpression,
+                      ),
+                      title: Text(
+                        '@${user.username}',
+                        style: TextStyle(color: colorScheme.primary),
+                      ),
+                      onTap: () => _selectMention(user),
+                    );
+                  },
                 ),
-              ],
-            ),
-            if (_isFocused) ...[
-              const SizedBox(height: 12),
-              if (_selectedImages.isNotEmpty)
-                Container(
-                  height: 100,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _selectedImages.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(_selectedImages[index].path),
-                                height: 100,
-                                width: 100,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.broken_image_outlined),
-                              ),
+              ),
+            if (_selectedImages.isNotEmpty)
+              Container(
+                height: 100,
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _selectedImages.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              File(_selectedImages[index].path),
+                              height: 100,
+                              width: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.broken_image_outlined),
                             ),
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedImages.removeAt(index);
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: GestureDetector(
+                              onTap: _sending
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _selectedImages.removeAt(index);
+                                      });
+                                    },
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 16,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: _buildActionIcon(PhosphorIcons.image(), textColor),
-                  ),
-                  const SizedBox(width: 20),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: _sending ? null : _handlePostComment,
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      decoration: BoxDecoration(
-                        color: brandColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        PhosphorIcons.arrowUp(PhosphorIconsStyle.bold),
-                        color:
-                            ThemeData.estimateBrightnessForColor(brandColor) ==
-                                Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
               ),
-            ],
+            CommentComposer(
+              controller: _commentController,
+              focusNode: _focusNode,
+              avatar: userAvatar,
+              brandColor: brandColor,
+              expanded: _isFocused,
+              sending: _sending,
+              hint: _replyingToUsername != null
+                  ? 'Replying to $_replyingToUsername...'
+                  : 'Add comments...',
+              onImage: _selectedImages.length >= 5 ? null : _pickImage,
+              onSend: _handlePostComment,
+            ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildActionIcon(IconData icon, Color color, {double size = 24}) {
-    return Icon(icon, color: color.withOpacity(0.6), size: size);
   }
 
   Widget _buildNavButton(
@@ -992,7 +904,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                 // Comment text
                 Text.rich(
                   TextSpan(
-                    children: commentMentionSpans(text, colorScheme.primary),
+                    children: commentMentionSpans(
+                      text,
+                      colorScheme.primary,
+                      normalizeBraces: true,
+                    ),
                   ),
                   style: TextStyle(
                     color: colorScheme.onSurface,
